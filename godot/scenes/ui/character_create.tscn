@@ -1,0 +1,179 @@
+[gd_scene load_steps=2 format=3 uid="uid://ccharcreate"]
+
+[ext_resource type="Script" path="res://scripts/ui/character_create.gd" id="1_script"]
+
+[node name="CharacterCreate" type="Control"]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+script = ExtResource("1_script")
+
+[node name="Background" type="ColorRect" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+color = Color(0.1, 0.12, 0.15, 1)
+
+[node name="CenterContainer" type="CenterContainer" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="Panel" type="PanelContainer" parent="CenterContainer"]
+custom_minimum_size = Vector2(450, 0)
+layout_mode = 2
+
+[node name="VBox" type="VBoxContainer" parent="CenterContainer/Panel"]
+layout_mode = 2
+theme_override_constants/separation = 12
+
+[node name="Title" type="Label" parent="CenterContainer/Panel/VBox"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 24
+text = "Create Character"
+horizontal_alignment = 1
+
+[node name="NameSection" type="VBoxContainer" parent="CenterContainer/Panel/VBox"]
+layout_mode = 2
+theme_override_constants/separation = 5
+
+[node name="NameLabel" type="Label" parent="CenterContainer/Panel/VBox/NameSection"]
+layout_mode = 2
+text = "Character Name (alphanumeric, max 32 chars)"
+
+[node name="NameInput" type="LineEdit" parent="CenterContainer/Panel/VBox/NameSection"]
+layout_mode = 2
+placeholder_text = "Enter name..."
+max_length = 32
+
+[node name="ClassSection" type="VBoxContainer" parent="CenterContainer/Panel/VBox"]
+layout_mode = 2
+theme_override_constants/separation = 5
+
+[node name="ClassLabel" type="Label" parent="CenterContainer/Panel/VBox/ClassSection"]
+layout_mode = 2
+text = "Class"
+
+[node name="ClassGrid" type="GridContainer" parent="CenterContainer/Panel/VBox/ClassSection"]
+layout_mode = 2
+theme_override_constants/h_separation = 8
+theme_override_constants/v_separation = 8
+columns = 4
+
+[node name="NinjaBtn" type="Button" parent="CenterContainer/Panel/VBox/ClassSection/ClassGrid"]
+custom_minimum_size = Vector2(90, 35)
+layout_mode = 2
+toggle_mode = true
+text = "Ninja"
+
+[node name="WarriorBtn" type="Button" parent="CenterContainer/Panel/VBox/ClassSection/ClassGrid"]
+custom_minimum_size = Vector2(90, 35)
+layout_mode = 2
+toggle_mode = true
+text = "Warrior"
+
+[node name="SuraBtn" type="Button" parent="CenterContainer/Panel/VBox/ClassSection/ClassGrid"]
+custom_minimum_size = Vector2(90, 35)
+layout_mode = 2
+toggle_mode = true
+text = "Sura"
+
+[node name="ShamanBtn" type="Button" parent="CenterContainer/Panel/VBox/ClassSection/ClassGrid"]
+custom_minimum_size = Vector2(90, 35)
+layout_mode = 2
+toggle_mode = true
+text = "Shaman"
+
+[node name="ClassDescription" type="Label" parent="CenterContainer/Panel/VBox/ClassSection"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 12
+text = "Powerful tank with high HP.
+HP: 120 | Mana: 20 | ATK: 10 | DEF: 8"
+horizontal_alignment = 1
+
+[node name="GenderSection" type="VBoxContainer" parent="CenterContainer/Panel/VBox"]
+layout_mode = 2
+theme_override_constants/separation = 5
+
+[node name="GenderLabel" type="Label" parent="CenterContainer/Panel/VBox/GenderSection"]
+layout_mode = 2
+text = "Gender"
+
+[node name="GenderRow" type="HBoxContainer" parent="CenterContainer/Panel/VBox/GenderSection"]
+layout_mode = 2
+alignment = 1
+
+[node name="MaleBtn" type="Button" parent="CenterContainer/Panel/VBox/GenderSection/GenderRow"]
+custom_minimum_size = Vector2(100, 35)
+layout_mode = 2
+toggle_mode = true
+text = "Male"
+
+[node name="FemaleBtn" type="Button" parent="CenterContainer/Panel/VBox/GenderSection/GenderRow"]
+custom_minimum_size = Vector2(100, 35)
+layout_mode = 2
+toggle_mode = true
+text = "Female"
+
+[node name="EmpireSection" type="VBoxContainer" parent="CenterContainer/Panel/VBox"]
+layout_mode = 2
+theme_override_constants/separation = 5
+
+[node name="EmpireLabel" type="Label" parent="CenterContainer/Panel/VBox/EmpireSection"]
+layout_mode = 2
+text = "Empire (starting zone)"
+
+[node name="EmpireGrid" type="GridContainer" parent="CenterContainer/Panel/VBox/EmpireSection"]
+layout_mode = 2
+theme_override_constants/h_separation = 8
+columns = 3
+
+[node name="RedBtn" type="Button" parent="CenterContainer/Panel/VBox/EmpireSection/EmpireGrid"]
+custom_minimum_size = Vector2(120, 40)
+layout_mode = 2
+toggle_mode = true
+text = "Shinsoo (Red)"
+
+[node name="YellowBtn" type="Button" parent="CenterContainer/Panel/VBox/EmpireSection/EmpireGrid"]
+custom_minimum_size = Vector2(120, 40)
+layout_mode = 2
+toggle_mode = true
+text = "Chunjo (Yellow)"
+
+[node name="BlueBtn" type="Button" parent="CenterContainer/Panel/VBox/EmpireSection/EmpireGrid"]
+custom_minimum_size = Vector2(120, 40)
+layout_mode = 2
+toggle_mode = true
+text = "Jinno (Blue)"
+
+[node name="StatusLabel" type="Label" parent="CenterContainer/Panel/VBox"]
+layout_mode = 2
+text = ""
+horizontal_alignment = 1
+autowrap_mode = 2
+
+[node name="ButtonRow" type="HBoxContainer" parent="CenterContainer/Panel/VBox"]
+layout_mode = 2
+alignment = 1
+
+[node name="BackButton" type="Button" parent="CenterContainer/Panel/VBox/ButtonRow"]
+custom_minimum_size = Vector2(120, 40)
+layout_mode = 2
+text = "Back"
+
+[node name="CreateButton" type="Button" parent="CenterContainer/Panel/VBox/ButtonRow"]
+custom_minimum_size = Vector2(120, 40)
+layout_mode = 2
+text = "Create"
+
+[connection signal="pressed" from="CenterContainer/Panel/VBox/ButtonRow/BackButton" to="." method="_on_back_pressed"]
+[connection signal="pressed" from="CenterContainer/Panel/VBox/ButtonRow/CreateButton" to="." method="_on_create_pressed"]

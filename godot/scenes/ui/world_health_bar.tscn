@@ -1,0 +1,26 @@
+[gd_scene load_steps=4 format=3 uid="uid://dkxm4pqh8wpr2"]
+
+[ext_resource type="Script" path="res://scripts/ui/world_health_bar.gd" id="1_script"]
+
+[sub_resource type="QuadMesh" id="QuadMesh_bg"]
+size = Vector2(1.0, 0.1)
+
+[sub_resource type="QuadMesh" id="QuadMesh_fill"]
+size = Vector2(1.0, 0.08)
+
+[node name="WorldHealthBar" type="Node3D"]
+script = ExtResource("1_script")
+
+[node name="NameLabel" type="Label3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.15, 0)
+pixel_size = 0.01
+text = "Entity"
+font_size = 24
+outline_size = 4
+
+[node name="BarBackground" type="MeshInstance3D" parent="."]
+mesh = SubResource("QuadMesh_bg")
+
+[node name="BarFill" type="MeshInstance3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0.001)
+mesh = SubResource("QuadMesh_fill")

@@ -1,0 +1,991 @@
+//! UDP Game Server implementation.
+
+use std::collections::HashMap;
+use std::net::SocketAddr;
+use std::sync::Arc;
+use tokio::net::UdpSocket;
+use log::{info, warn, error};
+
+use mmo_shared::{
+    ClientMessage, ServerMessage, PlayerState, EnemyState,
+    AnimationState, InventorySlot, CharacterClass, Gender, Empire,
+    CharacterInfo, PROTOCOL_VERSION,
+};
+
+use crate::world::GameWorld;
+use crate::persistence::{PersistenceHandle, Database, PlayerStateData, InventorySlotData};
+
+/// Maximum packet size
+const MAX_PACKET_SIZE: usize = 1200;
+
+/// Connection timeout in seconds
+const CONNECTION_TIMEOUT: f32 = 30.0;
+
+/// Connection state - tracks whether client is in character select or in game
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum ConnectionState {
+    /// Authenticated but not yet selected a character
+    CharacterSelect,
+    /// In game with a character
+    InGame {
+        character_id: i64,
+        character_name: String,
+        class: CharacterClass,
+        gender: Gender,
+        empire: Empire,
+    },
+}
+
+/// Client connection state
+#[derive(Debug)]
+pub struct ClientConnection {
+    pub addr: SocketAddr,
+    pub player_id: u64,          // Runtime ID (for game world)
+    pub db_player_id: i64,       // Database account ID
+    pub username: String,        // Account username
+    pub state: ConnectionState,  // Connection state
+    pub last_seen: std::time::Instant,
+    /// Outgoing message queue (reliable messages)
+    pub outgoing_queue: Vec<ServerMessage>,
+}
+
+impl ClientConnection {
+    pub fn new(addr: SocketAddr, player_id: u64, db_player_id: i64, username: String) -> Self {
+        Self {
+            addr,
+            player_id,
+            db_player_id,
+            username,
+            state: ConnectionState::CharacterSelect,
+            last_seen: std::time::Instant::now(),
+            outgoing_queue: Vec::new(),
+        }
+    }
+    
+    pub fn is_timed_out(&self) -> bool {
+        self.last_seen.elapsed().as_secs_f32() > CONNECTION_TIMEOUT
+    }
+    
+    /// Check if client is in game
+    pub fn is_in_game(&self) -> bool {
+        matches!(self.state, ConnectionState::InGame { .. })
+    }
+    
+    /// Get character ID if in game
+    pub fn character_id(&self) -> Option<i64> {
+        match &self.state {
+            ConnectionState::InGame { character_id, .. } => Some(*character_id),
+            _ => None,
+        }
+    }
+}
+
+/// Game server
+pub struct Server {
+    socket: Arc<UdpSocket>,
+    clients: HashMap<SocketAddr, ClientConnection>,
+    addr_to_player: HashMap<SocketAddr, u64>,
+    next_player_id: u64,
+    /// Messages to broadcast to all clients
+    broadcast_queue: Vec<ServerMessage>,
+    /// Persistence handle (optional - server works without it)
+    persistence: Option<PersistenceHandle>,
+    /// Database for auth (separate from persistence handle for sync operations)
+    database: Option<Database>,
+}
+
+impl Server {
+    /// Create a new server listening on the given port
+    pub async fn new(port: u16, persistence: Option<PersistenceHandle>) -> Result<Self, std::io::Error> {
+        let addr = format!("0.0.0.0:{}", port);
+        let socket = UdpSocket::bind(&addr).await?;
+        socket.set_broadcast(true)?;
+        
+        // Connect to database for auth operations
+        let database = if persistence.is_some() {
+            match Database::connect("postgres://mmo:mmo_dev_password@localhost:5433/mmo").await {
+                Ok(db) => Some(db),
+                Err(e) => {
+                    error!("Failed to connect to database for auth: {}", e);
+                    None
+                }
+            }
+        } else {
+            None
+        };
+        
+        Ok(Self {
+            socket: Arc::new(socket),
+            clients: HashMap::new(),
+            addr_to_player: HashMap::new(),
+            next_player_id: 1,
+            broadcast_queue: Vec::new(),
+            persistence,
+            database,
+        })
+    }
+    
+    /// Process incoming network messages
+    pub async fn process_incoming(&mut self, world: &mut GameWorld) {
+        let mut buf = [0u8; MAX_PACKET_SIZE];
+        
+        // Non-blocking receive loop
+        loop {
+            match self.socket.try_recv_from(&mut buf) {
+                Ok((len, addr)) => {
+                    self.handle_packet(&buf[..len], addr, world).await;
+                }
+                Err(ref e) if e.kind() == std::io::ErrorKind::WouldBlock => {
+                    break;
+                }
+                Err(e) => {
+                    error!("Error receiving packet: {}", e);
+                    break;
+                }
+            }
+        }
+        
+        // Check for timed out clients
+        self.check_timeouts(world);
+    }
+    
+    /// Handle a received packet
+    async fn handle_packet(&mut self, data: &[u8], addr: SocketAddr, world: &mut GameWorld) {
+        let message = match ClientMessage::deserialize(data) {
+            Ok(msg) => msg,
+            Err(e) => {
+                warn!("Failed to deserialize packet from {}: {}", addr, e);
+                return;
+            }
+        };
+        
+        // Update last seen time for known clients
+        if let Some(client) = self.clients.get_mut(&addr) {
+            client.last_seen = std::time::Instant::now();
+        }
+        
+        match message {
+            ClientMessage::Register { username, password } => {
+                self.handle_register(addr, username, password).await;
+            }
+            ClientMessage::Login { protocol_version, username, password } => {
+                self.handle_login(addr, protocol_version, username, password).await;
+            }
+            ClientMessage::GetCharacterList => {
+                self.handle_get_character_list(addr).await;
+            }
+            ClientMessage::CreateCharacter { name, class, gender, empire } => {
+                self.handle_create_character(addr, name, class, gender, empire).await;
+            }
+            ClientMessage::SelectCharacter { character_id } => {
+                self.handle_select_character(addr, character_id, world).await;
+            }
+            ClientMessage::DeleteCharacter { character_id, confirm_name } => {
+                self.handle_delete_character(addr, character_id, confirm_name).await;
+            }
+            ClientMessage::Disconnect => {
+                self.handle_disconnect(addr, world).await;
+            }
+            ClientMessage::PlayerUpdate { position, rotation, velocity, animation_state } => {
+                self.handle_player_update(addr, position, rotation, velocity, animation_state, world);
+            }
+            ClientMessage::ChatMessage { content } => {
+                self.handle_chat(addr, content);
+            }
+            ClientMessage::Attack { target_id } => {
+                self.handle_attack(addr, target_id, world);
+            }
+            ClientMessage::PickupItem { item_entity_id } => {
+                self.handle_pickup(addr, item_entity_id, world);
+            }
+            ClientMessage::UseItem { slot } => {
+                self.handle_use_item(addr, slot, world);
+            }
+            ClientMessage::DropItem { slot } => {
+                self.handle_drop_item(addr, slot, world);
+            }
+        }
+    }
+    
+    /// Handle registration request
+    async fn handle_register(&mut self, addr: SocketAddr, username: String, password: String) {
+        let db = match &self.database {
+            Some(db) => db,
+            None => {
+                let msg = ServerMessage::RegisterFailed {
+                    reason: "Server persistence not available".to_string(),
+                };
+                self.send_to(addr, &msg).await;
+                return;
+            }
+        };
+        
+        // Validate username
+        if username.len() < 3 || username.len() > 32 {
+            let msg = ServerMessage::RegisterFailed {
+                reason: "Username must be 3-32 characters".to_string(),
+            };
+            self.send_to(addr, &msg).await;
+            return;
+        }
+        
+        // Validate password
+        if password.len() < 4 {
+            let msg = ServerMessage::RegisterFailed {
+                reason: "Password must be at least 4 characters".to_string(),
+            };
+            self.send_to(addr, &msg).await;
+            return;
+        }
+        
+        // Register in database
+        match db.register_player(&username, &password).await {
+            Ok(player_id) => {
+                info!("New player registered: {} (ID: {})", username, player_id);
+                let msg = ServerMessage::RegisterSuccess {
+                    player_id: player_id as u64,
+                };
+                self.send_to(addr, &msg).await;
+            }
+            Err(e) => {
+                warn!("Registration failed for {}: {}", username, e);
+                let msg = ServerMessage::RegisterFailed {
+                    reason: e.to_string(),
+                };
+                self.send_to(addr, &msg).await;
+            }
+        }
+    }
+    
+    /// Handle login request - only authenticates, does not spawn player
+    async fn handle_login(
+        &mut self,
+        addr: SocketAddr,
+        protocol_version: u32,
+        username: String,
+        password: String,
+    ) {
+        // Check protocol version
+        if protocol_version != PROTOCOL_VERSION {
+            let msg = ServerMessage::LoginFailed {
+                reason: format!("Protocol version mismatch. Server: {}, Client: {}", 
+                    PROTOCOL_VERSION, protocol_version),
+            };
+            self.send_to(addr, &msg).await;
+            return;
+        }
+        
+        // Check if already connected from this address
+        if self.clients.contains_key(&addr) {
+            warn!("Client {} already connected, ignoring", addr);
+            return;
+        }
+        
+        // Authenticate with database
+        let db = match &self.database {
+            Some(db) => db,
+            None => {
+                let msg = ServerMessage::LoginFailed {
+                    reason: "Server persistence not available".to_string(),
+                };
+                self.send_to(addr, &msg).await;
+                return;
+            }
+        };
+        
+        let db_player_id = match db.authenticate_player(&username, &password).await {
+            Ok(id) => id,
+            Err(e) => {
+                warn!("Login failed for {}: {}", username, e);
+                let msg = ServerMessage::LoginFailed {
+                    reason: "Invalid username or password".to_string(),
+                };
+                self.send_to(addr, &msg).await;
+                return;
+            }
+        };
+        
+        // Check if account is already connected - kick the old connection
+        let existing_addr: Option<SocketAddr> = self.clients
+            .iter()
+            .find(|(_, c)| c.db_player_id == db_player_id)
+            .map(|(a, _)| *a);
+        
+        if let Some(old_addr) = existing_addr {
+            info!("Kicking existing connection for account {} (reconnecting)", db_player_id);
+            // We'll let the old connection timeout or send disconnect
+            // For now just remove it (state will be saved when disconnect is processed)
+            self.clients.remove(&old_addr);
+            self.addr_to_player.remove(&old_addr);
+        }
+        
+        // Assign runtime player ID (for potential future in-game use)
+        let player_id = self.next_player_id;
+        self.next_player_id += 1;
+        
+        // Create connection in CharacterSelect state
+        let connection = ClientConnection::new(addr, player_id, db_player_id, username.clone());
+        self.clients.insert(addr, connection);
+        self.addr_to_player.insert(addr, player_id);
+        
+        // Update last login timestamp
+        if let Some(ref persistence) = self.persistence {
+            persistence.update_last_login(db_player_id);
+        }
+        
+        info!("Account '{}' (DB: {}) authenticated from {}", username, db_player_id, addr);
+        
+        // Send login success - client should now request character list
+        let msg = ServerMessage::LoginSuccess {
+            player_id: db_player_id as u64,
+        };
+        self.send_to(addr, &msg).await;
+    }
+    
+    /// Handle get character list request
+    async fn handle_get_character_list(&mut self, addr: SocketAddr) {
+        let client = match self.clients.get(&addr) {
+            Some(c) => c,
+            None => {
+                warn!("GetCharacterList from unknown client {}", addr);
+                return;
+            }
+        };
+        
+        let db = match &self.database {
+            Some(db) => db,
+            None => {
+                warn!("No database available for character list");
+                return;
+            }
+        };
+        
+        let db_player_id = client.db_player_id;
+        
+        match db.get_characters(db_player_id).await {
+            Ok(characters) => {
+                let msg = ServerMessage::CharacterList { characters };
+                self.send_to(addr, &msg).await;
+            }
+            Err(e) => {
+                error!("Failed to get character list for {}: {}", db_player_id, e);
+            }
+        }
+    }
+    
+    /// Handle create character request
+    async fn handle_create_character(
+        &mut self,
+        addr: SocketAddr,
+        name: String,
+        class: CharacterClass,
+        gender: Gender,
+        empire: Empire,
+    ) {
+        let client = match self.clients.get(&addr) {
+            Some(c) => c,
+            None => {
+                warn!("CreateCharacter from unknown client {}", addr);
+                return;
+            }
+        };
+        
+        let db = match &self.database {
+            Some(db) => db,
+            None => {
+                let msg = ServerMessage::CharacterCreateFailed {
+                    reason: "Server persistence not available".to_string(),
+                };
+                self.send_to(addr, &msg).await;
+                return;
+            }
+        };
+        
+        let db_player_id = client.db_player_id;
+        
+        match db.create_character(db_player_id, &name, class, gender, empire).await {
+            Ok(character) => {
+                info!("Character '{}' created for account {}", name, db_player_id);
+                let msg = ServerMessage::CharacterCreated { character };
+                self.send_to(addr, &msg).await;
+            }
+            Err(e) => {
+                warn!("Failed to create character for {}: {}", db_player_id, e);
+                let msg = ServerMessage::CharacterCreateFailed {
+                    reason: e.to_string(),
+                };
+                self.send_to(addr, &msg).await;
+            }
+        }
+    }
+    
+    /// Handle select character request - spawns player into game
+    async fn handle_select_character(
+        &mut self,
+        addr: SocketAddr,
+        character_id: u64,
+        world: &mut GameWorld,
+    ) {
+        let (db_player_id, player_id, username) = {
+            let client = match self.clients.get(&addr) {
+                Some(c) => c,
+                None => {
+                    warn!("SelectCharacter from unknown client {}", addr);
+                    return;
+                }
+            };
+            
+            // Check if already in game
+            if client.is_in_game() {
+                let msg = ServerMessage::CharacterSelectFailed {
+                    reason: "Already in game".to_string(),
+                };
+                self.send_to(addr, &msg).await;
+                return;
+            }
+            
+            (client.db_player_id, client.player_id, client.username.clone())
+        };
+        
+        let db = match &self.database {
+            Some(db) => db,
+            None => {
+                let msg = ServerMessage::CharacterSelectFailed {
+                    reason: "Server persistence not available".to_string(),
+                };
+                self.send_to(addr, &msg).await;
+                return;
+            }
+        };
+        
+        // Load character data
+        let character = match db.get_character(character_id as i64, db_player_id).await {
+            Ok(Some(c)) => c,
+            Ok(None) => {
+                let msg = ServerMessage::CharacterSelectFailed {
+                    reason: "Character not found".to_string(),
+                };
+                self.send_to(addr, &msg).await;
+                return;
+            }
+            Err(e) => {
+                error!("Failed to load character {}: {}", character_id, e);
+                let msg = ServerMessage::CharacterSelectFailed {
+                    reason: "Database error".to_string(),
+                };
+                self.send_to(addr, &msg).await;
+                return;
+            }
+        };
+        
+        // Load character state
+        let (player_state, inventory_data) = match (
+            db.load_character_state(character_id as i64).await,
+            db.load_character_inventory(character_id as i64).await,
+        ) {
+            (Ok(Some(state)), Ok(inv)) => (state, inv),
+            (Ok(None), Ok(inv)) => {
+                // No state yet - use default for class
+                (PlayerStateData::new_for_class(character.class, character.empire), inv)
+            }
+            (Err(e), _) | (_, Err(e)) => {
+                error!("Failed to load character state for {}: {}", character_id, e);
+                let msg = ServerMessage::CharacterSelectFailed {
+                    reason: "Failed to load character state".to_string(),
+                };
+                self.send_to(addr, &msg).await;
+                return;
+            }
+        };
+        
+        // Update connection state to InGame
+        if let Some(client) = self.clients.get_mut(&addr) {
+            client.state = ConnectionState::InGame {
+                character_id: character.id,
+                character_name: character.name.clone(),
+                class: character.class,
+                gender: character.gender,
+                empire: character.empire,
+            };
+        }
+        
+        // Spawn player in world
+        let spawn_position = [player_state.position_x, player_state.position_y, player_state.position_z];
+        world.spawn_player_with_state(
+            player_id,
+            character.name.clone(),
+            character.class,
+            character.gender,
+            character.empire,
+            spawn_position,
+            player_state.rotation,
+            player_state.health as u32,
+            player_state.max_health as u32,
+            player_state.mana as u32,
+            player_state.max_mana as u32,
+            player_state.attack as u32,
+            player_state.defense as u32,
+            &inventory_data,
+        );
+        
+        info!("Character '{}' (ID: {}) entered game for account '{}'", 
+              character.name, character_id, username);
+        
+        // Convert inventory for protocol
+        let inventory_slots = inventory_data_to_slots(&inventory_data);
+        
+        // Send character selected with full state
+        let msg = ServerMessage::CharacterSelected {
+            character_id,
+            name: character.name.clone(),
+            class: character.class,
+            gender: character.gender,
+            empire: character.empire,
+            position: spawn_position,
+            rotation: player_state.rotation,
+            health: player_state.health as u32,
+            max_health: player_state.max_health as u32,
+            mana: player_state.mana as u32,
+            max_mana: player_state.max_mana as u32,
+            level: player_state.level as u32,
+            experience: player_state.experience as u32,
+            attack: player_state.attack as u32,
+            defense: player_state.defense as u32,
+            inventory: inventory_slots,
+        };
+        self.send_to(addr, &msg).await;
+        
+        // Notify other players (only those in game)
+        let spawn_msg = ServerMessage::PlayerSpawn {
+            id: player_id,
+            name: character.name.clone(),
+            class: character.class,
+            gender: character.gender,
+            empire: character.empire,
+            position: spawn_position,
+            rotation: player_state.rotation,
+        };
+        self.broadcast_to_ingame_except(addr, spawn_msg);
+        
+        // Send existing players and enemies to new client
+        let mut messages_for_new_client: Vec<ServerMessage> = Vec::new();
+        
+        for (other_addr, other_client) in &self.clients {
+            if *other_addr != addr {
+                if let ConnectionState::InGame { character_name, class, gender, empire, .. } = &other_client.state {
+                    if let Some(player) = world.get_player(other_client.player_id) {
+                        messages_for_new_client.push(ServerMessage::PlayerSpawn {
+                            id: other_client.player_id,
+                            name: character_name.clone(),
+                            class: *class,
+                            gender: *gender,
+                            empire: *empire,
+                            position: player.position,
+                            rotation: player.rotation,
+                        });
+                    }
+                }
+            }
+        }
+        
+        for enemy in world.get_enemies() {
+            messages_for_new_client.push(ServerMessage::EnemySpawn {
+                id: enemy.id,
+                enemy_type: enemy.enemy_type,
+                position: enemy.position,
+                health: enemy.health,
+                max_health: enemy.max_health,
+                level: enemy.level,
+            });
+        }
+        
+        if let Some(client) = self.clients.get_mut(&addr) {
+            client.outgoing_queue.extend(messages_for_new_client);
+        }
+    }
+    
+    /// Handle delete character request
+    async fn handle_delete_character(
+        &mut self,
+        addr: SocketAddr,
+        character_id: u64,
+        confirm_name: String,
+    ) {
+        let client = match self.clients.get(&addr) {
+            Some(c) => c,
+            None => {
+                warn!("DeleteCharacter from unknown client {}", addr);
+                return;
+            }
+        };
+        
+        // Can't delete while in game
+        if client.is_in_game() {
+            let msg = ServerMessage::CharacterDeleteFailed {
+                reason: "Cannot delete while in game".to_string(),
+            };
+            self.send_to(addr, &msg).await;
+            return;
+        }
+        
+        let db = match &self.database {
+            Some(db) => db,
+            None => {
+                let msg = ServerMessage::CharacterDeleteFailed {
+                    reason: "Server persistence not available".to_string(),
+                };
+                self.send_to(addr, &msg).await;
+                return;
+            }
+        };
+        
+        let db_player_id = client.db_player_id;
+        
+        match db.delete_character(character_id as i64, db_player_id, &confirm_name).await {
+            Ok(()) => {
+                info!("Character {} deleted for account {}", character_id, db_player_id);
+                let msg = ServerMessage::CharacterDeleted { character_id };
+                self.send_to(addr, &msg).await;
+            }
+            Err(e) => {
+                warn!("Failed to delete character {}: {}", character_id, e);
+                let msg = ServerMessage::CharacterDeleteFailed {
+                    reason: e.to_string(),
+                };
+                self.send_to(addr, &msg).await;
+            }
+        }
+    }
+    
+    /// Handle disconnect
+    async fn handle_disconnect(&mut self, addr: SocketAddr, world: &mut GameWorld) {
+        if let Some(connection) = self.clients.remove(&addr) {
+            self.addr_to_player.remove(&addr);
+            
+            // Only save and despawn if player was in game
+            if let ConnectionState::InGame { character_id, character_name, .. } = &connection.state {
+                // Save character state before removing
+                if let (Some(persistence), Some(player)) = (&self.persistence, world.get_player(connection.player_id)) {
+                    let state = player_to_state_data(player);
+                    let inventory = player_inventory_to_data(player);
+                    persistence.save_character(*character_id, state, inventory);
+                    info!("Saved character '{}' state on disconnect", character_name);
+                }
+                
+                world.despawn_player(connection.player_id);
+                
+                info!("Character '{}' (player ID: {}) disconnected", character_name, connection.player_id);
+                
+                // Notify other players in game
+                let msg = ServerMessage::PlayerDespawn {
+                    id: connection.player_id,
+                };
+                self.broadcast_to_ingame(msg);
+            } else {
+                info!("Account '{}' disconnected (was in character select)", connection.username);
+            }
+        }
+    }
+    
+    /// Handle player position/state update
+    fn handle_player_update(
+        &mut self,
+        addr: SocketAddr,
+        position: [f32; 3],
+        rotation: f32,
+        velocity: [f32; 3],
+        animation_state: AnimationState,
+        world: &mut GameWorld,
+    ) {
+        // Only process if client is in game
+        let client = match self.clients.get(&addr) {
+            Some(c) if c.is_in_game() => c,
+            _ => return,
+        };
+        
+        world.update_player_state(client.player_id, position, rotation, velocity, animation_state);
+    }
+    
+    /// Handle chat message
+    fn handle_chat(&mut self, addr: SocketAddr, content: String) {
+        let connection = match self.clients.get(&addr) {
+            Some(c) => c,
+            None => return,
+        };
+        
+        // Get character name if in game, otherwise use account name
+        let sender_name = match &connection.state {
+            ConnectionState::InGame { character_name, .. } => character_name.clone(),
+            ConnectionState::CharacterSelect => return, // Can't chat from char select
+        };
+        
+        let msg = ServerMessage::ChatBroadcast {
+            sender_id: connection.player_id,
+            sender_name,
+            content,
+        };
+        self.broadcast_to_ingame(msg);
+    }
+    
+    /// Handle attack request
+    fn handle_attack(&mut self, addr: SocketAddr, target_id: u64, world: &mut GameWorld) {
+        let client = match self.clients.get(&addr) {
+            Some(c) if c.is_in_game() => c,
+            _ => return,
+        };
+        
+        if let Some(damage_event) = world.process_attack(client.player_id, target_id) {
+            self.broadcast_to_ingame(damage_event);
+        }
+    }
+    
+    /// Handle item pickup
+    fn handle_pickup(&mut self, addr: SocketAddr, item_entity_id: u64, world: &mut GameWorld) {
+        let player_id = match self.clients.get(&addr) {
+            Some(c) if c.is_in_game() => c.player_id,
+            _ => return,
+        };
+        
+        if let Some((despawn_msg, inv_msg)) = world.pickup_item(player_id, item_entity_id) {
+            self.broadcast_to_ingame(despawn_msg);
+            // Send inventory update only to the player who picked up
+            if let Some(client) = self.clients.get_mut(&addr) {
+                client.outgoing_queue.push(inv_msg);
+            }
+        }
+    }
+    
+    /// Handle use item
+    fn handle_use_item(&mut self, addr: SocketAddr, slot: u8, world: &mut GameWorld) {
+        let player_id = match self.clients.get(&addr) {
+            Some(c) if c.is_in_game() => c.player_id,
+            _ => return,
+        };
+        
+        if let Some(inv_msg) = world.use_item(player_id, slot) {
+            if let Some(client) = self.clients.get_mut(&addr) {
+                client.outgoing_queue.push(inv_msg);
+            }
+        }
+    }
+    
+    /// Handle drop item
+    fn handle_drop_item(&mut self, addr: SocketAddr, slot: u8, world: &mut GameWorld) {
+        let player_id = match self.clients.get(&addr) {
+            Some(c) if c.is_in_game() => c.player_id,
+            _ => return,
+        };
+        
+        if let Some((spawn_msg, inv_msg)) = world.drop_item(player_id, slot) {
+            self.broadcast_to_ingame(spawn_msg);
+            if let Some(client) = self.clients.get_mut(&addr) {
+                client.outgoing_queue.push(inv_msg);
+            }
+        }
+    }
+    
+    /// Check for timed out connections
+    fn check_timeouts(&mut self, world: &mut GameWorld) {
+        let timed_out: Vec<(SocketAddr, ClientConnection)> = self.clients
+            .iter()
+            .filter(|(_, c)| c.is_timed_out())
+            .map(|(addr, c)| (*addr, ClientConnection {
+                addr: c.addr,
+                player_id: c.player_id,
+                db_player_id: c.db_player_id,
+                username: c.username.clone(),
+                state: c.state.clone(),
+                last_seen: c.last_seen,
+                outgoing_queue: Vec::new(),
+            }))
+            .collect();
+        
+        for (addr, connection) in timed_out {
+            // Save character state before removing if in game
+            if let ConnectionState::InGame { character_id, character_name, .. } = &connection.state {
+                if let (Some(persistence), Some(player)) = (&self.persistence, world.get_player(connection.player_id)) {
+                    let state = player_to_state_data(player);
+                    let inventory = player_inventory_to_data(player);
+                    persistence.save_character(*character_id, state, inventory);
+                    info!("Saved character '{}' state on timeout", character_name);
+                }
+                
+                world.despawn_player(connection.player_id);
+                
+                warn!("Character '{}' timed out", character_name);
+                
+                let msg = ServerMessage::PlayerDespawn { id: connection.player_id };
+                self.broadcast_to_ingame(msg);
+            } else {
+                warn!("Account '{}' timed out (was in character select)", connection.username);
+            }
+            
+            self.clients.remove(&addr);
+            self.addr_to_player.remove(&addr);
+        }
+    }
+    
+    /// Broadcast world state to all connected clients
+    pub async fn broadcast_world_state(&self, world: &GameWorld, tick: u64) {
+        let players: Vec<PlayerState> = world.get_players()
+            .iter()
+            .map(|p| PlayerState {
+                id: p.id,
+                position: p.position,
+                rotation: p.rotation,
+                velocity: p.velocity,
+                health: p.health,
+                max_health: p.max_health,
+                animation_state: p.animation_state,
+            })
+            .collect();
+        
+        let enemies: Vec<EnemyState> = world.get_enemies()
+            .iter()
+            .map(|e| EnemyState {
+                id: e.id,
+                enemy_type: e.enemy_type,
+                position: e.position,
+                rotation: e.rotation,
+                health: e.health,
+                max_health: e.max_health,
+                level: e.level,
+                animation_state: e.animation_state,
+                target_id: e.target_id,
+            })
+            .collect();
+        
+        let msg = ServerMessage::WorldState {
+            tick,
+            players,
+            enemies,
+        };
+        
+        let data = msg.serialize();
+        
+        for (addr, _) in &self.clients {
+            if let Err(e) = self.socket.send_to(&data, addr).await {
+                error!("Failed to send world state to {}: {}", addr, e);
+            }
+        }
+    }
+    
+    /// Process outgoing message queues
+    pub async fn process_outgoing(&mut self, _world: &GameWorld) {
+        // Send broadcast messages
+        for msg in self.broadcast_queue.drain(..) {
+            let data = msg.serialize();
+            for (addr, _) in &self.clients {
+                if let Err(e) = self.socket.send_to(&data, addr).await {
+                    error!("Failed to broadcast to {}: {}", addr, e);
+                }
+            }
+        }
+        
+        // Send individual client queues
+        for (addr, client) in &mut self.clients {
+            for msg in client.outgoing_queue.drain(..) {
+                let data = msg.serialize();
+                if let Err(e) = self.socket.send_to(&data, addr).await {
+                    error!("Failed to send to {}: {}", addr, e);
+                }
+            }
+        }
+    }
+    
+    /// Send a message to a specific address
+    async fn send_to(&self, addr: SocketAddr, msg: &ServerMessage) {
+        let data = msg.serialize();
+        if let Err(e) = self.socket.send_to(&data, addr).await {
+            error!("Failed to send to {}: {}", addr, e);
+        }
+    }
+    
+    /// Queue a message to broadcast to all except one address (only to in-game clients)
+    fn broadcast_to_ingame_except(&mut self, except: SocketAddr, msg: ServerMessage) {
+        for (addr, client) in &mut self.clients {
+            if *addr != except && client.is_in_game() {
+                client.outgoing_queue.push(msg.clone());
+            }
+        }
+    }
+    
+    /// Queue a message to broadcast to all in-game clients
+    fn broadcast_to_ingame(&mut self, msg: ServerMessage) {
+        for client in self.clients.values_mut() {
+            if client.is_in_game() {
+                client.outgoing_queue.push(msg.clone());
+            }
+        }
+    }
+    
+    /// Queue messages to broadcast to all clients (in game only)
+    pub fn queue_broadcasts(&mut self, messages: Vec<ServerMessage>) {
+        for msg in messages {
+            self.broadcast_to_ingame(msg);
+        }
+    }
+    
+    /// Save all connected players that are in game (called periodically)
+    pub fn save_all_players(&self, world: &GameWorld, persistence: &PersistenceHandle) {
+        for client in self.clients.values() {
+            if let ConnectionState::InGame { character_id, .. } = &client.state {
+                if let Some(player) = world.get_player(client.player_id) {
+                    let state = player_to_state_data(player);
+                    let inventory = player_inventory_to_data(player);
+                    persistence.save_character(*character_id, state, inventory);
+                }
+            }
+        }
+    }
+}
+
+// =============================================================================
+// Helper functions for data conversion
+// =============================================================================
+
+use crate::entities::ServerPlayer;
+
+fn player_to_state_data(player: &ServerPlayer) -> PlayerStateData {
+    PlayerStateData {
+        position_x: player.position[0],
+        position_y: player.position[1],
+        position_z: player.position[2],
+        rotation: player.rotation,
+        health: player.health as i32,
+        max_health: player.max_health as i32,
+        mana: player.mana as i32,
+        max_mana: player.max_mana as i32,
+        level: 1,  // TODO: add level to ServerPlayer
+        experience: 0,  // TODO: add experience to ServerPlayer
+        attack: player.attack_power as i32,
+        defense: player.defense as i32,
+    }
+}
+
+fn player_inventory_to_data(player: &ServerPlayer) -> Vec<InventorySlotData> {
+    player.inventory
+        .iter()
+        .enumerate()
+        .filter_map(|(slot, opt)| {
+            opt.as_ref().map(|inv| InventorySlotData {
+                slot: slot as i16,
+                item_id: inv.item_id as i32,
+                quantity: inv.quantity as i32,
+            })
+        })
+        .collect()
+}
+
+fn inventory_data_to_slots(data: &[InventorySlotData]) -> Vec<Option<InventorySlot>> {
+    let mut slots: Vec<Option<InventorySlot>> = vec![None; 20];
+    for item in data {
+        if (item.slot as usize) < slots.len() {
+            slots[item.slot as usize] = Some(InventorySlot {
+                item_id: item.item_id as u32,
+                quantity: item.quantity as u32,
+            });
+        }
+    }
+    slots
+}

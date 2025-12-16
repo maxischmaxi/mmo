@@ -1,0 +1,49 @@
+# Rust
+/rust/target/
+/server/target/
+/shared/target/
+**/*.rs.bk
+Cargo.lock
+
+# Godot
+godot/.godot/
+godot/.import/
+godot/export/
+godot/export_presets.cfg
+*.translation
+
+# GDExtension build artifacts
+*.so
+*.dll
+*.dylib
+*.a
+*.lib
+
+# OS files
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
+*~
+
+# IDE
+.vscode/
+.idea/
+*.iml
+
+# Logs
+*.log
+logs/
+
+# Environment
+.env
+.env.local
+
+# Debug
+debug/
+*.pdb
+
+# Temporary files
+*.tmp
+*.temp
+*.bak

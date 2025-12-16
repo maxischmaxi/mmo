@@ -1,0 +1,12 @@
+[package]
+name = "mmo"
+version = "0.1.0"
+edition = "2021"
+
+[lib]
+crate-type = ["cdylib"]
+
+[dependencies]
+godot = "0.4"
+mmo-shared = { path = "../shared" }
+bincode = "1.3"

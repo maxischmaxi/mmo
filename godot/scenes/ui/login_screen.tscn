@@ -1,0 +1,164 @@
+[gd_scene load_steps=2 format=3 uid="uid://cloginscreen"]
+
+[ext_resource type="Script" path="res://scripts/ui/login_screen.gd" id="1_script"]
+
+[node name="LoginScreen" type="Control"]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+script = ExtResource("1_script")
+
+[node name="Background" type="ColorRect" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+color = Color(0.1, 0.12, 0.15, 1)
+
+[node name="CenterContainer" type="CenterContainer" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="Panel" type="PanelContainer" parent="CenterContainer"]
+custom_minimum_size = Vector2(400, 0)
+layout_mode = 2
+
+[node name="VBox" type="VBoxContainer" parent="CenterContainer/Panel"]
+layout_mode = 2
+theme_override_constants/separation = 15
+
+[node name="Title" type="Label" parent="CenterContainer/Panel/VBox"]
+layout_mode = 2
+theme_override_font_sizes/font_size = 32
+text = "MMO Prototype"
+horizontal_alignment = 1
+
+[node name="TabContainer" type="TabContainer" parent="CenterContainer/Panel/VBox"]
+layout_mode = 2
+
+[node name="Login" type="VBoxContainer" parent="CenterContainer/Panel/VBox/TabContainer"]
+layout_mode = 2
+theme_override_constants/separation = 10
+
+[node name="UsernameLabel" type="Label" parent="CenterContainer/Panel/VBox/TabContainer/Login"]
+layout_mode = 2
+text = "Username"
+
+[node name="UsernameInput" type="LineEdit" parent="CenterContainer/Panel/VBox/TabContainer/Login"]
+layout_mode = 2
+focus_neighbor_bottom = NodePath("../PasswordInput")
+focus_next = NodePath("../PasswordInput")
+placeholder_text = "Enter username..."
+
+[node name="PasswordLabel" type="Label" parent="CenterContainer/Panel/VBox/TabContainer/Login"]
+layout_mode = 2
+text = "Password"
+
+[node name="PasswordInput" type="LineEdit" parent="CenterContainer/Panel/VBox/TabContainer/Login"]
+layout_mode = 2
+focus_neighbor_top = NodePath("../UsernameInput")
+focus_neighbor_bottom = NodePath("../LoginButton")
+focus_next = NodePath("../LoginButton")
+focus_previous = NodePath("../UsernameInput")
+placeholder_text = "Enter password..."
+secret = true
+
+[node name="Spacer" type="Control" parent="CenterContainer/Panel/VBox/TabContainer/Login"]
+custom_minimum_size = Vector2(0, 10)
+layout_mode = 2
+focus_mode = 0
+
+[node name="LoginButton" type="Button" parent="CenterContainer/Panel/VBox/TabContainer/Login"]
+layout_mode = 2
+focus_neighbor_top = NodePath("../PasswordInput")
+focus_previous = NodePath("../PasswordInput")
+text = "Login"
+
+[node name="Register" type="VBoxContainer" parent="CenterContainer/Panel/VBox/TabContainer"]
+visible = false
+layout_mode = 2
+theme_override_constants/separation = 10
+
+[node name="UsernameLabel" type="Label" parent="CenterContainer/Panel/VBox/TabContainer/Register"]
+layout_mode = 2
+text = "Username (3-32 characters)"
+
+[node name="UsernameInput" type="LineEdit" parent="CenterContainer/Panel/VBox/TabContainer/Register"]
+layout_mode = 2
+focus_neighbor_bottom = NodePath("../PasswordInput")
+focus_next = NodePath("../PasswordInput")
+placeholder_text = "Choose a username..."
+
+[node name="PasswordLabel" type="Label" parent="CenterContainer/Panel/VBox/TabContainer/Register"]
+layout_mode = 2
+text = "Password (min 4 characters)"
+
+[node name="PasswordInput" type="LineEdit" parent="CenterContainer/Panel/VBox/TabContainer/Register"]
+layout_mode = 2
+focus_neighbor_top = NodePath("../UsernameInput")
+focus_neighbor_bottom = NodePath("../ConfirmInput")
+focus_next = NodePath("../ConfirmInput")
+focus_previous = NodePath("../UsernameInput")
+placeholder_text = "Choose a password..."
+secret = true
+
+[node name="ConfirmLabel" type="Label" parent="CenterContainer/Panel/VBox/TabContainer/Register"]
+layout_mode = 2
+text = "Confirm Password"
+
+[node name="ConfirmInput" type="LineEdit" parent="CenterContainer/Panel/VBox/TabContainer/Register"]
+layout_mode = 2
+focus_neighbor_top = NodePath("../PasswordInput")
+focus_neighbor_bottom = NodePath("../RegisterButton")
+focus_next = NodePath("../RegisterButton")
+focus_previous = NodePath("../PasswordInput")
+placeholder_text = "Confirm password..."
+secret = true
+
+[node name="Spacer" type="Control" parent="CenterContainer/Panel/VBox/TabContainer/Register"]
+custom_minimum_size = Vector2(0, 10)
+layout_mode = 2
+focus_mode = 0
+
+[node name="RegisterButton" type="Button" parent="CenterContainer/Panel/VBox/TabContainer/Register"]
+layout_mode = 2
+focus_neighbor_top = NodePath("../ConfirmInput")
+focus_previous = NodePath("../ConfirmInput")
+text = "Create Account"
+
+[node name="StatusLabel" type="Label" parent="CenterContainer/Panel/VBox"]
+layout_mode = 2
+theme_override_colors/font_color = Color(1, 0.4, 0.4, 1)
+text = ""
+horizontal_alignment = 1
+autowrap_mode = 2
+
+[node name="ServerInfo" type="HBoxContainer" parent="CenterContainer/Panel/VBox"]
+layout_mode = 2
+
+[node name="ServerLabel" type="Label" parent="CenterContainer/Panel/VBox/ServerInfo"]
+layout_mode = 2
+text = "Server:"
+
+[node name="ServerInput" type="LineEdit" parent="CenterContainer/Panel/VBox/ServerInfo"]
+layout_mode = 2
+size_flags_horizontal = 3
+text = "127.0.0.1"
+placeholder_text = "Server IP..."
+
+[connection signal="text_submitted" from="CenterContainer/Panel/VBox/TabContainer/Login/UsernameInput" to="." method="_on_login_username_submitted"]
+[connection signal="text_submitted" from="CenterContainer/Panel/VBox/TabContainer/Login/PasswordInput" to="." method="_on_login_password_submitted"]
+[connection signal="pressed" from="CenterContainer/Panel/VBox/TabContainer/Login/LoginButton" to="." method="_on_login_pressed"]
+[connection signal="text_submitted" from="CenterContainer/Panel/VBox/TabContainer/Register/UsernameInput" to="." method="_on_register_username_submitted"]
+[connection signal="text_submitted" from="CenterContainer/Panel/VBox/TabContainer/Register/PasswordInput" to="." method="_on_register_password_submitted"]
+[connection signal="text_submitted" from="CenterContainer/Panel/VBox/TabContainer/Register/ConfirmInput" to="." method="_on_register_confirm_submitted"]
+[connection signal="pressed" from="CenterContainer/Panel/VBox/TabContainer/Register/RegisterButton" to="." method="_on_register_pressed"]

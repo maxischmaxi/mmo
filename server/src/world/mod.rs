@@ -1,0 +1,405 @@
+//! Game world management.
+
+use std::collections::HashMap;
+use log::{info, debug};
+use rand::Rng;
+
+use mmo_shared::{
+    ServerMessage, AnimationState, EnemyType, InventorySlot,
+    CharacterClass, Gender, Empire,
+};
+
+use crate::persistence::InventorySlotData;
+
+use crate::entities::{ServerPlayer, ServerEnemy, WorldItem};
+
+/// The game world containing all entities
+pub struct GameWorld {
+    players: HashMap<u64, ServerPlayer>,
+    enemies: HashMap<u64, ServerEnemy>,
+    items: HashMap<u64, WorldItem>,
+    next_enemy_id: u64,
+    next_item_id: u64,
+}
+
+impl GameWorld {
+    pub fn new() -> Self {
+        let mut world = Self {
+            players: HashMap::new(),
+            enemies: HashMap::new(),
+            items: HashMap::new(),
+            next_enemy_id: 10000, // Start enemy IDs high to avoid confusion with player IDs
+            next_item_id: 20000,
+        };
+        
+        // Spawn some initial enemies
+        world.spawn_initial_enemies();
+        
+        world
+    }
+    
+    /// Spawn initial enemies for the zone
+    fn spawn_initial_enemies(&mut self) {
+        let spawn_points = [
+            ([10.0, 0.0, 10.0], EnemyType::Goblin),
+            ([-10.0, 0.0, 5.0], EnemyType::Goblin),
+            ([15.0, 0.0, -10.0], EnemyType::Goblin),
+            ([0.0, 0.0, 20.0], EnemyType::Wolf),
+            ([-15.0, 0.0, -15.0], EnemyType::Skeleton),
+        ];
+        
+        for (pos, enemy_type) in spawn_points {
+            self.spawn_enemy(pos, enemy_type);
+        }
+        
+        info!("Spawned {} initial enemies", self.enemies.len());
+    }
+    
+    /// Spawn a new enemy
+    pub fn spawn_enemy(&mut self, position: [f32; 3], enemy_type: EnemyType) -> u64 {
+        let id = self.next_enemy_id;
+        self.next_enemy_id += 1;
+        
+        let enemy = ServerEnemy::new(id, enemy_type, position);
+        self.enemies.insert(id, enemy);
+        
+        id
+    }
+    
+    /// Spawn a player with saved state (for character selection)
+    #[allow(clippy::too_many_arguments)]
+    pub fn spawn_player_with_state(
+        &mut self,
+        id: u64,
+        name: String,
+        class: CharacterClass,
+        gender: Gender,
+        empire: Empire,
+        position: [f32; 3],
+        rotation: f32,
+        health: u32,
+        max_health: u32,
+        mana: u32,
+        max_mana: u32,
+        attack: u32,
+        defense: u32,
+        inventory_data: &[InventorySlotData],
+    ) {
+        // Convert inventory data to slots
+        let mut inventory: Vec<Option<InventorySlot>> = vec![None; 20];
+        for slot_data in inventory_data {
+            if (slot_data.slot as usize) < inventory.len() {
+                inventory[slot_data.slot as usize] = Some(InventorySlot {
+                    item_id: slot_data.item_id as u32,
+                    quantity: slot_data.quantity as u32,
+                });
+            }
+        }
+        
+        let player = ServerPlayer::with_state(
+            id,
+            name,
+            class,
+            gender,
+            empire,
+            position,
+            rotation,
+            health,
+            max_health,
+            mana,
+            max_mana,
+            attack,
+            defense,
+            inventory,
+        );
+        self.players.insert(id, player);
+    }
+    
+    /// Despawn a player
+    pub fn despawn_player(&mut self, id: u64) {
+        self.players.remove(&id);
+    }
+    
+    /// Get a player by ID
+    pub fn get_player(&self, id: u64) -> Option<&ServerPlayer> {
+        self.players.get(&id)
+    }
+    
+    /// Get all players
+    pub fn get_players(&self) -> Vec<&ServerPlayer> {
+        self.players.values().collect()
+    }
+    
+    /// Get all enemies
+    pub fn get_enemies(&self) -> Vec<&ServerEnemy> {
+        self.enemies.values().collect()
+    }
+    
+    /// Update player state from client input
+    pub fn update_player_state(
+        &mut self,
+        player_id: u64,
+        position: [f32; 3],
+        rotation: f32,
+        velocity: [f32; 3],
+        animation_state: AnimationState,
+    ) {
+        if let Some(player) = self.players.get_mut(&player_id) {
+            // TODO: Validate position (anti-cheat)
+            player.position = position;
+            player.rotation = rotation;
+            player.velocity = velocity;
+            player.animation_state = animation_state;
+        }
+    }
+    
+    /// Process an attack from a player to a target
+    pub fn process_attack(&mut self, attacker_id: u64, target_id: u64) -> Option<ServerMessage> {
+        let attacker = self.players.get(&attacker_id)?;
+        
+        // Check if target is an enemy
+        if let Some(enemy) = self.enemies.get_mut(&target_id) {
+            // Check range (simple distance check)
+            let dx = enemy.position[0] - attacker.position[0];
+            let dz = enemy.position[2] - attacker.position[2];
+            let dist_sq = dx * dx + dz * dz;
+            
+            if dist_sq > 5.0 * 5.0 {
+                debug!("Attack out of range");
+                return None;
+            }
+            
+            // Calculate damage
+            let base_damage = attacker.attack_power;
+            let mut rng = rand::thread_rng();
+            let is_critical = rng.gen_bool(0.1); // 10% crit chance
+            let damage = if is_critical { base_damage * 2 } else { base_damage };
+            
+            // Apply damage
+            enemy.health = enemy.health.saturating_sub(damage);
+            enemy.target_id = Some(attacker_id); // Aggro
+            
+            return Some(ServerMessage::DamageEvent {
+                attacker_id,
+                target_id,
+                damage,
+                target_new_health: enemy.health,
+                is_critical,
+            });
+        }
+        
+        // TODO: PvP combat
+        
+        None
+    }
+    
+    /// Pickup an item from the world
+    pub fn pickup_item(&mut self, player_id: u64, item_entity_id: u64) -> Option<(ServerMessage, ServerMessage)> {
+        let item = self.items.remove(&item_entity_id)?;
+        let player = self.players.get_mut(&player_id)?;
+        
+        // Try to add to inventory
+        player.add_to_inventory(item.item_id, item.quantity);
+        
+        let despawn_msg = ServerMessage::ItemDespawn {
+            entity_id: item_entity_id,
+        };
+        
+        let inv_msg = ServerMessage::InventoryUpdate {
+            slots: player.get_inventory_slots(),
+        };
+        
+        Some((despawn_msg, inv_msg))
+    }
+    
+    /// Use an item from inventory
+    pub fn use_item(&mut self, player_id: u64, slot: u8) -> Option<ServerMessage> {
+        let player = self.players.get_mut(&player_id)?;
+        player.use_item(slot)?;
+        
+        Some(ServerMessage::InventoryUpdate {
+            slots: player.get_inventory_slots(),
+        })
+    }
+    
+    /// Drop an item from inventory
+    pub fn drop_item(&mut self, player_id: u64, slot: u8) -> Option<(ServerMessage, ServerMessage)> {
+        let player = self.players.get_mut(&player_id)?;
+        let (item_id, quantity) = player.remove_from_inventory(slot)?;
+        
+        // Spawn item in world
+        let entity_id = self.next_item_id;
+        self.next_item_id += 1;
+        
+        let position = player.position;
+        self.items.insert(entity_id, WorldItem {
+            entity_id,
+            item_id,
+            quantity,
+            position,
+        });
+        
+        let spawn_msg = ServerMessage::ItemSpawn {
+            entity_id,
+            item_id,
+            position,
+        };
+        
+        let inv_msg = ServerMessage::InventoryUpdate {
+            slots: player.get_inventory_slots(),
+        };
+        
+        Some((spawn_msg, inv_msg))
+    }
+    
+    /// Update the world (called every tick)
+    /// Returns a list of messages that should be broadcast to all clients
+    pub fn update(&mut self, delta: f32, _tick: u64) -> Vec<ServerMessage> {
+        let mut messages = Vec::new();
+        
+        // Update enemies (AI, attacks) and collect damage events
+        let damage_events = self.update_enemies(delta);
+        messages.extend(damage_events);
+        
+        // Check for dead enemies and handle loot drops
+        let death_messages = self.process_enemy_deaths();
+        messages.extend(death_messages);
+        
+        messages
+    }
+    
+    /// Update enemy AI and process enemy attacks
+    /// Returns damage events to broadcast
+    fn update_enemies(&mut self, delta: f32) -> Vec<ServerMessage> {
+        let mut damage_events = Vec::new();
+        
+        let player_positions: Vec<(u64, [f32; 3])> = self.players
+            .values()
+            .map(|p| (p.id, p.position))
+            .collect();
+        
+        // Collect attacks from enemies
+        let mut attacks: Vec<(u64, u64, u32)> = Vec::new(); // (enemy_id, player_id, damage)
+        
+        for enemy in self.enemies.values_mut() {
+            if let Some((target_player_id, damage)) = enemy.update(delta, &player_positions) {
+                attacks.push((enemy.id, target_player_id, damage));
+            }
+        }
+        
+        // Process attacks and apply damage to players
+        for (attacker_id, target_id, base_damage) in attacks {
+            if let Some(player) = self.players.get_mut(&target_id) {
+                // Apply damage (defense reduces damage by ~50%)
+                let actual_damage = player.take_damage(base_damage);
+                
+                damage_events.push(ServerMessage::DamageEvent {
+                    attacker_id,
+                    target_id,
+                    damage: actual_damage,
+                    target_new_health: player.health,
+                    is_critical: false, // Enemies don't crit for now
+                });
+                
+                // Check if player died
+                if player.is_dead() {
+                    info!("Player {} was killed by enemy {}", target_id, attacker_id);
+                    // TODO: Handle player death (respawn, etc.)
+                }
+            }
+        }
+        
+        damage_events
+    }
+    
+    /// Process enemy deaths and spawn loot
+    /// Returns messages to broadcast (despawns, spawns, item spawns)
+    fn process_enemy_deaths(&mut self) -> Vec<ServerMessage> {
+        let mut messages = Vec::new();
+        
+        let dead_enemies: Vec<u64> = self.enemies
+            .iter()
+            .filter(|(_, e)| e.health == 0)
+            .map(|(id, _)| *id)
+            .collect();
+        
+        let mut rng = rand::thread_rng();
+        
+        for enemy_id in dead_enemies {
+            if let Some(enemy) = self.enemies.remove(&enemy_id) {
+                info!("Enemy {} died", enemy_id);
+                
+                // Broadcast enemy despawn
+                messages.push(ServerMessage::EnemyDespawn { id: enemy_id });
+                
+                // Spawn loot
+                if rng.gen_bool(0.5) {
+                    let item_entity_id = self.next_item_id;
+                    self.next_item_id += 1;
+                    
+                    let item = WorldItem {
+                        entity_id: item_entity_id,
+                        item_id: 3, // Goblin Ear
+                        quantity: 1,
+                        position: enemy.position,
+                    };
+                    self.items.insert(item_entity_id, item.clone());
+                    
+                    messages.push(ServerMessage::ItemSpawn {
+                        entity_id: item_entity_id,
+                        item_id: item.item_id,
+                        position: item.position,
+                    });
+                }
+                
+                // Health potion drop
+                if rng.gen_bool(0.2) {
+                    let item_entity_id = self.next_item_id;
+                    self.next_item_id += 1;
+                    
+                    let position = [
+                        enemy.position[0] + rng.gen_range(-1.0..1.0),
+                        enemy.position[1],
+                        enemy.position[2] + rng.gen_range(-1.0..1.0),
+                    ];
+                    
+                    let item = WorldItem {
+                        entity_id: item_entity_id,
+                        item_id: 1, // Health Potion
+                        quantity: 1,
+                        position,
+                    };
+                    self.items.insert(item_entity_id, item);
+                    
+                    messages.push(ServerMessage::ItemSpawn {
+                        entity_id: item_entity_id,
+                        item_id: 1,
+                        position,
+                    });
+                }
+                
+                // Respawn enemy after delay (simplified: immediate respawn at random location)
+                let new_pos = [
+                    enemy.spawn_position[0] + rng.gen_range(-5.0..5.0),
+                    enemy.spawn_position[1],
+                    enemy.spawn_position[2] + rng.gen_range(-5.0..5.0),
+                ];
+                let new_enemy_id = self.spawn_enemy(new_pos, enemy.enemy_type);
+                
+                // Broadcast new enemy spawn
+                if let Some(new_enemy) = self.enemies.get(&new_enemy_id) {
+                    messages.push(ServerMessage::EnemySpawn {
+                        id: new_enemy_id,
+                        enemy_type: new_enemy.enemy_type,
+                        position: new_enemy.position,
+                        health: new_enemy.health,
+                        max_health: new_enemy.max_health,
+                        level: new_enemy.level,
+                    });
+                }
+            }
+        }
+        
+        messages
+    }
+}

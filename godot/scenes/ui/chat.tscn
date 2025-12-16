@@ -1,0 +1,48 @@
+[gd_scene load_steps=2 format=3 uid="uid://bfkqj2mw6xypr"]
+
+[ext_resource type="Script" path="res://scripts/ui/chat_ui.gd" id="1_script"]
+
+[node name="ChatUI" type="Control"]
+anchors_preset = 2
+anchor_top = 1.0
+anchor_bottom = 1.0
+offset_left = 10.0
+offset_top = -310.0
+offset_right = 410.0
+offset_bottom = -10.0
+grow_horizontal = 0
+grow_vertical = 0
+script = ExtResource("1_script")
+
+[node name="Panel" type="Panel" parent="."]
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="VBoxContainer" type="VBoxContainer" parent="."]
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = 5.0
+offset_top = 5.0
+offset_right = -5.0
+offset_bottom = -5.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="ChatHistory" type="RichTextLabel" parent="VBoxContainer"]
+custom_minimum_size = Vector2(0, 250)
+size_flags_vertical = 3
+bbcode_enabled = true
+scroll_following = true
+
+[node name="InputContainer" type="HBoxContainer" parent="VBoxContainer"]
+
+[node name="ChatInput" type="LineEdit" parent="VBoxContainer/InputContainer"]
+size_flags_horizontal = 3
+placeholder_text = "Press Enter to chat..."
+
+[node name="SendButton" type="Button" parent="VBoxContainer/InputContainer"]
+text = "Send"

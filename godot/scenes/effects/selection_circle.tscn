@@ -1,0 +1,28 @@
+[gd_scene load_steps=4 format=3 uid="uid://cjj4smp80rf1k"]
+
+[ext_resource type="Script" path="res://scripts/effects/selection_circle.gd" id="1_script"]
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_circle"]
+transparency = 1
+blend_mode = 1
+shading_mode = 0
+albedo_color = Color(0.9, 0.2, 0.2, 0.8)
+emission_enabled = true
+emission = Color(0.9, 0.2, 0.2, 0.4)
+emission_energy_multiplier = 2.0
+disable_receive_shadows = true
+
+[sub_resource type="TorusMesh" id="TorusMesh_circle"]
+inner_radius = 0.8
+outer_radius = 1.0
+rings = 32
+ring_segments = 32
+
+[node name="SelectionCircle" type="Node3D"]
+script = ExtResource("1_script")
+
+[node name="MeshInstance3D" type="MeshInstance3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0)
+cast_shadow = 0
+mesh = SubResource("TorusMesh_circle")
+surface_material_override/0 = SubResource("StandardMaterial3D_circle")
