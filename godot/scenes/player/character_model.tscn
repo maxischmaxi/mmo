@@ -1,0 +1,13 @@
+[gd_scene load_steps=3 format=3 uid="uid://c6yqh4x8m2npv"]
+
+[ext_resource type="PackedScene" uid="uid://yvmhtntvbsq" path="res://assets/animation_library/Godot/AnimationLibrary_Godot_Standard.glb" id="1_glb"]
+[ext_resource type="Script" path="res://scripts/animation_controller.gd" id="2_script"]
+
+[node name="CharacterModel" type="Node3D"]
+
+[node name="AnimationController" type="Node3D" parent="."]
+script = ExtResource("2_script")
+animation_player_path = NodePath("../Rig/AnimationPlayer")
+auto_detect = true
+
+[node name="Rig" parent="." instance=ExtResource("1_glb")]

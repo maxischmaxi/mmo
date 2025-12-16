@@ -3,7 +3,7 @@ class_name TargetFrame
 ## Target Frame UI - shows information about the currently selected target.
 
 ## Reference to the targeting system
-var targeting_system: TargetingSystem = null
+var targeting_system: Node = null
 
 ## Current values (for smooth animation)
 var current_health: float = 100.0

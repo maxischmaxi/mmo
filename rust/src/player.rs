@@ -75,6 +75,9 @@ pub struct Player {
     /// Defense
     defense: u32,
     
+    /// Attack speed multiplier (1.0 = normal, higher = faster)
+    attack_speed: f32,
+    
     /// Level
     level: u32,
     
@@ -92,6 +95,12 @@ pub struct Player {
     
     /// Camera right direction (set by camera controller each frame)
     camera_right: Vector3,
+    
+    /// Whether the player is dead
+    is_dead: bool,
+    
+    /// Position where the player died (for revive-in-place)
+    death_position: Option<Vector3>,
 
     base: Base<CharacterBody3D>,
 }
@@ -122,12 +131,15 @@ impl ICharacterBody3D for Player {
             max_mana: 50,
             attack_power: 10,
             defense: 5,
+            attack_speed: 1.0,
             level: 1,
             experience: 0,
             inventory: vec![None; 20],
             camera_movement_direction: None,
             camera_forward: Vector3::new(0.0, 0.0, -1.0),
             camera_right: Vector3::new(1.0, 0.0, 0.0),
+            is_dead: false,
+            death_position: None,
             base,
         }
     }
@@ -152,8 +164,8 @@ impl ICharacterBody3D for Player {
             self.base_mut().set_velocity(velocity);
         }
 
-        // Only process input for local player when connected
-        if self.is_local && self.is_connected_to_server() {
+        // Only process input for local player when connected and alive
+        if self.is_local && self.is_connected_to_server() && !self.is_dead {
             self.process_input(delta);
         }
         
@@ -272,11 +284,23 @@ impl Player {
     
     /// Signal emitted when a remote player's state is updated (from WorldState)
     #[signal]
-    fn player_state_updated(id: i64, position: Vector3, rotation: f64, health: i64);
+    fn player_state_updated(id: i64, position: Vector3, rotation: f64, health: i64, animation_state: i64);
     
     /// Signal emitted when local player's health changes
     #[signal]
     fn health_changed(current_health: i64, max_health: i64);
+    
+    /// Signal emitted when the local player dies
+    #[signal]
+    fn player_died();
+    
+    /// Signal emitted when the local player respawns
+    #[signal]
+    fn player_respawned(position: Vector3, health: i64, max_health: i64);
+    
+    /// Signal emitted when another entity respawns
+    #[signal]
+    fn entity_respawned(entity_id: i64, position: Vector3, health: i64);
 
     // ==========================================================================
     // Auth methods
@@ -525,6 +549,44 @@ impl Player {
         self.defense as i64
     }
     
+    /// Get attack speed multiplier (1.0 = normal, higher = faster)
+    #[func]
+    fn get_attack_speed(&self) -> f64 {
+        self.attack_speed as f64
+    }
+    
+    /// Get the current animation state as integer
+    /// 0=Idle, 1=Walking, 2=Running, 3=Jumping, 4=Attacking, 5=TakingDamage, 6=Dying, 7=Dead
+    #[func]
+    fn get_animation_state(&self) -> i64 {
+        match self.animation_state {
+            AnimationState::Idle => 0,
+            AnimationState::Walking => 1,
+            AnimationState::Running => 2,
+            AnimationState::Jumping => 3,
+            AnimationState::Attacking => 4,
+            AnimationState::TakingDamage => 5,
+            AnimationState::Dying => 6,
+            AnimationState::Dead => 7,
+        }
+    }
+    
+    /// Set the animation state (called from GDScript when attacking, etc.)
+    #[func]
+    fn set_animation_state(&mut self, state: i64) {
+        self.animation_state = match state {
+            0 => AnimationState::Idle,
+            1 => AnimationState::Walking,
+            2 => AnimationState::Running,
+            3 => AnimationState::Jumping,
+            4 => AnimationState::Attacking,
+            5 => AnimationState::TakingDamage,
+            6 => AnimationState::Dying,
+            7 => AnimationState::Dead,
+            _ => AnimationState::Idle,
+        };
+    }
+    
     /// Get inventory slot data (item_id, quantity) - returns Dictionary
     #[func]
     fn get_inventory_slot(&self, slot: i64) -> Dictionary {
@@ -553,6 +615,21 @@ impl Player {
     fn set_camera_directions(&mut self, forward: Vector3, right: Vector3) {
         self.camera_forward = forward;
         self.camera_right = right;
+    }
+    
+    /// Check if the player is dead
+    #[func]
+    fn is_player_dead(&self) -> bool {
+        self.is_dead
+    }
+    
+    /// Request respawn from server
+    /// respawn_type: 0 = at empire spawn (full health), 1 = at death location (20% health)
+    #[func]
+    fn request_respawn(&mut self, respawn_type: i64) {
+        if let Some(ref mut network) = self.network {
+            network.send_respawn_request(respawn_type as u8);
+        }
     }
 }
 
@@ -809,6 +886,7 @@ impl Player {
                 experience,
                 attack,
                 defense,
+                attack_speed,
                 inventory,
             } => {
                 // Store character info
@@ -830,6 +908,7 @@ impl Player {
                 self.experience = experience;
                 self.attack_power = attack;
                 self.defense = defense;
+                self.attack_speed = attack_speed;
                 self.inventory = inventory;
                 
                 // Teleport to position
@@ -891,11 +970,23 @@ impl Player {
                         continue;
                     }
                     let pos = Vector3::new(player.position[0], player.position[1], player.position[2]);
+                    // Convert animation state to integer
+                    let anim_state: i64 = match player.animation_state {
+                        AnimationState::Idle => 0,
+                        AnimationState::Walking => 1,
+                        AnimationState::Running => 2,
+                        AnimationState::Jumping => 3,
+                        AnimationState::Attacking => 4,
+                        AnimationState::TakingDamage => 5,
+                        AnimationState::Dying => 6,
+                        AnimationState::Dead => 7,
+                    };
                     self.base_mut().emit_signal("player_state_updated", &[
                         (player.id as i64).to_variant(),
                         pos.to_variant(),
                         (player.rotation as f64).to_variant(),
                         (player.health as i64).to_variant(),
+                        anim_state.to_variant(),
                     ]);
                 }
                 
@@ -962,6 +1053,16 @@ impl Player {
             }
             
             ServerMessage::EntityDeath { entity_id, killer_id } => {
+                // Check if this is the local player dying
+                if let Some(my_id) = self.player_id {
+                    if entity_id == my_id {
+                        self.is_dead = true;
+                        self.death_position = Some(self.base().get_position());
+                        self.animation_state = AnimationState::Dead;
+                        self.base_mut().emit_signal("player_died", &[]);
+                    }
+                }
+                
                 self.base_mut().emit_signal("entity_died", &[
                     (entity_id as i64).to_variant(),
                     (killer_id.unwrap_or(0) as i64).to_variant(),
@@ -970,6 +1071,39 @@ impl Player {
             
             ServerMessage::EnemyDespawn { id } => {
                 self.base_mut().emit_signal("enemy_despawned", &[(id as i64).to_variant()]);
+            }
+            
+            ServerMessage::PlayerRespawned { position, health, max_health } => {
+                // Local player respawned
+                self.is_dead = false;
+                self.death_position = None;
+                self.current_health = health;
+                self.max_health = max_health;
+                self.animation_state = AnimationState::Idle;
+                
+                let pos = Vector3::new(position[0], position[1], position[2]);
+                self.base_mut().set_position(pos);
+                
+                self.base_mut().emit_signal("player_respawned", &[
+                    pos.to_variant(),
+                    (health as i64).to_variant(),
+                    (max_health as i64).to_variant(),
+                ]);
+                
+                // Also emit health_changed for UI update
+                self.base_mut().emit_signal("health_changed", &[
+                    (health as i64).to_variant(),
+                    (max_health as i64).to_variant(),
+                ]);
+            }
+            
+            ServerMessage::EntityRespawn { entity_id, position, health } => {
+                let pos = Vector3::new(position[0], position[1], position[2]);
+                self.base_mut().emit_signal("entity_respawned", &[
+                    (entity_id as i64).to_variant(),
+                    pos.to_variant(),
+                    (health as i64).to_variant(),
+                ]);
             }
             
             // Handle other messages as needed

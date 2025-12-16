@@ -120,6 +120,16 @@ impl GameWorld {
         self.players.remove(&id);
     }
     
+    /// Respawn a player at a new position with specified health
+    pub fn respawn_player(&mut self, id: u64, position: [f32; 3], health: u32) {
+        if let Some(player) = self.players.get_mut(&id) {
+            player.position = position;
+            player.health = health;
+            player.animation_state = AnimationState::Idle;
+            player.death_announced = false;  // Reset for next death
+        }
+    }
+    
     /// Get a player by ID
     pub fn get_player(&self, id: u64) -> Option<&ServerPlayer> {
         self.players.get(&id)
@@ -301,10 +311,15 @@ impl GameWorld {
                     is_critical: false, // Enemies don't crit for now
                 });
                 
-                // Check if player died
-                if player.is_dead() {
+                // Check if player died (and death not yet announced)
+                if player.is_dead() && !player.death_announced {
                     info!("Player {} was killed by enemy {}", target_id, attacker_id);
-                    // TODO: Handle player death (respawn, etc.)
+                    player.death_announced = true;
+                    // Send death message to all clients
+                    damage_events.push(ServerMessage::EntityDeath {
+                        entity_id: target_id,
+                        killer_id: Some(attacker_id),
+                    });
                 }
             }
         }

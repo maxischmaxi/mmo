@@ -1,17 +1,25 @@
 extends Node3D
 class_name CameraController
-## WoW-style third-person camera controller.
-## - Right-click + drag: Orbit camera around player
-## - Left-click + drag: Turn character to face camera direction
-## - Left-click (no drag): Select target
-## - Both buttons: Move forward in camera direction
+## WoW/Metin2 hybrid camera controller.
+## - Right-click + drag: Orbit camera around player (also selects target if clicking on entity)
+## - Left-click on enemy: Attack enemy (move to if out of range, auto-attack)
+## - Left-click on ground: Move to that location (click-to-move)
+## - Left-click elsewhere: Clear target, stop auto-attack
 ## - Mouse wheel: Zoom in/out
 ##
 ## NOTE: We do NOT capture/hide the mouse. Custom cursors are handled by CursorManager.
-## Camera rotation uses mouse movement delta (InputEventMouseMotion.relative).
 
-## Signal emitted when player clicks (for targeting)
-signal clicked(screen_position: Vector2)
+## Signal emitted when ground is clicked (for click-to-move)
+signal ground_clicked(world_position: Vector3)
+
+## Signal emitted when enemy is clicked (for attack)
+signal enemy_clicked(enemy_id: int, enemy_node: Node3D)
+
+## Signal emitted when player/NPC is clicked (for selection)
+signal entity_clicked(entity_id: int, entity_type: String, entity_node: Node3D)
+
+## Signal emitted when clicking on nothing
+signal clicked_nothing
 
 ## The player node to follow
 @export var target: Node3D
@@ -41,21 +49,35 @@ var current_distance: float = 7.0
 var target_distance: float = 7.0
 
 ## Mouse state
-var is_rotating: bool = false  # Right mouse held
-var is_turning: bool = false   # Left mouse held (and dragging)
+var is_rotating: bool = false  # Right mouse held and dragging
 
-## Click detection state
+## Click detection state - LEFT MOUSE
 var left_click_start_pos: Vector2 = Vector2.ZERO
 var left_click_start_time: float = 0.0
 var left_click_is_drag: bool = false
-var left_mouse_down: bool = false  # Track if left mouse is currently down
+var left_mouse_down: bool = false
+
+## Click detection state - RIGHT MOUSE
+var right_click_start_pos: Vector2 = Vector2.ZERO
+var right_click_start_time: float = 0.0
+var right_click_is_drag: bool = false
+var right_mouse_down: bool = false
 
 ## References
 @onready var spring_arm: SpringArm3D = $SpringArm3D
 @onready var camera: Camera3D = $SpringArm3D/Camera3D
 
-## Reference to targeting system
-var targeting_system: Node = null
+## Reference to combat controller
+var combat_controller: Node = null
+
+## Reference to click movement controller
+var click_movement_controller: Node = null
+
+## Reference to game manager (for entity lookups)
+var game_manager: Node = null
+
+## Raycast length
+const RAY_LENGTH: float = 1000.0
 
 
 func _ready() -> void:
@@ -68,13 +90,31 @@ func _ready() -> void:
 	# Apply initial rotation
 	_update_camera_transform()
 	
-	# Find targeting system after a frame
+	# Resolve target if it's not set (should be parent Player node)
+	if target == null:
+		target = get_parent()
+	
+	# Find controllers and managers after a frame
 	await get_tree().process_frame
-	targeting_system = get_tree().get_first_node_in_group("targeting_system")
-	if targeting_system == null:
+	_find_references()
+
+
+func _find_references() -> void:
+	# Ensure target is resolved
+	if target == null:
+		target = get_parent()
+	
+	# Find combat controller
+	if target:
+		combat_controller = target.get_node_or_null("CombatController")
+		click_movement_controller = target.get_node_or_null("ClickMovementController")
+	
+	# Find game manager
+	game_manager = get_tree().get_first_node_in_group("game_manager")
+	if game_manager == null:
 		var main = get_tree().current_scene
 		if main:
-			targeting_system = main.get_node_or_null("GameManager/TargetingSystem")
+			game_manager = main.get_node_or_null("GameManager")
 
 
 func _input(event: InputEvent) -> void:
@@ -82,10 +122,8 @@ func _input(event: InputEvent) -> void:
 	if event is InputEventMouseButton:
 		var mouse_event = event as InputEventMouseButton
 		if mouse_event.pressed and mouse_event.button_index == MOUSE_BUTTON_LEFT:
-			# Check if chat is focused and we clicked outside it
 			if _is_chat_focused():
 				_unfocus_chat()
-				# Reset all mouse state since we're coming out of chat
 				_reset_mouse_state()
 				return
 	
@@ -93,64 +131,77 @@ func _input(event: InputEvent) -> void:
 	if _is_chat_focused():
 		return
 	
-	# Handle mouse button state
+	# Handle mouse button events
 	if event is InputEventMouseButton:
-		var mouse_event = event as InputEventMouseButton
-		
-		# Right mouse button - camera rotation
-		if mouse_event.button_index == MOUSE_BUTTON_RIGHT:
-			is_rotating = mouse_event.pressed
-		
-		# Left mouse button - character turning OR target selection
-		if mouse_event.button_index == MOUSE_BUTTON_LEFT:
-			if mouse_event.pressed:
-				# Left button pressed - start tracking for click vs drag
-				left_mouse_down = true
-				left_click_start_pos = mouse_event.position
-				left_click_start_time = Time.get_ticks_msec() / 1000.0
-				left_click_is_drag = false
-				is_turning = false  # Not turning yet until we detect drag
-			else:
-				# Left button released
-				left_mouse_down = false
-				is_turning = false
-				
-				# Check if this was a click (not a drag)
-				if not left_click_is_drag:
-					var click_duration = Time.get_ticks_msec() / 1000.0 - left_click_start_time
-					if click_duration < click_threshold_time:
-						# This was a click - trigger target selection at current mouse position
-						_handle_click(get_viewport().get_mouse_position())
-		
-		# Mouse wheel - zoom
-		if mouse_event.button_index == MOUSE_BUTTON_WHEEL_UP:
-			target_distance = max(min_distance, target_distance - zoom_speed)
-		elif mouse_event.button_index == MOUSE_BUTTON_WHEEL_DOWN:
-			target_distance = min(max_distance, target_distance + zoom_speed)
+		_handle_mouse_button(event as InputEventMouseButton)
 	
 	# Handle mouse motion
 	if event is InputEventMouseMotion:
-		var motion = event as InputEventMouseMotion
-		
-		# Check if left-click has become a drag
-		if left_mouse_down and not left_click_is_drag:
-			var current_pos = get_viewport().get_mouse_position()
-			var drag_distance = current_pos.distance_to(left_click_start_pos)
-			if drag_distance > click_threshold_distance:
-				left_click_is_drag = true
-				is_turning = true
-		
-		# Rotate camera when right-click is held OR left-click is dragging
-		if is_rotating or is_turning:
-			# Rotate camera yaw (horizontal) - move mouse right = camera rotates right
-			current_yaw += motion.relative.x * rotation_speed
+		_handle_mouse_motion(event as InputEventMouseMotion)
+
+
+func _handle_mouse_button(event: InputEventMouseButton) -> void:
+	# LEFT MOUSE BUTTON
+	if event.button_index == MOUSE_BUTTON_LEFT:
+		if event.pressed:
+			left_mouse_down = true
+			left_click_start_pos = event.position
+			left_click_start_time = Time.get_ticks_msec() / 1000.0
+			left_click_is_drag = false
+		else:
+			left_mouse_down = false
 			
-			# Rotate camera pitch (vertical) - move mouse up = camera looks up
-			current_pitch -= motion.relative.y * rotation_speed
-			current_pitch = clamp(current_pitch, min_pitch, max_pitch)
+			# Check if this was a click (not a drag)
+			if not left_click_is_drag:
+				var click_duration = Time.get_ticks_msec() / 1000.0 - left_click_start_time
+				if click_duration < click_threshold_time:
+					_handle_left_click(event.position)
+	
+	# RIGHT MOUSE BUTTON
+	if event.button_index == MOUSE_BUTTON_RIGHT:
+		if event.pressed:
+			right_mouse_down = true
+			right_click_start_pos = event.position
+			right_click_start_time = Time.get_ticks_msec() / 1000.0
+			right_click_is_drag = false
+		else:
+			right_mouse_down = false
+			is_rotating = false
 			
-			# Note: Character rotation is now handled automatically when moving
-			# The player rotates to face their movement direction
+			# Check if this was a click (not a drag) - select target
+			if not right_click_is_drag:
+				var click_duration = Time.get_ticks_msec() / 1000.0 - right_click_start_time
+				if click_duration < click_threshold_time:
+					_handle_right_click(event.position)
+	
+	# Mouse wheel - zoom
+	if event.button_index == MOUSE_BUTTON_WHEEL_UP:
+		target_distance = max(min_distance, target_distance - zoom_speed)
+	elif event.button_index == MOUSE_BUTTON_WHEEL_DOWN:
+		target_distance = min(max_distance, target_distance + zoom_speed)
+
+
+func _handle_mouse_motion(motion: InputEventMouseMotion) -> void:
+	# Check if left-click has become a drag
+	if left_mouse_down and not left_click_is_drag:
+		var current_pos = get_viewport().get_mouse_position()
+		var drag_distance = current_pos.distance_to(left_click_start_pos)
+		if drag_distance > click_threshold_distance:
+			left_click_is_drag = true
+	
+	# Check if right-click has become a drag
+	if right_mouse_down and not right_click_is_drag:
+		var current_pos = get_viewport().get_mouse_position()
+		var drag_distance = current_pos.distance_to(right_click_start_pos)
+		if drag_distance > click_threshold_distance:
+			right_click_is_drag = true
+			is_rotating = true
+	
+	# Rotate camera when right-click is dragging
+	if is_rotating:
+		current_yaw += motion.relative.x * rotation_speed
+		current_pitch -= motion.relative.y * rotation_speed
+		current_pitch = clamp(current_pitch, min_pitch, max_pitch)
 
 
 func _process(delta: float) -> void:
@@ -163,42 +214,133 @@ func _process(delta: float) -> void:
 	if spring_arm:
 		spring_arm.spring_length = current_distance
 	
-	# Update camera transform FIRST
+	# Update camera transform
 	_update_camera_transform()
-	
-	# Don't process movement controls if chat is focused
-	if _is_chat_focused():
-		return
-	
-	# Auto-move forward when both buttons held
-	if is_rotating and left_mouse_down and target:
-		# Signal the player to move forward
-		_move_player_forward()
 
 
 func _update_camera_transform() -> void:
-	# Apply rotation in global space so camera is independent of player rotation
 	global_rotation_degrees = Vector3(current_pitch, -current_yaw, 0)
 
 
-func _move_player_forward() -> void:
-	# Get the camera's forward direction (projected onto XZ plane)
-	if target and target.has_method("set_movement_direction"):
-		var forward = -global_transform.basis.z
-		forward.y = 0
-		forward = forward.normalized()
-		target.set_movement_direction(forward)
-		# Also rotate character to face camera direction (WoW-style)
-		target.rotation.y = atan2(forward.x, forward.z)
-
-
-func _handle_click(screen_pos: Vector2) -> void:
-	# Emit signal for external handlers
-	emit_signal("clicked", screen_pos)
+## Handle left-click: Attack enemy, move to ground, or clear target
+func _handle_left_click(screen_pos: Vector2) -> void:
+	var hit := _raycast_at_position(screen_pos)
 	
-	# Also directly call targeting system if available
-	if targeting_system and targeting_system.has_method("select_target_at_position"):
-		targeting_system.select_target_at_position(screen_pos)
+	if hit.is_empty():
+		# Clicked on nothing
+		_on_clicked_nothing()
+		return
+	
+	# Check what was clicked
+	var entity_info := _get_entity_from_hit(hit)
+	
+	if entity_info.type == "enemy":
+		# Left-click on enemy: ATTACK
+		_on_enemy_clicked(entity_info.id, entity_info.node)
+	elif entity_info.type == "player":
+		# Left-click on player: Just select (no attack)
+		_on_entity_selected(entity_info.id, "player", entity_info.node)
+	elif hit.has("position"):
+		# Left-click on ground/surface: Move to location
+		_on_ground_clicked(hit.position)
+	else:
+		_on_clicked_nothing()
+
+
+## Handle right-click: Select/highlight target
+func _handle_right_click(screen_pos: Vector2) -> void:
+	var hit := _raycast_at_position(screen_pos)
+	
+	if hit.is_empty():
+		return  # Right-click on nothing does nothing
+	
+	# Check what was clicked
+	var entity_info := _get_entity_from_hit(hit)
+	
+	if entity_info.type == "enemy" or entity_info.type == "player":
+		# Right-click on entity: SELECT (highlight)
+		_on_entity_selected(entity_info.id, entity_info.type, entity_info.node)
+
+
+## Called when enemy is left-clicked (attack)
+func _on_enemy_clicked(enemy_id: int, enemy_node: Node3D) -> void:
+	# Stop any current click-to-move
+	if click_movement_controller:
+		click_movement_controller.cancel_movement()
+	
+	# Start attacking this enemy
+	if combat_controller:
+		combat_controller.attack_enemy(enemy_id, enemy_node)
+	
+	emit_signal("enemy_clicked", enemy_id, enemy_node)
+
+
+## Called when ground is left-clicked (move to)
+func _on_ground_clicked(world_pos: Vector3) -> void:
+	# Stop auto-attack
+	if combat_controller:
+		combat_controller.stop_auto_attack()
+	
+	# Start moving to clicked position
+	if click_movement_controller:
+		click_movement_controller.move_to(world_pos)
+	
+	emit_signal("ground_clicked", world_pos)
+
+
+## Called when entity is selected (right-click)
+func _on_entity_selected(entity_id: int, entity_type: String, entity_node: Node3D) -> void:
+	# Set target in combat controller (without attacking)
+	if combat_controller:
+		combat_controller.set_target(entity_id, entity_node)
+	
+	emit_signal("entity_clicked", entity_id, entity_type, entity_node)
+
+
+## Called when clicking on nothing
+func _on_clicked_nothing() -> void:
+	# Stop auto-attack and clear target
+	if combat_controller:
+		combat_controller.stop_auto_attack()
+	
+	emit_signal("clicked_nothing")
+
+
+## Perform raycast at screen position
+func _raycast_at_position(screen_pos: Vector2) -> Dictionary:
+	if not camera:
+		return {}
+	
+	var from = camera.project_ray_origin(screen_pos)
+	var to = from + camera.project_ray_normal(screen_pos) * RAY_LENGTH
+	
+	var space_state = camera.get_world_3d().direct_space_state
+	var query = PhysicsRayQueryParameters3D.create(from, to)
+	query.collide_with_areas = false
+	query.collide_with_bodies = true
+	
+	return space_state.intersect_ray(query)
+
+
+## Get entity info from raycast hit
+func _get_entity_from_hit(hit: Dictionary) -> Dictionary:
+	if hit.is_empty() or not game_manager:
+		return {"type": "none", "id": -1, "node": null}
+	
+	var collider = hit.collider
+	
+	# Check if it's an enemy
+	var enemy_data = game_manager.get_enemy_by_node(collider)
+	if not enemy_data.is_empty():
+		return {"type": "enemy", "id": enemy_data.id, "node": enemy_data.node}
+	
+	# Check if it's a remote player
+	var player_data = game_manager.get_player_by_node(collider)
+	if not player_data.is_empty():
+		return {"type": "player", "id": player_data.id, "node": player_data.node}
+	
+	# Not an entity - must be ground/terrain
+	return {"type": "ground", "id": -1, "node": collider}
 
 
 ## Get the camera's forward direction on the XZ plane
@@ -220,11 +362,6 @@ func is_camera_rotating() -> bool:
 	return is_rotating
 
 
-## Check if character is being turned
-func is_character_turning() -> bool:
-	return is_turning
-
-
 ## Check if chat input is currently focused
 func _is_chat_focused() -> bool:
 	var chat_ui = get_tree().get_first_node_in_group("chat_ui")
@@ -243,19 +380,7 @@ func _unfocus_chat() -> void:
 ## Reset all mouse tracking state
 func _reset_mouse_state() -> void:
 	is_rotating = false
-	is_turning = false
 	left_mouse_down = false
 	left_click_is_drag = false
-	_sync_camera_to_player()
-
-
-## Sync camera yaw with player rotation (optional, for when player rotates externally)
-func _sync_camera_to_player() -> void:
-	# With camera-relative movement, we don't need to sync camera to player
-	# The player follows the camera direction, not the other way around
-	pass
-
-
-## Called when UI (like chat) releases focus
-func on_ui_focus_released() -> void:
-	_reset_mouse_state()
+	right_mouse_down = false
+	right_click_is_drag = false

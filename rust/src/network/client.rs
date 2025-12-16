@@ -329,6 +329,13 @@ impl NetworkClient {
         };
         let _ = self.send_message(&msg);
     }
+    
+    /// Send respawn request after death
+    /// respawn_type: 0 = at empire spawn (full health), 1 = at death location (20% health)
+    pub fn send_respawn_request(&mut self, respawn_type: u8) {
+        let msg = ClientMessage::RespawnRequest { respawn_type };
+        let _ = self.send_message(&msg);
+    }
 }
 
 impl Default for NetworkClient {

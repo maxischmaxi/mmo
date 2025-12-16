@@ -51,6 +51,17 @@ impl CharacterClass {
             Self::Shaman => "Shaman",
         }
     }
+    
+    /// Get base attack speed for this class (attacks per second multiplier)
+    /// 1.0 = normal speed (1.53s base animation), 1.5 = 50% faster, etc.
+    pub fn base_attack_speed(&self) -> f32 {
+        match self {
+            Self::Ninja => 1.2,    // Ninjas attack slightly faster
+            Self::Warrior => 1.0,  // Warriors have normal attack speed
+            Self::Sura => 1.1,     // Suras attack slightly faster
+            Self::Shaman => 0.9,   // Shamans attack slightly slower (magic focused)
+        }
+    }
 }
 
 /// Character gender
@@ -204,6 +215,12 @@ pub enum ClientMessage {
     DropItem {
         slot: u8,
     },
+    
+    /// Request respawn after death
+    /// respawn_type: 0 = at empire spawn (full health), 1 = at death location (20% health)
+    RespawnRequest {
+        respawn_type: u8,
+    },
 }
 
 // =============================================================================
@@ -265,6 +282,7 @@ pub enum ServerMessage {
         experience: u32,
         attack: u32,
         defense: u32,
+        attack_speed: f32,
         inventory: Vec<Option<InventorySlot>>,
     },
     
@@ -328,11 +346,18 @@ pub enum ServerMessage {
         killer_id: Option<u64>,
     },
     
-    /// Entity respawned
+    /// Entity respawned (for other entities)
     EntityRespawn {
         entity_id: u64,
         position: [f32; 3],
         health: u32,
+    },
+    
+    /// Player respawn response (for local player)
+    PlayerRespawned {
+        position: [f32; 3],
+        health: u32,
+        max_health: u32,
     },
     
     /// Item spawned in world

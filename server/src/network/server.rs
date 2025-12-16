@@ -204,6 +204,9 @@ impl Server {
             ClientMessage::DropItem { slot } => {
                 self.handle_drop_item(addr, slot, world);
             }
+            ClientMessage::RespawnRequest { respawn_type } => {
+                self.handle_respawn(addr, respawn_type, world).await;
+            }
         }
     }
     
@@ -509,8 +512,17 @@ impl Server {
             };
         }
         
+        // If player has 0 health (died and logged out), respawn them at empire spawn with 20% HP
+        let (spawn_position, spawn_health) = if player_state.health <= 0 {
+            let empire_spawn = character.empire.spawn_position();
+            let respawn_health = (player_state.max_health as f32 * 0.2).max(1.0) as i32;
+            info!("Character '{}' was dead, respawning at empire spawn with {} HP", character.name, respawn_health);
+            (empire_spawn, respawn_health)
+        } else {
+            ([player_state.position_x, player_state.position_y, player_state.position_z], player_state.health)
+        };
+        
         // Spawn player in world
-        let spawn_position = [player_state.position_x, player_state.position_y, player_state.position_z];
         world.spawn_player_with_state(
             player_id,
             character.name.clone(),
@@ -519,7 +531,7 @@ impl Server {
             character.empire,
             spawn_position,
             player_state.rotation,
-            player_state.health as u32,
+            spawn_health as u32,
             player_state.max_health as u32,
             player_state.mana as u32,
             player_state.max_mana as u32,
@@ -534,6 +546,9 @@ impl Server {
         // Convert inventory for protocol
         let inventory_slots = inventory_data_to_slots(&inventory_data);
         
+        // Calculate attack speed from class (+ equipment bonuses later)
+        let attack_speed = character.class.base_attack_speed();
+        
         // Send character selected with full state
         let msg = ServerMessage::CharacterSelected {
             character_id,
@@ -543,7 +558,7 @@ impl Server {
             empire: character.empire,
             position: spawn_position,
             rotation: player_state.rotation,
-            health: player_state.health as u32,
+            health: spawn_health as u32,
             max_health: player_state.max_health as u32,
             mana: player_state.mana as u32,
             max_mana: player_state.max_mana as u32,
@@ -551,6 +566,7 @@ impl Server {
             experience: player_state.experience as u32,
             attack: player_state.attack as u32,
             defense: player_state.defense as u32,
+            attack_speed,
             inventory: inventory_slots,
         };
         self.send_to(addr, &msg).await;
@@ -782,6 +798,61 @@ impl Server {
                 client.outgoing_queue.push(inv_msg);
             }
         }
+    }
+    
+    /// Handle respawn request
+    /// respawn_type: 0 = at empire spawn (full health), 1 = at death location (20% health)
+    async fn handle_respawn(&mut self, addr: SocketAddr, respawn_type: u8, world: &mut GameWorld) {
+        let (player_id, empire) = match self.clients.get(&addr) {
+            Some(c) => {
+                if let ConnectionState::InGame { empire, .. } = &c.state {
+                    (c.player_id, *empire)
+                } else {
+                    return;
+                }
+            }
+            _ => return,
+        };
+        
+        // Get player's current (death) position and max health
+        let (death_position, max_health) = match world.get_player(player_id) {
+            Some(p) => (p.position, p.max_health),
+            None => return,
+        };
+        
+        // Calculate respawn position and health based on respawn type
+        let (respawn_position, respawn_health) = if respawn_type == 0 {
+            // Respawn at empire spawn with full health
+            (empire.spawn_position(), max_health)
+        } else {
+            // Respawn at death location with 20% health
+            let health_20_percent = (max_health as f32 * 0.2).max(1.0) as u32;
+            (death_position, health_20_percent)
+        };
+        
+        // Respawn the player in the world
+        world.respawn_player(player_id, respawn_position, respawn_health);
+        
+        info!("Player {} respawned (type: {}) at {:?} with {} health", 
+              player_id, respawn_type, respawn_position, respawn_health);
+        
+        // Send respawn response to the player
+        let respawn_msg = ServerMessage::PlayerRespawned {
+            position: respawn_position,
+            health: respawn_health,
+            max_health,
+        };
+        if let Some(client) = self.clients.get_mut(&addr) {
+            client.outgoing_queue.push(respawn_msg);
+        }
+        
+        // Broadcast entity respawn to other players
+        let broadcast_msg = ServerMessage::EntityRespawn {
+            entity_id: player_id,
+            position: respawn_position,
+            health: respawn_health,
+        };
+        self.broadcast_to_ingame_except(addr, broadcast_msg);
     }
     
     /// Check for timed out connections

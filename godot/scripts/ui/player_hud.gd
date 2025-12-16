@@ -5,9 +5,6 @@ class_name PlayerHUD
 ## Reference to local player
 var local_player: Node = null
 
-## Reference to targeting system
-var targeting_system: TargetingSystem = null
-
 ## Current values (for smooth animation)
 var current_health: float = 100.0
 var current_mana: float = 50.0
@@ -45,16 +42,14 @@ func _ready() -> void:
 		# Set initial values
 		update_player_name("Player")
 	
-	# Find targeting system
-	targeting_system = get_tree().get_first_node_in_group("targeting_system")
-	if targeting_system == null:
-		var main = get_tree().current_scene
-		if main:
-			targeting_system = main.get_node_or_null("TargetingSystem")
-	
-	if targeting_system:
-		targeting_system.connect("auto_attack_changed", _on_auto_attack_changed)
-		targeting_system.connect("swing_timer_updated", _on_swing_timer_updated)
+	# Find combat controller for auto-attack signals
+	if local_player:
+		var combat_controller = local_player.get_node_or_null("CombatController")
+		if combat_controller:
+			if combat_controller.has_signal("auto_attack_changed"):
+				combat_controller.connect("auto_attack_changed", _on_auto_attack_changed)
+			if combat_controller.has_signal("attack_cooldown_updated"):
+				combat_controller.connect("attack_cooldown_updated", _on_swing_timer_updated)
 	
 	# Set initial bar values
 	if health_bar:
@@ -164,9 +159,7 @@ func _on_auto_attack_changed(is_active: bool) -> void:
 		swing_timer_bar.value = 0.0
 
 
-## Called when swing timer updates
-func _on_swing_timer_updated(progress: float, is_attacking: bool) -> void:
+## Called when swing timer updates (attack cooldown progress)
+func _on_swing_timer_updated(progress: float) -> void:
 	if swing_timer_bar:
-		swing_timer_bar.value = progress
-	if swing_timer_container:
-		swing_timer_container.visible = is_attacking
+		swing_timer_bar.value = progress * 100.0  # Convert 0-1 to 0-100 for progress bar

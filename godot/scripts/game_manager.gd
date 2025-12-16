@@ -518,7 +518,7 @@ func _on_damage_dealt(attacker_id: int, target_id: int, damage: int, is_critical
 
 
 ## Update remote player position from world state (with interpolation)
-func update_remote_player(id: int, position: Vector3, rotation: float, health: int = -1) -> void:
+func update_remote_player(id: int, position: Vector3, rotation: float, health: int = -1, animation_state: int = -1) -> void:
 	if remote_players.has(id):
 		var data = remote_players[id]
 		
@@ -531,6 +531,12 @@ func update_remote_player(id: int, position: Vector3, rotation: float, health: i
 			data["health"] = health
 			if data.has("health_bar"):
 				data["health_bar"].set_health(health, data["max_health"])
+		
+		# Update animation state on the remote player node
+		if animation_state >= 0:
+			var remote_player_node = data["node"]
+			if remote_player_node and remote_player_node.has_method("update_from_server"):
+				remote_player_node.update_from_server(position, rotation, animation_state)
 
 
 ## Update enemy position from world state (with interpolation)
@@ -621,5 +627,5 @@ func _on_enemy_state_updated(id: int, position: Vector3, rotation: float, health
 
 
 ## Handle remote player state update from WorldState
-func _on_player_state_updated(id: int, position: Vector3, rotation: float, health: int) -> void:
-	update_remote_player(id, position, rotation, health)
+func _on_player_state_updated(id: int, position: Vector3, rotation: float, health: int, animation_state: int = 0) -> void:
+	update_remote_player(id, position, rotation, health, animation_state)

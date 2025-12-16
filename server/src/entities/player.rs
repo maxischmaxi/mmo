@@ -24,6 +24,8 @@ pub struct ServerPlayer {
     pub defense: u32,
     pub animation_state: AnimationState,
     pub inventory: Vec<Option<InventorySlot>>,
+    /// Whether death has been announced (prevents duplicate EntityDeath messages)
+    pub death_announced: bool,
 }
 
 impl ServerPlayer {
@@ -62,6 +64,7 @@ impl ServerPlayer {
             defense,
             animation_state: AnimationState::Idle,
             inventory,
+            death_announced: false,
         }
     }
     
@@ -172,5 +175,18 @@ impl ServerPlayer {
     /// Check if dead
     pub fn is_dead(&self) -> bool {
         self.health == 0
+    }
+    
+    /// Get attack speed (base from class + equipment bonuses)
+    /// Returns attacks per second multiplier (1.0 = normal, higher = faster)
+    pub fn get_attack_speed(&self) -> f32 {
+        // Base attack speed from class
+        let base_speed = self.class.base_attack_speed();
+        
+        // TODO: Add equipment bonuses when weapon system is implemented
+        // let weapon_bonus = self.get_equipped_weapon_attack_speed_bonus();
+        let weapon_bonus = 0.0;
+        
+        base_speed + weapon_bonus
     }
 }

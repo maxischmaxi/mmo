@@ -1,24 +1,14 @@
 [gd_scene load_steps=8 format=3 uid="uid://bk3qj8l2xp5yw"]
 
 [ext_resource type="Script" path="res://scripts/camera_controller.gd" id="1_camera"]
+[ext_resource type="PackedScene" uid="uid://c6yqh4x8m2npv" path="res://scenes/player/character_model.tscn" id="2_character"]
+[ext_resource type="Script" path="res://scripts/click_movement_controller.gd" id="3_click_movement"]
+[ext_resource type="Script" path="res://scripts/combat_controller.gd" id="4_combat"]
+[ext_resource type="Script" path="res://scripts/death_controller.gd" id="5_death"]
 
 [sub_resource type="CapsuleShape3D" id="CapsuleShape3D_1"]
-radius = 0.4
-height = 1.8
-
-[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_body"]
-albedo_color = Color(0.2, 0.6, 0.9, 1)
-
-[sub_resource type="CapsuleMesh" id="CapsuleMesh_body"]
-radius = 0.4
-height = 1.8
-
-[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_head"]
-albedo_color = Color(0.9, 0.75, 0.6, 1)
-
-[sub_resource type="SphereMesh" id="SphereMesh_head"]
-radius = 0.25
-height = 0.5
+radius = 0.35
+height = 1.83
 
 [sub_resource type="SphereShape3D" id="SphereShape3D_spring"]
 radius = 0.2
@@ -26,18 +16,10 @@ radius = 0.2
 [node name="Player" type="Player"]
 
 [node name="CollisionShape3D" type="CollisionShape3D" parent="."]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.9, 0)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.915, 0)
 shape = SubResource("CapsuleShape3D_1")
 
-[node name="Body" type="MeshInstance3D" parent="."]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.9, 0)
-mesh = SubResource("CapsuleMesh_body")
-surface_material_override/0 = SubResource("StandardMaterial3D_body")
-
-[node name="Head" type="MeshInstance3D" parent="."]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 2, 0)
-mesh = SubResource("SphereMesh_head")
-surface_material_override/0 = SubResource("StandardMaterial3D_head")
+[node name="CharacterModel" parent="." instance=ExtResource("2_character")]
 
 [node name="CameraController" type="Node3D" parent="."]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.5, 0)
@@ -51,3 +33,12 @@ spring_length = 7.0
 
 [node name="Camera3D" type="Camera3D" parent="CameraController/SpringArm3D"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0)
+
+[node name="ClickMovementController" type="Node" parent="."]
+script = ExtResource("3_click_movement")
+
+[node name="CombatController" type="Node" parent="."]
+script = ExtResource("4_combat")
+
+[node name="DeathController" type="Node" parent="."]
+script = ExtResource("5_death")
