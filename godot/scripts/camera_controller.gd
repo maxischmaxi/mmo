@@ -117,14 +117,14 @@ func _find_references() -> void:
 			game_manager = main.get_node_or_null("GameManager")
 
 
-func _input(event: InputEvent) -> void:
+func _unhandled_input(event: InputEvent) -> void:
 	# Handle chat focus - click outside chat to unfocus
 	if event is InputEventMouseButton:
 		var mouse_event = event as InputEventMouseButton
 		if mouse_event.pressed and mouse_event.button_index == MOUSE_BUTTON_LEFT:
 			if _is_chat_focused():
 				_unfocus_chat()
-				_reset_mouse_state()
+				reset_mouse_state()
 				return
 	
 	# Don't process camera input if chat is focused
@@ -377,8 +377,8 @@ func _unfocus_chat() -> void:
 		chat_ui.call("unfocus")
 
 
-## Reset all mouse tracking state
-func _reset_mouse_state() -> void:
+## Reset all mouse tracking state (public for external reset on state changes)
+func reset_mouse_state() -> void:
 	is_rotating = false
 	left_mouse_down = false
 	left_click_is_drag = false

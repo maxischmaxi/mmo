@@ -210,7 +210,24 @@ func _change_state(new_state: GameState) -> void:
 		GameState.IN_GAME:
 			if game_ui:
 				game_ui.visible = true
-			# Mouse will be captured by camera controller
+			# Reset any pending click-to-move or mouse state from UI interactions
+			_reset_player_input_state()
+
+
+func _reset_player_input_state() -> void:
+	"""Reset player input state to prevent residual UI clicks from triggering movement."""
+	if not local_player:
+		return
+	
+	# Reset camera controller mouse state
+	var camera_controller = local_player.get_node_or_null("CameraController")
+	if camera_controller and camera_controller.has_method("reset_mouse_state"):
+		camera_controller.reset_mouse_state()
+	
+	# Cancel any pending click-to-move
+	var click_movement = local_player.get_node_or_null("ClickMovementController")
+	if click_movement and click_movement.has_method("cancel_movement"):
+		click_movement.cancel_movement()
 
 
 func _ensure_character_select_screen() -> void:
