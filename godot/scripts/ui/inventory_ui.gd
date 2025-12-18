@@ -15,6 +15,9 @@ const RARITY_COLORS: Dictionary = {
 	"legendary": Color(1.0, 0.6, 0.0),
 }
 
+## Teleport Ring item ID
+const TELEPORT_RING_ID: int = 100
+
 ## Item definitions (mirrored from server database)
 const ITEM_DEFS: Dictionary = {
 	# Consumables and Materials (IDs 1-3)
@@ -41,6 +44,9 @@ const ITEM_DEFS: Dictionary = {
 	# Shaman Weapons (IDs 16-17)
 	16: {"name": "Oak Staff", "description": "A simple staff for channeling nature magic.", "type": "weapon", "rarity": "common", "damage": 8, "speed": 1.0, "class": "shaman"},
 	17: {"name": "Spirit Totem", "description": "A totem imbued with ancestral spirits.", "type": "weapon", "rarity": "rare", "damage": 14, "speed": 1.1, "class": "shaman"},
+	
+	# Special Items
+	100: {"name": "Teleport Ring", "description": "A magical ring that allows instant travel between villages.", "type": "special", "rarity": "rare"},
 }
 
 ## Reference to local player
@@ -52,20 +58,28 @@ var inventory_slots: Array = []
 ## Currently equipped weapon item ID (-1 = unarmed)
 var equipped_weapon_id: int = -1
 
-## Dragging state
+## Window dragging state
 var is_dragging: bool = false
 var drag_offset: Vector2 = Vector2.ZERO
+
+## Item drag & drop state
+var is_dragging_item: bool = false
+var drag_from_slot: int = -1
+var drag_item_id: int = 0
+var drag_item_quantity: int = 0
+var drag_item_color: Color = Color.WHITE
+var drag_preview: Control = null
 
 ## UI References
 @onready var panel: Panel = $Panel
 @onready var grid: GridContainer = $Panel/MarginContainer/VBoxContainer/GridContainer
 @onready var header: HBoxContainer = $Panel/MarginContainer/VBoxContainer/Header
 @onready var tooltip: Control = $Tooltip
-@onready var tooltip_name: Label = $Tooltip/VBox/ItemName
-@onready var tooltip_type: Label = $Tooltip/VBox/ItemType
-@onready var tooltip_desc: Label = $Tooltip/VBox/Description
-@onready var tooltip_hint: Label = $Tooltip/VBox/UseHint
-@onready var tooltip_stats: Label = $Tooltip/VBox/Stats
+@onready var tooltip_name: Label = $Tooltip/MarginContainer/VBox/ItemName
+@onready var tooltip_type: Label = $Tooltip/MarginContainer/VBox/ItemType
+@onready var tooltip_desc: Label = $Tooltip/MarginContainer/VBox/Description
+@onready var tooltip_hint: Label = $Tooltip/MarginContainer/VBox/UseHint
+@onready var tooltip_stats: Label = $Tooltip/MarginContainer/VBox/Stats
 
 ## Equipment panel references (created dynamically if not in scene)
 var equipment_panel: Control = null
@@ -127,6 +141,9 @@ func _ready() -> void:
 	if local_player:
 		local_player.connect("inventory_updated", _on_inventory_updated)
 		local_player.connect("equipment_changed", _on_equipment_changed)
+		# Close inventory when teleporting to another zone
+		if local_player.has_signal("zone_change"):
+			local_player.connect("zone_change", _on_zone_change)
 
 
 func _input(event: InputEvent) -> void:
@@ -141,15 +158,29 @@ func _input(event: InputEvent) -> void:
 	elif event.is_action_pressed("ui_cancel") and visible:
 		close_inventory()
 		get_viewport().set_input_as_handled()
+	
+	# Handle drag end when mouse released anywhere
+	if event is InputEventMouseButton:
+		var mouse_event = event as InputEventMouseButton
+		if mouse_event.button_index == MOUSE_BUTTON_LEFT and not mouse_event.pressed:
+			if is_dragging_item:
+				_finish_item_drag()
+
+
+func _process(_delta: float) -> void:
+	# Update drag preview position to follow mouse
+	if is_dragging_item and drag_preview and is_instance_valid(drag_preview):
+		drag_preview.global_position = get_global_mouse_position() - Vector2(22, 22)
 
 
 ## Check if we're in the actual game (not login/character select screens)
 func _is_in_game() -> bool:
 	var game_manager = get_tree().get_first_node_in_group("game_manager")
-	if game_manager and game_manager.has_method("get") and "current_state" in game_manager:
+	if game_manager and "current_state" in game_manager:
 		# GameState.IN_GAME = 3
 		return game_manager.current_state == 3
-	return false
+	# Fallback - assume we're in game if no game manager found
+	return true
 
 
 # =============================================================================
@@ -311,6 +342,8 @@ func _create_slots() -> void:
 		slot.connect("slot_right_clicked", _on_slot_right_clicked)
 		slot.connect("slot_hovered", _on_slot_hovered)
 		slot.connect("slot_unhovered", _on_slot_unhovered)
+		slot.connect("drag_started", _on_item_drag_started)
+		slot.connect("drag_ended", _on_item_drag_ended)
 		grid.add_child(slot)
 		slot_nodes.append(slot)
 
@@ -398,9 +431,169 @@ func _on_equipment_changed(weapon_id: int) -> void:
 	_refresh_equipment_display()
 
 
+func _on_zone_change(_zone_id: int, _zone_name: String, _scene_path: String, _spawn_x: float, _spawn_y: float, _spawn_z: float) -> void:
+	"""Close inventory when teleporting to another zone."""
+	_cancel_item_drag()
+	close_inventory()
+
+
+# =============================================================================
+# Item Drag & Drop
+# =============================================================================
+
+func _on_item_drag_started(slot_index: int) -> void:
+	"""Called when user starts dragging an item from a slot."""
+	var slot_data = inventory_slots[slot_index]
+	if slot_data == null or not slot_data.has("item_id"):
+		return
+	
+	is_dragging_item = true
+	drag_from_slot = slot_index
+	drag_item_id = slot_data["item_id"]
+	drag_item_quantity = slot_data.get("quantity", 1)
+	
+	# Get the item color from the slot
+	if slot_index < slot_nodes.size():
+		drag_item_color = slot_nodes[slot_index].get_item_color()
+	else:
+		drag_item_color = Color(0.5, 0.5, 0.5)
+	
+	# Create ghost preview
+	_create_drag_preview()
+	
+	# Hide tooltip during drag
+	if tooltip:
+		tooltip.visible = false
+	
+	print("Started dragging item from slot ", slot_index)
+
+
+func _on_item_drag_ended(slot_index: int) -> void:
+	"""Called when user releases mouse after dragging (from item_slot signal)."""
+	# The actual logic is handled in _finish_item_drag() which is called from _input
+	pass
+
+
+func _finish_item_drag() -> void:
+	"""Complete the drag operation - swap, drop, or cancel."""
+	if not is_dragging_item:
+		return
+	
+	# Find what slot (if any) is under the mouse
+	var drop_target_slot = _get_slot_under_mouse()
+	
+	if drop_target_slot >= 0:
+		if drop_target_slot != drag_from_slot:
+			# Swap the slots
+			if local_player and local_player.has_method("swap_inventory_slots"):
+				local_player.swap_inventory_slots(drag_from_slot, drop_target_slot)
+				print("Swapping slots ", drag_from_slot, " <-> ", drop_target_slot)
+	else:
+		# Dropped outside inventory - check if we should drop the item
+		if not _is_mouse_over_inventory():
+			if local_player and local_player.has_method("drop_item"):
+				local_player.drop_item(drag_from_slot)
+				print("Dropping item from slot ", drag_from_slot)
+	
+	_cancel_item_drag()
+
+
+func _cancel_item_drag() -> void:
+	"""Cancel the current drag operation and clean up."""
+	is_dragging_item = false
+	drag_from_slot = -1
+	drag_item_id = 0
+	drag_item_quantity = 0
+	_destroy_drag_preview()
+
+
+func _create_drag_preview() -> void:
+	"""Create a ghost preview of the dragged item."""
+	# Create a simple panel with border for the preview
+	var preview_panel = Panel.new()
+	preview_panel.custom_minimum_size = Vector2(44, 44)
+	preview_panel.size = Vector2(44, 44)
+	preview_panel.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	
+	# Style the panel with a border
+	var style = StyleBoxFlat.new()
+	style.bg_color = Color(0.15, 0.15, 0.15, 0.9)
+	style.border_width_bottom = 2
+	style.border_width_left = 2
+	style.border_width_right = 2
+	style.border_width_top = 2
+	style.border_color = Color(0.8, 0.8, 0.2, 1.0)  # Yellow border
+	style.corner_radius_top_left = 4
+	style.corner_radius_top_right = 4
+	style.corner_radius_bottom_left = 4
+	style.corner_radius_bottom_right = 4
+	preview_panel.add_theme_stylebox_override("panel", style)
+	
+	# Add the item icon inside
+	var icon_rect = ColorRect.new()
+	icon_rect.set_anchors_preset(Control.PRESET_CENTER)
+	icon_rect.size = Vector2(36, 36)
+	icon_rect.position = Vector2(4, 4)
+	icon_rect.color = drag_item_color
+	icon_rect.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	preview_panel.add_child(icon_rect)
+	
+	# Add quantity label if more than 1
+	if drag_item_quantity > 1:
+		var qty_label = Label.new()
+		qty_label.text = str(drag_item_quantity)
+		qty_label.position = Vector2(24, 26)
+		qty_label.add_theme_font_size_override("font_size", 12)
+		qty_label.add_theme_color_override("font_color", Color.WHITE)
+		qty_label.add_theme_color_override("font_shadow_color", Color.BLACK)
+		qty_label.add_theme_constant_override("shadow_offset_x", 1)
+		qty_label.add_theme_constant_override("shadow_offset_y", 1)
+		qty_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		preview_panel.add_child(qty_label)
+	
+	# Add directly to the CanvasLayer UI is on, with high z_index
+	var ui_layer = get_parent().get_parent()  # Should be the UI CanvasLayer
+	if ui_layer:
+		ui_layer.add_child(preview_panel)
+	else:
+		get_tree().root.add_child(preview_panel)
+	
+	preview_panel.z_index = 100
+	drag_preview = preview_panel
+	
+	# Position at mouse
+	drag_preview.global_position = get_global_mouse_position() - Vector2(22, 22)
+
+
+func _destroy_drag_preview() -> void:
+	"""Remove and free the drag preview."""
+	if drag_preview and is_instance_valid(drag_preview):
+		drag_preview.queue_free()
+		drag_preview = null
+
+
+func _get_slot_under_mouse() -> int:
+	"""Get the slot index under the current mouse position, or -1 if none."""
+	var mouse_pos = get_global_mouse_position()
+	for i in range(slot_nodes.size()):
+		var slot = slot_nodes[i]
+		var rect = Rect2(slot.global_position, slot.size)
+		if rect.has_point(mouse_pos):
+			return i
+	return -1
+
+
+func _is_mouse_over_inventory() -> bool:
+	"""Check if the mouse is currently over the inventory panel."""
+	if not panel:
+		return false
+	var mouse_pos = get_global_mouse_position()
+	var rect = Rect2(panel.global_position, panel.size)
+	return rect.has_point(mouse_pos)
+
+
 func _on_slot_clicked(slot_index: int) -> void:
 	print("Slot clicked: ", slot_index)
-	# TODO: Implement slot selection / drag-drop
 
 
 func _on_slot_right_clicked(slot_index: int) -> void:
@@ -412,6 +605,12 @@ func _on_slot_right_clicked(slot_index: int) -> void:
 		var item_def = ITEM_DEFS.get(item_id, null)
 		
 		if not item_def:
+			return
+		
+		# Special handling for Teleport Ring
+		if item_id == TELEPORT_RING_ID:
+			close_inventory()  # Close inventory first
+			_open_teleport_dialog()
 			return
 		
 		# Use consumables on right-click
@@ -530,9 +729,56 @@ func _show_tooltip_for_item(item_def: Dictionary, is_equipped: bool = false) -> 
 		else:
 			tooltip_hint.text = "[Right-click to equip]"
 		tooltip_hint.visible = true
+	elif item_def["type"] == "special":
+		tooltip_hint.text = "[Right-click to use]"
+		tooltip_hint.visible = true
 	else:
 		tooltip_hint.visible = false
 	
-	# Position tooltip near mouse
-	tooltip.global_position = get_global_mouse_position() + Vector2(15, 15)
+	# Show tooltip and position it smartly
 	tooltip.visible = true
+	_position_tooltip_smart()
+
+
+## Position tooltip smartly within viewport bounds
+func _position_tooltip_smart() -> void:
+	if not tooltip:
+		return
+	
+	# Reset tooltip size so it can recalculate from content
+	tooltip.reset_size()
+	
+	# Get mouse position and tooltip size
+	var mouse_pos = get_global_mouse_position()
+	var tooltip_size = tooltip.size
+	var viewport_size = get_viewport_rect().size
+	var margin = 15  # Distance from cursor
+	
+	# Start with bottom-right positioning (preferred)
+	var pos = mouse_pos + Vector2(margin, margin)
+	
+	# Flip horizontally if it would overflow the right edge
+	if pos.x + tooltip_size.x > viewport_size.x:
+		pos.x = mouse_pos.x - tooltip_size.x - margin
+	
+	# Flip vertically if it would overflow the bottom edge
+	if pos.y + tooltip_size.y > viewport_size.y:
+		pos.y = mouse_pos.y - tooltip_size.y - margin
+	
+	# Final safety clamp to ensure it's always fully visible
+	pos.x = clampf(pos.x, 0, viewport_size.x - tooltip_size.x)
+	pos.y = clampf(pos.y, 0, viewport_size.y - tooltip_size.y)
+	
+	tooltip.global_position = pos
+
+
+## Open the teleport dialog (for Teleport Ring)
+func _open_teleport_dialog() -> void:
+	print("Opening teleport dialog")
+	
+	# Find teleport dialog in the scene
+	var teleport_dialog = get_tree().get_first_node_in_group("teleport_dialog")
+	if teleport_dialog and teleport_dialog.has_method("show_dialog"):
+		teleport_dialog.show_dialog()
+	else:
+		push_error("InventoryUI: Could not find teleport dialog!")

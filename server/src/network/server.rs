@@ -216,6 +216,12 @@ impl Server {
             ClientMessage::DevAddItem { item_id, quantity } => {
                 self.handle_dev_add_item(addr, item_id, quantity, world).await;
             }
+            ClientMessage::TeleportRequest { zone_id } => {
+                self.handle_teleport_request(addr, zone_id, world).await;
+            }
+            ClientMessage::SwapInventorySlots { from_slot, to_slot } => {
+                self.handle_swap_inventory_slots(addr, from_slot, to_slot, world).await;
+            }
         }
     }
     
@@ -1042,6 +1048,145 @@ impl Server {
                 client.outgoing_queue.push(inv_msg);
             }
             info!("Dev: Added {}x item {} to player {}", quantity, item_id, player_id);
+        }
+    }
+    
+    /// Handle teleport request via Teleport Ring
+    async fn handle_teleport_request(&mut self, addr: SocketAddr, zone_id: u32, world: &mut GameWorld) {
+        let (player_id, current_zone_id) = match self.clients.get(&addr) {
+            Some(c) if c.is_in_game() => {
+                let pid = c.player_id;
+                let zone = world.get_player(pid).map(|p| p.zone_id).unwrap_or(0);
+                (pid, zone)
+            },
+            _ => return,
+        };
+        
+        // Check if target zone exists
+        if !world.zone_manager.zone_exists(zone_id) {
+            warn!("Teleport request to non-existent zone {} from player {}", zone_id, player_id);
+            // Could send TeleportFailed message here
+            return;
+        }
+        
+        // Don't teleport to the same zone
+        if current_zone_id == zone_id {
+            info!("Player {} already in zone {}, ignoring teleport request", player_id, zone_id);
+            return;
+        }
+        
+        // Get spawn point for target zone
+        let spawn_position = world.zone_manager.get_default_spawn_point(zone_id);
+        
+        // Get zone info
+        let (zone_name, scene_path) = match world.zone_manager.get_zone(zone_id) {
+            Some(zone) => (zone.name.clone(), zone.scene_path.clone()),
+            None => {
+                warn!("Zone {} not found in zone_manager", zone_id);
+                return;
+            }
+        };
+        
+        info!("Player {} teleporting from zone {} to zone {} ({})", 
+              player_id, current_zone_id, zone_id, zone_name);
+        
+        // Update player's zone and position
+        if let Some(player) = world.get_player_mut(player_id) {
+            player.zone_id = zone_id;
+            player.position = spawn_position;
+        }
+        
+        // Broadcast PlayerDespawn to OLD zone players
+        let despawn_msg = ServerMessage::PlayerDespawn { id: player_id };
+        self.broadcast_to_zone_except(addr, current_zone_id, despawn_msg, world);
+        
+        // Send ZoneChange to the teleporting player
+        let zone_change_msg = ServerMessage::ZoneChange {
+            zone_id,
+            zone_name: zone_name.clone(),
+            scene_path,
+            spawn_position,
+        };
+        if let Some(client) = self.clients.get_mut(&addr) {
+            client.outgoing_queue.push(zone_change_msg);
+        }
+        
+        // Broadcast PlayerSpawn to NEW zone players (get fresh player data)
+        if let Some(player) = world.get_player(player_id) {
+            let spawn_msg = ServerMessage::PlayerSpawn {
+                id: player_id,
+                name: player.name.clone(),
+                class: player.class,
+                gender: player.gender,
+                empire: player.empire,
+                position: spawn_position,
+                rotation: player.rotation,
+                zone_id,
+            };
+            self.broadcast_to_zone_except(addr, zone_id, spawn_msg, world);
+            
+            // Send existing players in new zone to the teleporting player
+            for other_player in world.get_players_in_zone(zone_id) {
+                if other_player.id != player_id {
+                    let other_spawn_msg = ServerMessage::PlayerSpawn {
+                        id: other_player.id,
+                        name: other_player.name.clone(),
+                        class: other_player.class,
+                        gender: other_player.gender,
+                        empire: other_player.empire,
+                        position: other_player.position,
+                        rotation: other_player.rotation,
+                        zone_id: other_player.zone_id,
+                    };
+                    if let Some(client) = self.clients.get_mut(&addr) {
+                        client.outgoing_queue.push(other_spawn_msg);
+                    }
+                }
+            }
+            
+            // Send existing enemies in new zone to the teleporting player
+            for enemy in world.get_enemies_in_zone(zone_id) {
+                let enemy_spawn_msg = ServerMessage::EnemySpawn {
+                    id: enemy.id,
+                    enemy_type: enemy.enemy_type,
+                    position: enemy.position,
+                    health: enemy.health as u32,
+                    max_health: enemy.max_health as u32,
+                    level: enemy.level,
+                    zone_id: enemy.zone_id,
+                };
+                if let Some(client) = self.clients.get_mut(&addr) {
+                    client.outgoing_queue.push(enemy_spawn_msg);
+                }
+            }
+        }
+        
+        info!("Player {} teleported to {} successfully", player_id, zone_name);
+    }
+    
+    /// Handle inventory slot swap (drag & drop)
+    async fn handle_swap_inventory_slots(&mut self, addr: SocketAddr, from_slot: u8, to_slot: u8, world: &mut GameWorld) {
+        let player_id = match self.clients.get(&addr) {
+            Some(c) if c.is_in_game() => c.player_id,
+            _ => return,
+        };
+        
+        // Validate slot indices
+        if from_slot >= 20 || to_slot >= 20 {
+            warn!("Invalid slot indices for swap: {} -> {}", from_slot, to_slot);
+            return;
+        }
+        
+        // Same slot - nothing to do
+        if from_slot == to_slot {
+            return;
+        }
+        
+        if let Some(inv_msg) = world.swap_inventory_slots(player_id, from_slot, to_slot) {
+            if let Some(client) = self.clients.get_mut(&addr) {
+                client.outgoing_queue.push(inv_msg);
+            }
+            info!("Player {} swapped inventory slots {} <-> {}", player_id, from_slot, to_slot);
         }
     }
     

@@ -184,6 +184,11 @@ impl GameWorld {
         self.players.get(&id)
     }
     
+    /// Get a mutable reference to a player by ID
+    pub fn get_player_mut(&mut self, id: u64) -> Option<&mut ServerPlayer> {
+        self.players.get_mut(&id)
+    }
+    
     /// Get all players
     pub fn get_players(&self) -> Vec<&ServerPlayer> {
         self.players.values().collect()
@@ -344,6 +349,23 @@ impl GameWorld {
     pub fn add_item_to_player(&mut self, player_id: u64, item_id: u32, quantity: u32) -> Option<ServerMessage> {
         let player = self.players.get_mut(&player_id)?;
         player.add_to_inventory(item_id, quantity);
+        
+        Some(ServerMessage::InventoryUpdate {
+            slots: player.get_inventory_slots(),
+        })
+    }
+    
+    /// Swap two inventory slots (for drag & drop)
+    pub fn swap_inventory_slots(&mut self, player_id: u64, from_slot: u8, to_slot: u8) -> Option<ServerMessage> {
+        let player = self.players.get_mut(&player_id)?;
+        
+        // Validate slots
+        if from_slot >= 20 || to_slot >= 20 {
+            return None;
+        }
+        
+        // Swap the slots in player's inventory
+        player.inventory.swap(from_slot as usize, to_slot as usize);
         
         Some(ServerMessage::InventoryUpdate {
             slots: player.get_inventory_slots(),

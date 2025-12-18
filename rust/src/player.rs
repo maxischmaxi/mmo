@@ -526,6 +526,31 @@ impl Player {
         }
     }
     
+    /// Request teleportation to a zone (via Teleport Ring)
+    #[func]
+    fn send_teleport_request(&mut self, zone_id: i64) {
+        if let Some(ref mut network) = self.network {
+            network.send_teleport_request(zone_id as u32);
+            godot_print!("Sent teleport request to zone {}", zone_id);
+        }
+    }
+    
+    /// Swap two inventory slots (for drag & drop rearranging)
+    #[func]
+    fn swap_inventory_slots(&mut self, from_slot: i64, to_slot: i64) {
+        if let Some(ref mut network) = self.network {
+            network.send_swap_inventory_slots(from_slot as u8, to_slot as u8);
+        }
+    }
+    
+    /// Drop an item from inventory onto the ground
+    #[func]
+    fn drop_item(&mut self, slot: i64) {
+        if let Some(ref mut network) = self.network {
+            network.send_drop_item(slot as u8);
+        }
+    }
+    
     /// Check if connected to server
     #[func]
     fn is_connected_to_server(&self) -> bool {

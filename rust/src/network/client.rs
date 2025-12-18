@@ -360,6 +360,24 @@ impl NetworkClient {
         let msg = ClientMessage::DevAddItem { item_id, quantity };
         let _ = self.send_message(&msg);
     }
+    
+    /// Send teleport request (via Teleport Ring)
+    pub fn send_teleport_request(&mut self, zone_id: u32) {
+        let msg = ClientMessage::TeleportRequest { zone_id };
+        let _ = self.send_message(&msg);
+    }
+    
+    /// Send inventory swap request (drag & drop)
+    pub fn send_swap_inventory_slots(&mut self, from_slot: u8, to_slot: u8) {
+        let msg = ClientMessage::SwapInventorySlots { from_slot, to_slot };
+        let _ = self.send_message(&msg);
+    }
+    
+    /// Send drop item request
+    pub fn send_drop_item(&mut self, slot: u8) {
+        let msg = ClientMessage::DropItem { slot };
+        let _ = self.send_message(&msg);
+    }
 }
 
 impl Default for NetworkClient {

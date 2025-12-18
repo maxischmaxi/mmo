@@ -121,7 +121,11 @@ pub fn get_starter_weapon_id(class: CharacterClass) -> i32 {
     }
 }
 
+/// Teleport Ring item ID - every player gets one
+const TELEPORT_RING_ID: i32 = 100;
+
 /// Get starter items based on character class
+/// All classes get a Teleport Ring in addition to their class-specific items
 pub fn get_starter_items(class: CharacterClass) -> Vec<InventorySlotData> {
     let starter_weapon = get_starter_weapon_id(class);
     
@@ -129,20 +133,24 @@ pub fn get_starter_items(class: CharacterClass) -> Vec<InventorySlotData> {
         CharacterClass::Ninja => vec![
             InventorySlotData { slot: 0, item_id: starter_weapon, quantity: 1 },  // Shadow Dagger
             InventorySlotData { slot: 1, item_id: 1, quantity: 10 }, // Health Potions
+            InventorySlotData { slot: 2, item_id: TELEPORT_RING_ID, quantity: 1 }, // Teleport Ring
         ],
         CharacterClass::Warrior => vec![
             InventorySlotData { slot: 0, item_id: starter_weapon, quantity: 1 },  // Steel Claymore
             InventorySlotData { slot: 1, item_id: 1, quantity: 5 },  // Health Potions
+            InventorySlotData { slot: 2, item_id: TELEPORT_RING_ID, quantity: 1 }, // Teleport Ring
         ],
         CharacterClass::Sura => vec![
             InventorySlotData { slot: 0, item_id: starter_weapon, quantity: 1 },  // Cursed Scimitar
             InventorySlotData { slot: 1, item_id: 1, quantity: 5 },  // Health Potions
             InventorySlotData { slot: 2, item_id: 2, quantity: 5 },  // Mana Potions
+            InventorySlotData { slot: 3, item_id: TELEPORT_RING_ID, quantity: 1 }, // Teleport Ring
         ],
         CharacterClass::Shaman => vec![
             InventorySlotData { slot: 0, item_id: starter_weapon, quantity: 1 },  // Oak Staff
             InventorySlotData { slot: 1, item_id: 1, quantity: 3 },  // Health Potions
             InventorySlotData { slot: 2, item_id: 2, quantity: 10 }, // Mana Potions
+            InventorySlotData { slot: 3, item_id: TELEPORT_RING_ID, quantity: 1 }, // Teleport Ring
         ],
     }
 }

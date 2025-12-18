@@ -3,6 +3,9 @@
 use serde::{Deserialize, Serialize};
 use crate::CharacterClass;
 
+/// Teleport Ring item ID - every player should have one
+pub const TELEPORT_RING_ID: u32 = 100;
+
 /// Weapon-specific stats
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct WeaponStats {
@@ -31,11 +34,13 @@ pub struct ItemDef {
 /// Item types
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 pub enum ItemType {
-    Consumable,
-    Weapon,
-    Armor,
-    Material,
-    Quest,
+    Consumable = 0,
+    Weapon = 1,
+    Armor = 2,
+    Material = 3,
+    Quest = 4,
+    /// Special items like Teleport Ring - cannot be dropped or sold
+    Special = 5,
 }
 
 /// Item rarity
@@ -238,6 +243,17 @@ pub fn get_item_definitions() -> Vec<ItemDef> {
                 attack_speed: 1.1,
                 class_restriction: Some(CharacterClass::Shaman),
             }),
+        },
+        // Special Items
+        ItemDef {
+            id: TELEPORT_RING_ID,
+            name: "Teleport Ring".into(),
+            description: "A magical ring that allows instant travel between villages. Right-click to use.".into(),
+            item_type: ItemType::Special,
+            rarity: ItemRarity::Rare,
+            max_stack: 1,
+            effects: vec![],
+            weapon_stats: None,
         },
     ]
 }

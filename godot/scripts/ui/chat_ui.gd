@@ -62,6 +62,9 @@ func _ready() -> void:
 	
 	if local_player:
 		local_player.connect("chat_received", _on_chat_received)
+		# Close chat when teleporting to another zone
+		if local_player.has_signal("zone_change"):
+			local_player.connect("zone_change", _on_zone_change)
 	
 	# Connect UI signals
 	if chat_input:
@@ -209,6 +212,11 @@ func _update_message_fade() -> void:
 
 func _on_chat_received(sender_name: String, content: String) -> void:
 	add_chat_message(sender_name, content)
+
+
+func _on_zone_change(_zone_id: int, _zone_name: String, _scene_path: String, _spawn_x: float, _spawn_y: float, _spawn_z: float) -> void:
+	"""Close chat when teleporting to another zone."""
+	unfocus()
 
 
 func _on_text_submitted(_text: String) -> void:

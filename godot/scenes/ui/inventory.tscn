@@ -79,55 +79,52 @@ theme_override_constants/h_separation = 3
 theme_override_constants/v_separation = 3
 columns = 5
 
-[node name="Tooltip" type="Panel" parent="."]
+[node name="Tooltip" type="PanelContainer" parent="."]
 visible = false
 z_index = 100
 layout_mode = 0
-offset_left = 200.0
-offset_top = 100.0
-offset_right = 400.0
-offset_bottom = 200.0
+offset_right = 220.0
+offset_bottom = 100.0
 theme_override_styles/panel = SubResource("StyleBoxFlat_tooltip")
 
-[node name="VBox" type="VBoxContainer" parent="Tooltip"]
-layout_mode = 1
-anchors_preset = 15
-anchor_right = 1.0
-anchor_bottom = 1.0
-offset_left = 10.0
-offset_top = 8.0
-offset_right = -10.0
-offset_bottom = -8.0
-grow_horizontal = 2
-grow_vertical = 2
+[node name="MarginContainer" type="MarginContainer" parent="Tooltip"]
+layout_mode = 2
+theme_override_constants/margin_left = 10
+theme_override_constants/margin_top = 8
+theme_override_constants/margin_right = 10
+theme_override_constants/margin_bottom = 8
+
+[node name="VBox" type="VBoxContainer" parent="Tooltip/MarginContainer"]
+layout_mode = 2
 theme_override_constants/separation = 4
 
-[node name="ItemName" type="Label" parent="Tooltip/VBox"]
+[node name="ItemName" type="Label" parent="Tooltip/MarginContainer/VBox"]
 layout_mode = 2
 text = "Item Name"
 theme_override_colors/font_color = Color(1, 0.9, 0.6, 1)
 theme_override_font_sizes/font_size = 16
 
-[node name="ItemType" type="Label" parent="Tooltip/VBox"]
+[node name="ItemType" type="Label" parent="Tooltip/MarginContainer/VBox"]
 layout_mode = 2
 text = "Type"
 theme_override_colors/font_color = Color(0.7, 0.7, 0.7, 1)
 theme_override_font_sizes/font_size = 12
 
-[node name="Description" type="Label" parent="Tooltip/VBox"]
+[node name="Description" type="Label" parent="Tooltip/MarginContainer/VBox"]
+custom_minimum_size = Vector2(200, 0)
 layout_mode = 2
 text = "Item description goes here."
 theme_override_colors/font_color = Color(0.9, 0.9, 0.9, 1)
 autowrap_mode = 2
 
-[node name="Stats" type="Label" parent="Tooltip/VBox"]
+[node name="Stats" type="Label" parent="Tooltip/MarginContainer/VBox"]
 visible = false
 layout_mode = 2
 text = "Damage: 10 | Speed: 1.0x"
 theme_override_colors/font_color = Color(0.7, 0.9, 1.0, 1)
 theme_override_font_sizes/font_size = 12
 
-[node name="UseHint" type="Label" parent="Tooltip/VBox"]
+[node name="UseHint" type="Label" parent="Tooltip/MarginContainer/VBox"]
 layout_mode = 2
 text = "[Right-click to use]"
 theme_override_colors/font_color = Color(0.5, 0.9, 0.5, 1)

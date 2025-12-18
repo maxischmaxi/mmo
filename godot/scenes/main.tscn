@@ -1,4 +1,4 @@
-[gd_scene load_steps=18 format=3 uid="uid://dmwxm4pqywvpr"]
+[gd_scene load_steps=19 format=3 uid="uid://dmwxm4pqywvpr"]
 
 [ext_resource type="PackedScene" uid="uid://bk3qj8l2xp5yw" path="res://scenes/player/player.tscn" id="2_player"]
 [ext_resource type="Script" path="res://scripts/game_manager.gd" id="3_game_manager"]
@@ -15,6 +15,7 @@
 [ext_resource type="Shader" path="res://shaders/sky.gdshader" id="14_sky_shader"]
 [ext_resource type="Script" path="res://scripts/zone_manager.gd" id="15_zone_manager"]
 [ext_resource type="PackedScene" uid="uid://c1yb2ldvqxwfx" path="res://scenes/ui/loading_screen.tscn" id="16_loading"]
+[ext_resource type="PackedScene" uid="uid://cteleportdialog" path="res://scenes/ui/teleport_dialog.tscn" id="17_teleport"]
 
 [sub_resource type="ShaderMaterial" id="ShaderMaterial_sky"]
 shader = ExtResource("14_sky_shader")
@@ -93,6 +94,8 @@ mouse_filter = 2
 [node name="CombatText" parent="UI/GameUI" instance=ExtResource("9_combat_text")]
 
 [node name="DevMenu" parent="UI/GameUI" instance=ExtResource("12_devmenu")]
+
+[node name="TeleportDialog" parent="UI/GameUI" instance=ExtResource("17_teleport")]
 
 [node name="DayNightController" type="Node3D" parent="."]
 script = ExtResource("13_daynight")

@@ -3,7 +3,7 @@
 use serde::{Deserialize, Serialize};
 
 /// Protocol version for compatibility checking
-pub const PROTOCOL_VERSION: u32 = 3;
+pub const PROTOCOL_VERSION: u32 = 5;
 
 /// Server tick rate in Hz
 pub const SERVER_TICK_RATE: u32 = 20;
@@ -237,6 +237,17 @@ pub enum ClientMessage {
     DevAddItem {
         item_id: u32,
         quantity: u32,
+    },
+    
+    /// Request teleportation to a zone using Teleport Ring
+    TeleportRequest {
+        zone_id: u32,
+    },
+    
+    /// Swap two inventory slots (for drag & drop rearranging)
+    SwapInventorySlots {
+        from_slot: u8,
+        to_slot: u8,
     },
 }
 
