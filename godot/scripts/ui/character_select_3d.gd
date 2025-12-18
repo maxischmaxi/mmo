@@ -47,14 +47,20 @@ var current_index: int = 0
 ## Whether we're currently animating a transition
 var is_transitioning: bool = false
 
-## Character model instances (one per slot, null if empty)
-var character_models: Array = [null, null, null, null]
+## Single character model instance (only the currently selected character)
+var current_character_model: Node3D = null
 
-## Slot container nodes
+## Slot container nodes (for positioning)
 var slot_nodes: Array[Node3D] = []
 
 ## Dot indicator labels
 var dot_labels: Array[Label] = []
+
+## Character rotation state
+var is_rotating_character: bool = false
+var rotation_start_pos: Vector2 = Vector2.ZERO
+var character_rotation: float = 0.0
+const ROTATION_SENSITIVITY: float = 0.01
 
 # UI References - 3D Viewport
 @onready var subviewport: SubViewport = $SubViewportContainer/SubViewport
@@ -171,14 +177,8 @@ func _on_visibility_changed() -> void:
 
 
 func _cleanup_character_models() -> void:
-	"""Remove all character models from the scene."""
-	for i in range(MAX_SLOTS):
-		if character_models[i] != null:
-			character_models[i].queue_free()
-			character_models[i] = null
-		if i < slot_nodes.size():
-			for child in slot_nodes[i].get_children():
-				child.queue_free()
+	"""Remove the character model from the scene."""
+	_clear_current_model()
 
 
 func _setup_slot_nodes() -> void:
@@ -233,56 +233,72 @@ func _on_character_list_received(char_list: Array) -> void:
 	"""Handle received character list from server."""
 	characters = char_list
 	print("[CharSelect3D] Received %d characters" % characters.size())
-	_setup_character_models()
 	
-	# Reset to first slot (or first character if exists)
+	# Reset to first slot
 	current_index = 0
-	_position_slider_for_index(current_index, false)
+	character_rotation = 0.0
+	
+	# Clear any existing model and create one for the first slot
+	_clear_current_model()
+	await get_tree().process_frame
+	_create_model_for_current_slot()
+	
+	# Position slider without recreating the model
+	character_slider.position.x = 0
+	
 	_update_ui()
 
 
-func _setup_character_models() -> void:
-	"""Instantiate character models for each slot based on character data."""
-	print("[CharSelect3D] Setting up models for %d characters" % characters.size())
+func _clear_current_model() -> void:
+	"""Remove the current character model if it exists."""
+	if current_character_model != null:
+		current_character_model.queue_free()
+		current_character_model = null
 	
-	# Clear existing models from all slots
-	for i in range(MAX_SLOTS):
-		if character_models[i] != null:
-			character_models[i].queue_free()
-			character_models[i] = null
-		# Also clear any children from slot nodes
-		if i < slot_nodes.size():
-			for child in slot_nodes[i].get_children():
-				child.queue_free()
+	# Also clear any children from all slot nodes (safety cleanup)
+	for slot_node in slot_nodes:
+		for child in slot_node.get_children():
+			child.queue_free()
+
+
+func _create_model_for_current_slot() -> void:
+	"""Create a character model for the currently selected slot (if it has a character)."""
+	# Only create a model if the current slot has a character
+	if current_index >= characters.size():
+		print("[CharSelect3D] Slot %d is empty, no model to show" % current_index)
+		return
 	
-	# Wait a frame for queue_free to complete
-	await get_tree().process_frame
+	print("[CharSelect3D] Creating model for slot %d" % current_index)
+	var slot_node = slot_nodes[current_index]
 	
-	# Create models ONLY for slots that have characters
-	for i in range(characters.size()):
-		print("[CharSelect3D] Creating model for slot %d" % i)
-		var slot_node = slot_nodes[i]
-		
-		# Create character model
-		var model = CharacterModelScene.instantiate()
-		slot_node.add_child(model)
-		
-		# Configure animation controller for idle animation only
-		var anim_ctrl = model.get_node_or_null("AnimationController")
-		if anim_ctrl:
-			anim_ctrl.auto_detect = false
-			# Wait a frame for the animation player to be ready
-			await get_tree().process_frame
-			anim_ctrl.play_animation("Idle")
-		
-		character_models[i] = model
+	# Create character model
+	var model = CharacterModelScene.instantiate()
+	slot_node.add_child(model)
 	
-	print("[CharSelect3D] Setup complete. Models created: %d" % characters.size())
+	# Apply any stored rotation
+	model.rotation.y = character_rotation
+	
+	# Configure animation controller for idle animation only
+	var anim_ctrl = model.get_node_or_null("AnimationController")
+	if anim_ctrl:
+		anim_ctrl.auto_detect = false
+		# Wait a frame for the animation player to be ready
+		await get_tree().process_frame
+		anim_ctrl.play_animation("Idle")
+	
+	current_character_model = model
+	print("[CharSelect3D] Model created and assigned")
 
 
 func _position_slider_for_index(index: int, animate: bool = true) -> void:
-	"""Position the slider so the given index is centered at x=0."""
+	"""Position the slider so the given index is centered at x=0 and show the character."""
 	var target_x = -index * SLOT_SPACING
+	
+	# Clear old model and create new one for the current slot
+	_clear_current_model()
+	# Wait a frame then create new model
+	await get_tree().process_frame
+	_create_model_for_current_slot()
 	
 	if animate and not is_transitioning:
 		is_transitioning = true
@@ -312,7 +328,29 @@ func _input(event: InputEvent) -> void:
 	if delete_dialog.visible:
 		return
 	
-	if event.is_action_pressed("ui_left"):
+	# Handle mouse input for character rotation
+	if event is InputEventMouseButton:
+		var mouse_event := event as InputEventMouseButton
+		if mouse_event.button_index == MOUSE_BUTTON_LEFT:
+			if mouse_event.pressed:
+				# Start rotation if we have a character in the current slot
+				if current_index < characters.size():
+					is_rotating_character = true
+					rotation_start_pos = mouse_event.position
+					get_viewport().set_input_as_handled()
+			else:
+				# Stop rotation
+				is_rotating_character = false
+	
+	elif event is InputEventMouseMotion and is_rotating_character:
+		var motion_event := event as InputEventMouseMotion
+		var delta_x := motion_event.relative.x
+		character_rotation -= delta_x * ROTATION_SENSITIVITY
+		_apply_character_rotation()
+		get_viewport().set_input_as_handled()
+	
+	# Keyboard navigation
+	elif event.is_action_pressed("ui_left"):
 		_select_previous()
 		get_viewport().set_input_as_handled()
 	elif event.is_action_pressed("ui_right"):
@@ -329,6 +367,7 @@ func _input(event: InputEvent) -> void:
 func _select_previous() -> void:
 	"""Navigate to previous slot."""
 	if current_index > 0:
+		character_rotation = 0.0  # Reset rotation for new character
 		current_index -= 1
 		_position_slider_for_index(current_index)
 		_update_ui()
@@ -338,6 +377,7 @@ func _select_previous() -> void:
 func _select_next() -> void:
 	"""Navigate to next slot."""
 	if current_index < MAX_SLOTS - 1:
+		character_rotation = 0.0  # Reset rotation for new character
 		current_index += 1
 		_position_slider_for_index(current_index)
 		_update_ui()
@@ -349,6 +389,12 @@ func _animate_arrow(arrow: Label) -> void:
 	var tween = create_tween()
 	tween.tween_property(arrow, "scale", Vector2(1.2, 1.2), 0.1)
 	tween.tween_property(arrow, "scale", Vector2(1.0, 1.0), 0.1)
+
+
+func _apply_character_rotation() -> void:
+	"""Apply the current rotation to the current character model."""
+	if current_character_model != null:
+		current_character_model.rotation.y = character_rotation
 
 
 func _confirm_selection() -> void:
@@ -492,3 +538,73 @@ func reset_form() -> void:
 	enter_button.text = "ENTER WORLD"
 	enter_button.disabled = false
 	_update_ui()
+
+
+func _debug_count_character_models() -> void:
+	"""DEBUG: Count all nodes named 'CharacterModel' or 'Rig' in the entire scene tree."""
+	var root = get_tree().root
+	
+	print("[DEBUG] ========================================")
+	print("[DEBUG] Searching for all CharacterModel and Rig nodes...")
+	
+	var char_models = _find_nodes_by_name(root, "CharacterModel")
+	var rigs = _find_nodes_by_name(root, "Rig")
+	
+	print("[DEBUG] Found %d CharacterModel nodes:" % char_models.size())
+	for node in char_models:
+		var vis_str = "N/A"
+		var global_vis_str = "N/A"
+		if node is Node3D:
+			vis_str = str(node.visible)
+			# Check if any parent is hidden
+			var parent = node.get_parent()
+			var effectively_visible = node.visible
+			while parent:
+				if parent is Node3D and not parent.visible:
+					effectively_visible = false
+					break
+				if parent is CanvasItem and not parent.visible:
+					effectively_visible = false
+					break
+				parent = parent.get_parent()
+			global_vis_str = str(effectively_visible)
+		print("[DEBUG]   - %s" % node.get_path())
+		print("[DEBUG]     visible=%s, effectively_visible=%s, parent=%s" % [vis_str, global_vis_str, node.get_parent().name if node.get_parent() else "none"])
+	
+	print("[DEBUG] Found %d Rig nodes:" % rigs.size())
+	for node in rigs:
+		var vis_str = "N/A"
+		if node is Node3D:
+			vis_str = str(node.visible)
+		print("[DEBUG]   - %s (visible: %s)" % [node.get_path(), vis_str])
+	
+	# Also check the Player node specifically
+	var player = get_tree().get_first_node_in_group("local_player")
+	if player:
+		print("[DEBUG] Player node: %s" % player.get_path())
+		print("[DEBUG]   visible: %s" % player.visible)
+		print("[DEBUG]   position: %s" % player.global_position)
+		var player_camera = player.get_node_or_null("CameraController/SpringArm3D/Camera3D")
+		if player_camera:
+			print("[DEBUG]   Camera current: %s" % player_camera.current)
+	else:
+		print("[DEBUG] Player node NOT FOUND in local_player group!")
+	
+	print("[DEBUG] ========================================")
+
+
+func _find_nodes_by_name(node: Node, search_name: String) -> Array:
+	var result = []
+	if node.name == search_name:
+		result.append(node)
+	for child in node.get_children():
+		result.append_array(_find_nodes_by_name(child, search_name))
+	return result
+
+
+func _count_nodes_recursive(node: Node, search_name: String, count: int, results: Array) -> void:
+	if node.name == search_name:
+		count += 1
+		results.append(node)
+	for child in node.get_children():
+		_count_nodes_recursive(child, search_name, count, results)

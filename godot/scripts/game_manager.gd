@@ -220,6 +220,8 @@ func _change_state(new_state: GameState) -> void:
 				if login_screen.has_method("clear_form"):
 					login_screen.clear_form()
 			Input.set_mouse_mode(Input.MOUSE_MODE_VISIBLE)
+			# Hide game world during login, but keep sky visible for atmosphere
+			_set_game_world_visible(false, true)
 		
 		GameState.CHARACTER_SELECT:
 			_ensure_character_select_screen()
@@ -227,6 +229,8 @@ func _change_state(new_state: GameState) -> void:
 				character_select_screen.visible = true
 				character_select_screen.request_character_list()
 			Input.set_mouse_mode(Input.MOUSE_MODE_VISIBLE)
+			# Hide game world during character select, but keep sky visible
+			_set_game_world_visible(false, true)
 		
 		GameState.CHARACTER_CREATE:
 			_ensure_character_create_screen()
@@ -234,10 +238,14 @@ func _change_state(new_state: GameState) -> void:
 				character_create_screen.visible = true
 				character_create_screen.reset_form()
 			Input.set_mouse_mode(Input.MOUSE_MODE_VISIBLE)
+			# Hide game world during character create, but keep sky visible
+			_set_game_world_visible(false, true)
 		
 		GameState.IN_GAME:
 			if game_ui:
 				game_ui.visible = true
+			# Show game world when entering game
+			_set_game_world_visible(true)
 			# Reset any pending click-to-move or mouse state from UI interactions
 			_reset_player_input_state()
 
@@ -256,6 +264,71 @@ func _reset_player_input_state() -> void:
 	var click_movement = local_player.get_node_or_null("ClickMovementController")
 	if click_movement and click_movement.has_method("cancel_movement"):
 		click_movement.cancel_movement()
+
+
+## Stored player position when hidden (to restore later)
+var _stored_player_position: Vector3 = Vector3.ZERO
+
+func _set_game_world_visible(vis: bool, keep_sky: bool = false) -> void:
+	"""Show or hide the game world (player, camera, entities).
+	
+	This ensures separation between character select/create screens
+	and the actual game world. The character select screen has its own
+	SubViewport with its own camera for character preview.
+	
+	Args:
+		vis: Whether to show the game world
+		keep_sky: If true, keeps the DayNightController visible (for sky/sun/moon backdrop)
+	"""
+	# Hide/show the local player (and its camera)
+	if local_player:
+		if vis:
+			# Restore player position and show
+			local_player.visible = true
+			local_player.process_mode = Node.PROCESS_MODE_INHERIT
+			# Position will be set by zone loading, no need to restore here
+		else:
+			# Store position and move player far away to ensure it's not visible
+			_stored_player_position = local_player.global_position
+			local_player.visible = false
+			# Move player far away as extra insurance
+			local_player.global_position = Vector3(0, -1000, 0)
+			# NOTE: We do NOT disable processing here because the player needs to
+			# continue polling the network for login/character list responses.
+			# The Rust player.rs physics_process() handles network polling before
+			# checking zone_ready, so network messages are processed even when hidden.
+		
+		# Also hide the CharacterModel specifically to ensure it's not rendered
+		var char_model = local_player.get_node_or_null("CharacterModel")
+		if char_model:
+			char_model.visible = vis
+		
+		# Also hide the Rig inside CharacterModel (the actual mesh)
+		var rig = local_player.get_node_or_null("CharacterModel/Rig")
+		if rig:
+			rig.visible = vis
+		
+		# Also disable/enable the player's camera
+		var camera = local_player.get_node_or_null("CameraController/SpringArm3D/Camera3D")
+		if camera and camera is Camera3D:
+			camera.current = vis
+		
+		print("[GameManager] Player visibility set to %s, position: %s" % [vis, local_player.global_position])
+	
+	# Hide/show the day/night controller (includes sun, moon, world environment)
+	# Keep it visible if keep_sky is true (for character select backdrop)
+	if day_night_controller:
+		day_night_controller.visible = vis or keep_sky
+	
+	# Hide/show entity containers (remote players, enemies, items, effects)
+	if players_container:
+		players_container.visible = vis
+	if enemies_container:
+		enemies_container.visible = vis
+	if items_container:
+		items_container.visible = vis
+	if effects_container:
+		effects_container.visible = vis
 
 
 func _ensure_character_select_screen() -> void:
