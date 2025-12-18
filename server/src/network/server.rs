@@ -587,6 +587,17 @@ impl Server {
         };
         self.send_to(addr, &msg).await;
         
+        // Send time sync for day/night cycle (Berlin, Germany coordinates)
+        let time_sync_msg = ServerMessage::TimeSync {
+            unix_timestamp: std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap()
+                .as_secs() as i64,
+            latitude: 52.5,   // Berlin latitude
+            longitude: 13.4,  // Berlin longitude
+        };
+        self.send_to(addr, &time_sync_msg).await;
+        
         // Notify other players (only those in game)
         let spawn_msg = ServerMessage::PlayerSpawn {
             id: player_id,
@@ -1045,6 +1056,30 @@ impl Server {
             
             self.clients.remove(&addr);
             self.addr_to_player.remove(&addr);
+        }
+    }
+    
+    /// Broadcast time sync to all connected in-game clients
+    /// Called periodically (every 60 seconds) to keep client time synchronized
+    pub async fn broadcast_time_sync(&self) {
+        let time_sync_msg = ServerMessage::TimeSync {
+            unix_timestamp: std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap()
+                .as_secs() as i64,
+            latitude: 52.5,   // Berlin latitude
+            longitude: 13.4,  // Berlin longitude
+        };
+        
+        let data = time_sync_msg.serialize();
+        
+        // Only send to clients that are in-game
+        for (addr, client) in &self.clients {
+            if client.is_in_game() {
+                if let Err(e) = self.socket.send_to(&data, addr).await {
+                    error!("Failed to send time sync to {}: {}", addr, e);
+                }
+            }
         }
     }
     

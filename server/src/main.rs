@@ -121,12 +121,14 @@ async fn main() {
         // Process outgoing messages (chat, events, etc.)
         server.process_outgoing(&world).await;
         
-        // Periodic save
+        // Periodic save and time sync
         if last_save.elapsed() >= save_interval {
             if let Some(ref persistence) = persistence {
                 server.save_all_players(&world, persistence);
                 info!("Periodic save complete");
             }
+            // Broadcast time sync to all clients (for day/night cycle)
+            server.broadcast_time_sync().await;
             last_save = Instant::now();
         }
         
