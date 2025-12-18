@@ -98,6 +98,9 @@ func _ready() -> void:
 	# Add to group so bottom bar can find us
 	add_to_group("inventory_ui")
 	
+	# Register with UIManager for escape key handling
+	UIManager.register_dialog(self)
+	
 	# Initialize inventory data
 	for i in range(SLOT_COUNT):
 		inventory_slots.append(null)
@@ -154,10 +157,7 @@ func _input(event: InputEvent) -> void:
 	if event.is_action_pressed("toggle_inventory"):
 		toggle_visibility()
 		get_viewport().set_input_as_handled()
-	# Close with Escape when visible
-	elif event.is_action_pressed("ui_cancel") and visible:
-		close_inventory()
-		get_viewport().set_input_as_handled()
+	# Note: Escape key is now handled by UIManager
 	
 	# Handle drag end when mouse released anywhere
 	if event is InputEventMouseButton:

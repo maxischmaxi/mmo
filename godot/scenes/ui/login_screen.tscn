@@ -1,6 +1,117 @@
-[gd_scene load_steps=2 format=3 uid="uid://cloginscreen"]
+[gd_scene load_steps=12 format=3 uid="uid://cloginscreen"]
 
 [ext_resource type="Script" path="res://scripts/ui/login_screen.gd" id="1_script"]
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_panel"]
+bg_color = Color(0.06, 0.07, 0.1, 0.92)
+border_width_left = 2
+border_width_top = 2
+border_width_right = 2
+border_width_bottom = 2
+border_color = Color(0.55, 0.45, 0.33, 1)
+corner_radius_top_left = 8
+corner_radius_top_right = 8
+corner_radius_bottom_right = 8
+corner_radius_bottom_left = 8
+shadow_color = Color(0, 0, 0, 0.5)
+shadow_size = 8
+shadow_offset = Vector2(0, 4)
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_input"]
+bg_color = Color(0.03, 0.04, 0.06, 0.9)
+border_width_left = 1
+border_width_top = 1
+border_width_right = 1
+border_width_bottom = 1
+border_color = Color(0.29, 0.25, 0.21, 1)
+corner_radius_top_left = 4
+corner_radius_top_right = 4
+corner_radius_bottom_right = 4
+corner_radius_bottom_left = 4
+content_margin_left = 10.0
+content_margin_top = 8.0
+content_margin_right = 10.0
+content_margin_bottom = 8.0
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_button_normal"]
+bg_color = Color(0.35, 0.29, 0.2, 1)
+border_width_left = 2
+border_width_top = 2
+border_width_right = 2
+border_width_bottom = 2
+border_color = Color(0.55, 0.45, 0.33, 1)
+corner_radius_top_left = 4
+corner_radius_top_right = 4
+corner_radius_bottom_right = 4
+corner_radius_bottom_left = 4
+content_margin_left = 20.0
+content_margin_top = 12.0
+content_margin_right = 20.0
+content_margin_bottom = 12.0
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_button_hover"]
+bg_color = Color(0.48, 0.39, 0.26, 1)
+border_width_left = 2
+border_width_top = 2
+border_width_right = 2
+border_width_bottom = 2
+border_color = Color(0.83, 0.66, 0.29, 1)
+corner_radius_top_left = 4
+corner_radius_top_right = 4
+corner_radius_bottom_right = 4
+corner_radius_bottom_left = 4
+content_margin_left = 20.0
+content_margin_top = 12.0
+content_margin_right = 20.0
+content_margin_bottom = 12.0
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_button_pressed"]
+bg_color = Color(0.25, 0.2, 0.14, 1)
+border_width_left = 2
+border_width_top = 2
+border_width_right = 2
+border_width_bottom = 2
+border_color = Color(0.55, 0.45, 0.33, 1)
+corner_radius_top_left = 4
+corner_radius_top_right = 4
+corner_radius_bottom_right = 4
+corner_radius_bottom_left = 4
+content_margin_left = 20.0
+content_margin_top = 12.0
+content_margin_right = 20.0
+content_margin_bottom = 12.0
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_button_disabled"]
+bg_color = Color(0.2, 0.18, 0.15, 0.5)
+border_width_left = 2
+border_width_top = 2
+border_width_right = 2
+border_width_bottom = 2
+border_color = Color(0.3, 0.28, 0.25, 0.5)
+corner_radius_top_left = 4
+corner_radius_top_right = 4
+corner_radius_bottom_right = 4
+corner_radius_bottom_left = 4
+content_margin_left = 20.0
+content_margin_top = 12.0
+content_margin_right = 20.0
+content_margin_bottom = 12.0
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_tab_normal"]
+bg_color = Color(0, 0, 0, 0)
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_tab_hover"]
+bg_color = Color(0.83, 0.66, 0.29, 0.1)
+corner_radius_top_left = 4
+corner_radius_top_right = 4
+corner_radius_bottom_right = 4
+corner_radius_bottom_left = 4
+
+[sub_resource type="Gradient" id="Gradient_particle"]
+colors = PackedColorArray(0.83, 0.58, 0.29, 1, 0.83, 0.58, 0.29, 0)
+
+[sub_resource type="GradientTexture1D" id="GradientTexture1D_particle"]
+gradient = SubResource("Gradient_particle")
 
 [node name="LoginScreen" type="Control"]
 layout_mode = 3
@@ -18,9 +129,21 @@ anchor_right = 1.0
 anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
-color = Color(0.1, 0.12, 0.15, 1)
+color = Color(0.04, 0.05, 0.07, 1)
 
-[node name="CenterContainer" type="CenterContainer" parent="."]
+[node name="ParticleEffect" type="GPUParticles2D" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+amount = 60
+lifetime = 5.0
+preprocess = 3.0
+randomness = 0.5
+
+[node name="ContentContainer" type="CenterContainer" parent="."]
 layout_mode = 1
 anchors_preset = 15
 anchor_right = 1.0
@@ -28,137 +151,332 @@ anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
 
-[node name="Panel" type="PanelContainer" parent="CenterContainer"]
-custom_minimum_size = Vector2(400, 0)
+[node name="MainVBox" type="VBoxContainer" parent="ContentContainer"]
+layout_mode = 2
+theme_override_constants/separation = 0
+
+[node name="TitleSection" type="VBoxContainer" parent="ContentContainer/MainVBox"]
+layout_mode = 2
+theme_override_constants/separation = 5
+
+[node name="OrnamentTop" type="Label" parent="ContentContainer/MainVBox/TitleSection"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.6, 0.53, 0.4, 1)
+theme_override_font_sizes/font_size = 14
+text = "═══════════ ⚔ ═══════════"
+horizontal_alignment = 1
+
+[node name="GameTitle" type="Label" parent="ContentContainer/MainVBox/TitleSection"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.83, 0.66, 0.29, 1)
+theme_override_font_sizes/font_size = 42
+text = "MMO PROTOTYPE"
+horizontal_alignment = 1
+
+[node name="Subtitle" type="Label" parent="ContentContainer/MainVBox/TitleSection"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.6, 0.53, 0.4, 1)
+theme_override_font_sizes/font_size = 16
+text = "Enter the Realm"
+horizontal_alignment = 1
+
+[node name="OrnamentBottom" type="Label" parent="ContentContainer/MainVBox/TitleSection"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.6, 0.53, 0.4, 1)
+theme_override_font_sizes/font_size = 14
+text = "═════════════════════════"
+horizontal_alignment = 1
+
+[node name="Spacer" type="Control" parent="ContentContainer/MainVBox"]
+custom_minimum_size = Vector2(0, 30)
 layout_mode = 2
 
-[node name="VBox" type="VBoxContainer" parent="CenterContainer/Panel"]
+[node name="LoginPanel" type="PanelContainer" parent="ContentContainer/MainVBox"]
+custom_minimum_size = Vector2(380, 0)
+layout_mode = 2
+theme_override_styles/panel = SubResource("StyleBoxFlat_panel")
+
+[node name="PanelMargin" type="MarginContainer" parent="ContentContainer/MainVBox/LoginPanel"]
+layout_mode = 2
+theme_override_constants/margin_left = 25
+theme_override_constants/margin_top = 25
+theme_override_constants/margin_right = 25
+theme_override_constants/margin_bottom = 25
+
+[node name="PanelVBox" type="VBoxContainer" parent="ContentContainer/MainVBox/LoginPanel/PanelMargin"]
 layout_mode = 2
 theme_override_constants/separation = 15
 
-[node name="Title" type="Label" parent="CenterContainer/Panel/VBox"]
+[node name="TabSection" type="VBoxContainer" parent="ContentContainer/MainVBox/LoginPanel/PanelMargin/PanelVBox"]
 layout_mode = 2
-theme_override_font_sizes/font_size = 32
-text = "MMO Prototype"
-horizontal_alignment = 1
+theme_override_constants/separation = 0
 
-[node name="TabContainer" type="TabContainer" parent="CenterContainer/Panel/VBox"]
+[node name="TabButtons" type="HBoxContainer" parent="ContentContainer/MainVBox/LoginPanel/PanelMargin/PanelVBox/TabSection"]
+layout_mode = 2
+theme_override_constants/separation = 0
+
+[node name="LoginTabBtn" type="Button" parent="ContentContainer/MainVBox/LoginPanel/PanelMargin/PanelVBox/TabSection/TabButtons"]
+custom_minimum_size = Vector2(165, 40)
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_colors/font_color = Color(0.83, 0.66, 0.29, 1)
+theme_override_colors/font_hover_color = Color(0.91, 0.89, 0.86, 1)
+theme_override_colors/font_pressed_color = Color(0.83, 0.66, 0.29, 1)
+theme_override_font_sizes/font_size = 16
+theme_override_styles/normal = SubResource("StyleBoxFlat_tab_normal")
+theme_override_styles/hover = SubResource("StyleBoxFlat_tab_hover")
+theme_override_styles/pressed = SubResource("StyleBoxFlat_tab_normal")
+theme_override_styles/focus = SubResource("StyleBoxFlat_tab_normal")
+text = "LOGIN"
+flat = true
+
+[node name="RegisterTabBtn" type="Button" parent="ContentContainer/MainVBox/LoginPanel/PanelMargin/PanelVBox/TabSection/TabButtons"]
+custom_minimum_size = Vector2(165, 40)
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_colors/font_color = Color(0.6, 0.53, 0.4, 1)
+theme_override_colors/font_hover_color = Color(0.91, 0.89, 0.86, 1)
+theme_override_colors/font_pressed_color = Color(0.83, 0.66, 0.29, 1)
+theme_override_font_sizes/font_size = 16
+theme_override_styles/normal = SubResource("StyleBoxFlat_tab_normal")
+theme_override_styles/hover = SubResource("StyleBoxFlat_tab_hover")
+theme_override_styles/pressed = SubResource("StyleBoxFlat_tab_normal")
+theme_override_styles/focus = SubResource("StyleBoxFlat_tab_normal")
+text = "REGISTER"
+flat = true
+
+[node name="TabIndicator" type="ColorRect" parent="ContentContainer/MainVBox/LoginPanel/PanelMargin/PanelVBox/TabSection"]
+custom_minimum_size = Vector2(165, 3)
+layout_mode = 2
+size_flags_horizontal = 0
+color = Color(0.83, 0.66, 0.29, 1)
+
+[node name="Separator" type="HSeparator" parent="ContentContainer/MainVBox/LoginPanel/PanelMargin/PanelVBox"]
+modulate = Color(0.55, 0.45, 0.33, 0.5)
 layout_mode = 2
 
-[node name="Login" type="VBoxContainer" parent="CenterContainer/Panel/VBox/TabContainer"]
+[node name="FormContainer" type="MarginContainer" parent="ContentContainer/MainVBox/LoginPanel/PanelMargin/PanelVBox"]
 layout_mode = 2
-theme_override_constants/separation = 10
+theme_override_constants/margin_top = 5
 
-[node name="UsernameLabel" type="Label" parent="CenterContainer/Panel/VBox/TabContainer/Login"]
+[node name="LoginForm" type="VBoxContainer" parent="ContentContainer/MainVBox/LoginPanel/PanelMargin/PanelVBox/FormContainer"]
 layout_mode = 2
+theme_override_constants/separation = 12
+
+[node name="UsernameField" type="VBoxContainer" parent="ContentContainer/MainVBox/LoginPanel/PanelMargin/PanelVBox/FormContainer/LoginForm"]
+layout_mode = 2
+theme_override_constants/separation = 6
+
+[node name="UsernameLabel" type="Label" parent="ContentContainer/MainVBox/LoginPanel/PanelMargin/PanelVBox/FormContainer/LoginForm/UsernameField"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.6, 0.53, 0.4, 1)
+theme_override_font_sizes/font_size = 13
 text = "Username"
 
-[node name="UsernameInput" type="LineEdit" parent="CenterContainer/Panel/VBox/TabContainer/Login"]
+[node name="UsernameContainer" type="PanelContainer" parent="ContentContainer/MainVBox/LoginPanel/PanelMargin/PanelVBox/FormContainer/LoginForm/UsernameField"]
 layout_mode = 2
-focus_neighbor_bottom = NodePath("../PasswordInput")
-focus_next = NodePath("../PasswordInput")
-placeholder_text = "Enter username..."
+theme_override_styles/panel = SubResource("StyleBoxFlat_input")
 
-[node name="PasswordLabel" type="Label" parent="CenterContainer/Panel/VBox/TabContainer/Login"]
+[node name="UsernameInput" type="LineEdit" parent="ContentContainer/MainVBox/LoginPanel/PanelMargin/PanelVBox/FormContainer/LoginForm/UsernameField/UsernameContainer"]
 layout_mode = 2
+theme_override_colors/font_color = Color(0.91, 0.89, 0.86, 1)
+theme_override_colors/font_placeholder_color = Color(0.6, 0.53, 0.4, 0.5)
+theme_override_colors/caret_color = Color(0.83, 0.66, 0.29, 1)
+theme_override_styles/normal = SubResource("StyleBoxFlat_tab_normal")
+theme_override_styles/focus = SubResource("StyleBoxFlat_tab_normal")
+focus_neighbor_bottom = NodePath("../../../PasswordField/PasswordContainer/PasswordInput")
+focus_next = NodePath("../../../PasswordField/PasswordContainer/PasswordInput")
+placeholder_text = "Enter username..."
+flat = true
+
+[node name="PasswordField" type="VBoxContainer" parent="ContentContainer/MainVBox/LoginPanel/PanelMargin/PanelVBox/FormContainer/LoginForm"]
+layout_mode = 2
+theme_override_constants/separation = 6
+
+[node name="PasswordLabel" type="Label" parent="ContentContainer/MainVBox/LoginPanel/PanelMargin/PanelVBox/FormContainer/LoginForm/PasswordField"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.6, 0.53, 0.4, 1)
+theme_override_font_sizes/font_size = 13
 text = "Password"
 
-[node name="PasswordInput" type="LineEdit" parent="CenterContainer/Panel/VBox/TabContainer/Login"]
+[node name="PasswordContainer" type="PanelContainer" parent="ContentContainer/MainVBox/LoginPanel/PanelMargin/PanelVBox/FormContainer/LoginForm/PasswordField"]
 layout_mode = 2
-focus_neighbor_top = NodePath("../UsernameInput")
-focus_neighbor_bottom = NodePath("../LoginButton")
-focus_next = NodePath("../LoginButton")
-focus_previous = NodePath("../UsernameInput")
+theme_override_styles/panel = SubResource("StyleBoxFlat_input")
+
+[node name="PasswordInput" type="LineEdit" parent="ContentContainer/MainVBox/LoginPanel/PanelMargin/PanelVBox/FormContainer/LoginForm/PasswordField/PasswordContainer"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.91, 0.89, 0.86, 1)
+theme_override_colors/font_placeholder_color = Color(0.6, 0.53, 0.4, 0.5)
+theme_override_colors/caret_color = Color(0.83, 0.66, 0.29, 1)
+theme_override_styles/normal = SubResource("StyleBoxFlat_tab_normal")
+theme_override_styles/focus = SubResource("StyleBoxFlat_tab_normal")
+focus_neighbor_top = NodePath("../../../UsernameField/UsernameContainer/UsernameInput")
+focus_neighbor_bottom = NodePath("../../../Spacer")
+focus_next = NodePath("../../LoginButton")
+focus_previous = NodePath("../../../UsernameField/UsernameContainer/UsernameInput")
 placeholder_text = "Enter password..."
 secret = true
+flat = true
 
-[node name="Spacer" type="Control" parent="CenterContainer/Panel/VBox/TabContainer/Login"]
-custom_minimum_size = Vector2(0, 10)
+[node name="Spacer" type="Control" parent="ContentContainer/MainVBox/LoginPanel/PanelMargin/PanelVBox/FormContainer/LoginForm"]
+custom_minimum_size = Vector2(0, 5)
 layout_mode = 2
-focus_mode = 0
 
-[node name="LoginButton" type="Button" parent="CenterContainer/Panel/VBox/TabContainer/Login"]
+[node name="LoginButton" type="Button" parent="ContentContainer/MainVBox/LoginPanel/PanelMargin/PanelVBox/FormContainer/LoginForm"]
 layout_mode = 2
-focus_neighbor_top = NodePath("../PasswordInput")
-focus_previous = NodePath("../PasswordInput")
-text = "Login"
+theme_override_colors/font_color = Color(0.91, 0.89, 0.86, 1)
+theme_override_colors/font_hover_color = Color(1, 1, 1, 1)
+theme_override_colors/font_pressed_color = Color(0.8, 0.8, 0.8, 1)
+theme_override_colors/font_disabled_color = Color(0.5, 0.5, 0.5, 0.5)
+theme_override_font_sizes/font_size = 16
+theme_override_styles/normal = SubResource("StyleBoxFlat_button_normal")
+theme_override_styles/hover = SubResource("StyleBoxFlat_button_hover")
+theme_override_styles/pressed = SubResource("StyleBoxFlat_button_pressed")
+theme_override_styles/disabled = SubResource("StyleBoxFlat_button_disabled")
+focus_neighbor_top = NodePath("../PasswordField/PasswordContainer/PasswordInput")
+focus_previous = NodePath("../PasswordField/PasswordContainer/PasswordInput")
+text = "ENTER REALM"
 
-[node name="Register" type="VBoxContainer" parent="CenterContainer/Panel/VBox/TabContainer"]
+[node name="RegisterForm" type="VBoxContainer" parent="ContentContainer/MainVBox/LoginPanel/PanelMargin/PanelVBox/FormContainer"]
 visible = false
 layout_mode = 2
-theme_override_constants/separation = 10
+theme_override_constants/separation = 12
 
-[node name="UsernameLabel" type="Label" parent="CenterContainer/Panel/VBox/TabContainer/Register"]
+[node name="UsernameField" type="VBoxContainer" parent="ContentContainer/MainVBox/LoginPanel/PanelMargin/PanelVBox/FormContainer/RegisterForm"]
 layout_mode = 2
+theme_override_constants/separation = 6
+
+[node name="UsernameLabel" type="Label" parent="ContentContainer/MainVBox/LoginPanel/PanelMargin/PanelVBox/FormContainer/RegisterForm/UsernameField"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.6, 0.53, 0.4, 1)
+theme_override_font_sizes/font_size = 13
 text = "Username (3-32 characters)"
 
-[node name="UsernameInput" type="LineEdit" parent="CenterContainer/Panel/VBox/TabContainer/Register"]
+[node name="UsernameContainer" type="PanelContainer" parent="ContentContainer/MainVBox/LoginPanel/PanelMargin/PanelVBox/FormContainer/RegisterForm/UsernameField"]
 layout_mode = 2
-focus_neighbor_bottom = NodePath("../PasswordInput")
-focus_next = NodePath("../PasswordInput")
-placeholder_text = "Choose a username..."
+theme_override_styles/panel = SubResource("StyleBoxFlat_input")
 
-[node name="PasswordLabel" type="Label" parent="CenterContainer/Panel/VBox/TabContainer/Register"]
+[node name="UsernameInput" type="LineEdit" parent="ContentContainer/MainVBox/LoginPanel/PanelMargin/PanelVBox/FormContainer/RegisterForm/UsernameField/UsernameContainer"]
 layout_mode = 2
+theme_override_colors/font_color = Color(0.91, 0.89, 0.86, 1)
+theme_override_colors/font_placeholder_color = Color(0.6, 0.53, 0.4, 0.5)
+theme_override_colors/caret_color = Color(0.83, 0.66, 0.29, 1)
+theme_override_styles/normal = SubResource("StyleBoxFlat_tab_normal")
+theme_override_styles/focus = SubResource("StyleBoxFlat_tab_normal")
+focus_neighbor_bottom = NodePath("../../../PasswordField/PasswordContainer/PasswordInput")
+focus_next = NodePath("../../../PasswordField/PasswordContainer/PasswordInput")
+placeholder_text = "Choose a username..."
+flat = true
+
+[node name="PasswordField" type="VBoxContainer" parent="ContentContainer/MainVBox/LoginPanel/PanelMargin/PanelVBox/FormContainer/RegisterForm"]
+layout_mode = 2
+theme_override_constants/separation = 6
+
+[node name="PasswordLabel" type="Label" parent="ContentContainer/MainVBox/LoginPanel/PanelMargin/PanelVBox/FormContainer/RegisterForm/PasswordField"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.6, 0.53, 0.4, 1)
+theme_override_font_sizes/font_size = 13
 text = "Password (min 4 characters)"
 
-[node name="PasswordInput" type="LineEdit" parent="CenterContainer/Panel/VBox/TabContainer/Register"]
+[node name="PasswordContainer" type="PanelContainer" parent="ContentContainer/MainVBox/LoginPanel/PanelMargin/PanelVBox/FormContainer/RegisterForm/PasswordField"]
 layout_mode = 2
-focus_neighbor_top = NodePath("../UsernameInput")
-focus_neighbor_bottom = NodePath("../ConfirmInput")
-focus_next = NodePath("../ConfirmInput")
-focus_previous = NodePath("../UsernameInput")
+theme_override_styles/panel = SubResource("StyleBoxFlat_input")
+
+[node name="PasswordInput" type="LineEdit" parent="ContentContainer/MainVBox/LoginPanel/PanelMargin/PanelVBox/FormContainer/RegisterForm/PasswordField/PasswordContainer"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.91, 0.89, 0.86, 1)
+theme_override_colors/font_placeholder_color = Color(0.6, 0.53, 0.4, 0.5)
+theme_override_colors/caret_color = Color(0.83, 0.66, 0.29, 1)
+theme_override_styles/normal = SubResource("StyleBoxFlat_tab_normal")
+theme_override_styles/focus = SubResource("StyleBoxFlat_tab_normal")
+focus_neighbor_top = NodePath("../../../UsernameField/UsernameContainer/UsernameInput")
+focus_neighbor_bottom = NodePath("../../../ConfirmField/ConfirmContainer/ConfirmInput")
+focus_next = NodePath("../../../ConfirmField/ConfirmContainer/ConfirmInput")
+focus_previous = NodePath("../../../UsernameField/UsernameContainer/UsernameInput")
 placeholder_text = "Choose a password..."
 secret = true
+flat = true
 
-[node name="ConfirmLabel" type="Label" parent="CenterContainer/Panel/VBox/TabContainer/Register"]
+[node name="ConfirmField" type="VBoxContainer" parent="ContentContainer/MainVBox/LoginPanel/PanelMargin/PanelVBox/FormContainer/RegisterForm"]
 layout_mode = 2
+theme_override_constants/separation = 6
+
+[node name="ConfirmLabel" type="Label" parent="ContentContainer/MainVBox/LoginPanel/PanelMargin/PanelVBox/FormContainer/RegisterForm/ConfirmField"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.6, 0.53, 0.4, 1)
+theme_override_font_sizes/font_size = 13
 text = "Confirm Password"
 
-[node name="ConfirmInput" type="LineEdit" parent="CenterContainer/Panel/VBox/TabContainer/Register"]
+[node name="ConfirmContainer" type="PanelContainer" parent="ContentContainer/MainVBox/LoginPanel/PanelMargin/PanelVBox/FormContainer/RegisterForm/ConfirmField"]
 layout_mode = 2
-focus_neighbor_top = NodePath("../PasswordInput")
-focus_neighbor_bottom = NodePath("../RegisterButton")
-focus_next = NodePath("../RegisterButton")
-focus_previous = NodePath("../PasswordInput")
+theme_override_styles/panel = SubResource("StyleBoxFlat_input")
+
+[node name="ConfirmInput" type="LineEdit" parent="ContentContainer/MainVBox/LoginPanel/PanelMargin/PanelVBox/FormContainer/RegisterForm/ConfirmField/ConfirmContainer"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.91, 0.89, 0.86, 1)
+theme_override_colors/font_placeholder_color = Color(0.6, 0.53, 0.4, 0.5)
+theme_override_colors/caret_color = Color(0.83, 0.66, 0.29, 1)
+theme_override_styles/normal = SubResource("StyleBoxFlat_tab_normal")
+theme_override_styles/focus = SubResource("StyleBoxFlat_tab_normal")
+focus_neighbor_top = NodePath("../../../PasswordField/PasswordContainer/PasswordInput")
+focus_neighbor_bottom = NodePath("../../RegisterButton")
+focus_next = NodePath("../../RegisterButton")
+focus_previous = NodePath("../../../PasswordField/PasswordContainer/PasswordInput")
 placeholder_text = "Confirm password..."
 secret = true
+flat = true
 
-[node name="Spacer" type="Control" parent="CenterContainer/Panel/VBox/TabContainer/Register"]
-custom_minimum_size = Vector2(0, 10)
+[node name="Spacer" type="Control" parent="ContentContainer/MainVBox/LoginPanel/PanelMargin/PanelVBox/FormContainer/RegisterForm"]
+custom_minimum_size = Vector2(0, 5)
 layout_mode = 2
-focus_mode = 0
 
-[node name="RegisterButton" type="Button" parent="CenterContainer/Panel/VBox/TabContainer/Register"]
+[node name="RegisterButton" type="Button" parent="ContentContainer/MainVBox/LoginPanel/PanelMargin/PanelVBox/FormContainer/RegisterForm"]
 layout_mode = 2
-focus_neighbor_top = NodePath("../ConfirmInput")
-focus_previous = NodePath("../ConfirmInput")
-text = "Create Account"
+theme_override_colors/font_color = Color(0.91, 0.89, 0.86, 1)
+theme_override_colors/font_hover_color = Color(1, 1, 1, 1)
+theme_override_colors/font_pressed_color = Color(0.8, 0.8, 0.8, 1)
+theme_override_colors/font_disabled_color = Color(0.5, 0.5, 0.5, 0.5)
+theme_override_font_sizes/font_size = 16
+theme_override_styles/normal = SubResource("StyleBoxFlat_button_normal")
+theme_override_styles/hover = SubResource("StyleBoxFlat_button_hover")
+theme_override_styles/pressed = SubResource("StyleBoxFlat_button_pressed")
+theme_override_styles/disabled = SubResource("StyleBoxFlat_button_disabled")
+focus_neighbor_top = NodePath("../ConfirmField/ConfirmContainer/ConfirmInput")
+focus_previous = NodePath("../ConfirmField/ConfirmContainer/ConfirmInput")
+text = "CREATE ACCOUNT"
 
-[node name="StatusLabel" type="Label" parent="CenterContainer/Panel/VBox"]
+[node name="StatusLabel" type="Label" parent="ContentContainer/MainVBox/LoginPanel/PanelMargin/PanelVBox"]
 layout_mode = 2
-theme_override_colors/font_color = Color(1, 0.4, 0.4, 1)
+theme_override_colors/font_color = Color(0.91, 0.33, 0.33, 1)
+theme_override_font_sizes/font_size = 13
 text = ""
 horizontal_alignment = 1
 autowrap_mode = 2
 
-[node name="ServerInfo" type="HBoxContainer" parent="CenterContainer/Panel/VBox"]
-layout_mode = 2
+[node name="VersionLabel" type="Label" parent="."]
+layout_mode = 1
+anchors_preset = 3
+anchor_left = 1.0
+anchor_top = 1.0
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = -70.0
+offset_top = -30.0
+offset_right = -15.0
+offset_bottom = -10.0
+grow_horizontal = 0
+grow_vertical = 0
+theme_override_colors/font_color = Color(0.6, 0.53, 0.4, 0.5)
+theme_override_font_sizes/font_size = 12
+text = "v0.1.0"
+horizontal_alignment = 2
 
-[node name="ServerLabel" type="Label" parent="CenterContainer/Panel/VBox/ServerInfo"]
-layout_mode = 2
-text = "Server:"
-
-[node name="ServerInput" type="LineEdit" parent="CenterContainer/Panel/VBox/ServerInfo"]
-layout_mode = 2
-size_flags_horizontal = 3
-text = "127.0.0.1"
-placeholder_text = "Server IP..."
-
-[connection signal="text_submitted" from="CenterContainer/Panel/VBox/TabContainer/Login/UsernameInput" to="." method="_on_login_username_submitted"]
-[connection signal="text_submitted" from="CenterContainer/Panel/VBox/TabContainer/Login/PasswordInput" to="." method="_on_login_password_submitted"]
-[connection signal="pressed" from="CenterContainer/Panel/VBox/TabContainer/Login/LoginButton" to="." method="_on_login_pressed"]
-[connection signal="text_submitted" from="CenterContainer/Panel/VBox/TabContainer/Register/UsernameInput" to="." method="_on_register_username_submitted"]
-[connection signal="text_submitted" from="CenterContainer/Panel/VBox/TabContainer/Register/PasswordInput" to="." method="_on_register_password_submitted"]
-[connection signal="text_submitted" from="CenterContainer/Panel/VBox/TabContainer/Register/ConfirmInput" to="." method="_on_register_confirm_submitted"]
-[connection signal="pressed" from="CenterContainer/Panel/VBox/TabContainer/Register/RegisterButton" to="." method="_on_register_pressed"]
+[connection signal="pressed" from="ContentContainer/MainVBox/LoginPanel/PanelMargin/PanelVBox/TabSection/TabButtons/LoginTabBtn" to="." method="_on_login_tab_pressed"]
+[connection signal="pressed" from="ContentContainer/MainVBox/LoginPanel/PanelMargin/PanelVBox/TabSection/TabButtons/RegisterTabBtn" to="." method="_on_register_tab_pressed"]
+[connection signal="text_submitted" from="ContentContainer/MainVBox/LoginPanel/PanelMargin/PanelVBox/FormContainer/LoginForm/UsernameField/UsernameContainer/UsernameInput" to="." method="_on_login_username_submitted"]
+[connection signal="text_submitted" from="ContentContainer/MainVBox/LoginPanel/PanelMargin/PanelVBox/FormContainer/LoginForm/PasswordField/PasswordContainer/PasswordInput" to="." method="_on_login_password_submitted"]
+[connection signal="pressed" from="ContentContainer/MainVBox/LoginPanel/PanelMargin/PanelVBox/FormContainer/LoginForm/LoginButton" to="." method="_on_login_pressed"]
+[connection signal="text_submitted" from="ContentContainer/MainVBox/LoginPanel/PanelMargin/PanelVBox/FormContainer/RegisterForm/UsernameField/UsernameContainer/UsernameInput" to="." method="_on_register_username_submitted"]
+[connection signal="text_submitted" from="ContentContainer/MainVBox/LoginPanel/PanelMargin/PanelVBox/FormContainer/RegisterForm/PasswordField/PasswordContainer/PasswordInput" to="." method="_on_register_password_submitted"]
+[connection signal="text_submitted" from="ContentContainer/MainVBox/LoginPanel/PanelMargin/PanelVBox/FormContainer/RegisterForm/ConfirmField/ConfirmContainer/ConfirmInput" to="." method="_on_register_confirm_submitted"]
+[connection signal="pressed" from="ContentContainer/MainVBox/LoginPanel/PanelMargin/PanelVBox/FormContainer/RegisterForm/RegisterButton" to="." method="_on_register_pressed"]

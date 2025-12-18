@@ -27,6 +27,9 @@ func _ready() -> void:
 	# Add to group for easy access
 	add_to_group("teleport_dialog")
 	
+	# Register with UIManager for escape key handling
+	UIManager.register_dialog(self)
+	
 	# Start hidden
 	visible = false
 	
@@ -38,11 +41,7 @@ func _ready() -> void:
 	_create_zone_buttons()
 
 
-func _input(event: InputEvent) -> void:
-	# Close dialog with Escape
-	if visible and event.is_action_pressed("ui_cancel"):
-		close_dialog()
-		get_viewport().set_input_as_handled()
+# Note: Escape key handling is now managed by UIManager
 
 
 func _create_zone_buttons() -> void:

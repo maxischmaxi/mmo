@@ -5,30 +5,201 @@ extends Control
 signal login_success(player_id: int)
 signal login_started()
 
-@onready var tab_container: TabContainer = $CenterContainer/Panel/VBox/TabContainer
-@onready var status_label: Label = $CenterContainer/Panel/VBox/StatusLabel
-@onready var server_input: LineEdit = $CenterContainer/Panel/VBox/ServerInfo/ServerInput
+## Hardcoded server address (localhost for development)
+const SERVER_ADDRESS = "127.0.0.1"
 
-# Login tab
-@onready var login_username: LineEdit = $CenterContainer/Panel/VBox/TabContainer/Login/UsernameInput
-@onready var login_password: LineEdit = $CenterContainer/Panel/VBox/TabContainer/Login/PasswordInput
-@onready var login_button: Button = $CenterContainer/Panel/VBox/TabContainer/Login/LoginButton
+## Colors for UI theming
+const COLOR_ACTIVE = Color(0.83, 0.66, 0.29)  # Gold
+const COLOR_INACTIVE = Color(0.6, 0.53, 0.4)  # Muted
+const COLOR_ERROR = Color(0.91, 0.33, 0.33)   # Red
+const COLOR_SUCCESS = Color(0.33, 0.91, 0.48) # Green
 
-# Register tab
-@onready var register_username: LineEdit = $CenterContainer/Panel/VBox/TabContainer/Register/UsernameInput
-@onready var register_password: LineEdit = $CenterContainer/Panel/VBox/TabContainer/Register/PasswordInput
-@onready var register_confirm: LineEdit = $CenterContainer/Panel/VBox/TabContainer/Register/ConfirmInput
-@onready var register_button: Button = $CenterContainer/Panel/VBox/TabContainer/Register/RegisterButton
+# Node references - Tab system
+@onready var login_tab_btn: Button = $ContentContainer/MainVBox/LoginPanel/PanelMargin/PanelVBox/TabSection/TabButtons/LoginTabBtn
+@onready var register_tab_btn: Button = $ContentContainer/MainVBox/LoginPanel/PanelMargin/PanelVBox/TabSection/TabButtons/RegisterTabBtn
+@onready var tab_indicator: ColorRect = $ContentContainer/MainVBox/LoginPanel/PanelMargin/PanelVBox/TabSection/TabIndicator
+
+# Node references - Forms
+@onready var login_form: VBoxContainer = $ContentContainer/MainVBox/LoginPanel/PanelMargin/PanelVBox/FormContainer/LoginForm
+@onready var register_form: VBoxContainer = $ContentContainer/MainVBox/LoginPanel/PanelMargin/PanelVBox/FormContainer/RegisterForm
+@onready var status_label: Label = $ContentContainer/MainVBox/LoginPanel/PanelMargin/PanelVBox/StatusLabel
+
+# Node references - Login inputs
+@onready var login_username: LineEdit = $ContentContainer/MainVBox/LoginPanel/PanelMargin/PanelVBox/FormContainer/LoginForm/UsernameField/UsernameContainer/UsernameInput
+@onready var login_password: LineEdit = $ContentContainer/MainVBox/LoginPanel/PanelMargin/PanelVBox/FormContainer/LoginForm/PasswordField/PasswordContainer/PasswordInput
+@onready var login_button: Button = $ContentContainer/MainVBox/LoginPanel/PanelMargin/PanelVBox/FormContainer/LoginForm/LoginButton
+
+# Node references - Login input containers (for focus styling)
+@onready var login_username_container: PanelContainer = $ContentContainer/MainVBox/LoginPanel/PanelMargin/PanelVBox/FormContainer/LoginForm/UsernameField/UsernameContainer
+@onready var login_password_container: PanelContainer = $ContentContainer/MainVBox/LoginPanel/PanelMargin/PanelVBox/FormContainer/LoginForm/PasswordField/PasswordContainer
+
+# Node references - Register inputs
+@onready var register_username: LineEdit = $ContentContainer/MainVBox/LoginPanel/PanelMargin/PanelVBox/FormContainer/RegisterForm/UsernameField/UsernameContainer/UsernameInput
+@onready var register_password: LineEdit = $ContentContainer/MainVBox/LoginPanel/PanelMargin/PanelVBox/FormContainer/RegisterForm/PasswordField/PasswordContainer/PasswordInput
+@onready var register_confirm: LineEdit = $ContentContainer/MainVBox/LoginPanel/PanelMargin/PanelVBox/FormContainer/RegisterForm/ConfirmField/ConfirmContainer/ConfirmInput
+@onready var register_button: Button = $ContentContainer/MainVBox/LoginPanel/PanelMargin/PanelVBox/FormContainer/RegisterForm/RegisterButton
+
+# Node references - Register input containers (for focus styling)
+@onready var register_username_container: PanelContainer = $ContentContainer/MainVBox/LoginPanel/PanelMargin/PanelVBox/FormContainer/RegisterForm/UsernameField/UsernameContainer
+@onready var register_password_container: PanelContainer = $ContentContainer/MainVBox/LoginPanel/PanelMargin/PanelVBox/FormContainer/RegisterForm/PasswordField/PasswordContainer
+@onready var register_confirm_container: PanelContainer = $ContentContainer/MainVBox/LoginPanel/PanelMargin/PanelVBox/FormContainer/RegisterForm/ConfirmField/ConfirmContainer
+
+# Node references - Particles
+@onready var particle_effect: GPUParticles2D = $ParticleEffect
 
 ## Reference to the player node (set by main scene)
 var player_node: Node = null
+
+## Currently active tab (0 = Login, 1 = Register)
+var current_tab: int = 0
+
+## StyleBox for normal input state
+var normal_input_style: StyleBoxFlat
+## StyleBox for focused input state
+var focused_input_style: StyleBoxFlat
+
 
 func _ready() -> void:
 	# Clear any status
 	status_label.text = ""
 	
+	# Setup input focus styles
+	_setup_input_styles()
+	
+	# Connect focus signals for all inputs
+	_connect_focus_signals()
+	
+	# Setup particle effect
+	_setup_particles()
+	
 	# Focus username field on start
 	login_username.grab_focus()
+
+
+func _setup_input_styles() -> void:
+	"""Create stylebox resources for input focus effects."""
+	# Normal style (copy from existing)
+	normal_input_style = StyleBoxFlat.new()
+	normal_input_style.bg_color = Color(0.03, 0.04, 0.06, 0.9)
+	normal_input_style.set_border_width_all(1)
+	normal_input_style.border_color = Color(0.29, 0.25, 0.21)
+	normal_input_style.set_corner_radius_all(4)
+	normal_input_style.set_content_margin_all(0)
+	normal_input_style.content_margin_left = 10
+	normal_input_style.content_margin_right = 10
+	normal_input_style.content_margin_top = 8
+	normal_input_style.content_margin_bottom = 8
+	
+	# Focused style (gold border)
+	focused_input_style = StyleBoxFlat.new()
+	focused_input_style.bg_color = Color(0.03, 0.04, 0.06, 0.9)
+	focused_input_style.set_border_width_all(2)
+	focused_input_style.border_color = Color(0.83, 0.66, 0.29)  # Gold
+	focused_input_style.set_corner_radius_all(4)
+	focused_input_style.set_content_margin_all(0)
+	focused_input_style.content_margin_left = 10
+	focused_input_style.content_margin_right = 10
+	focused_input_style.content_margin_top = 8
+	focused_input_style.content_margin_bottom = 8
+
+
+func _connect_focus_signals() -> void:
+	"""Connect focus entered/exited signals for all input fields."""
+	# Login form inputs
+	login_username.focus_entered.connect(_on_input_focus_entered.bind(login_username_container))
+	login_username.focus_exited.connect(_on_input_focus_exited.bind(login_username_container))
+	login_password.focus_entered.connect(_on_input_focus_entered.bind(login_password_container))
+	login_password.focus_exited.connect(_on_input_focus_exited.bind(login_password_container))
+	
+	# Register form inputs
+	register_username.focus_entered.connect(_on_input_focus_entered.bind(register_username_container))
+	register_username.focus_exited.connect(_on_input_focus_exited.bind(register_username_container))
+	register_password.focus_entered.connect(_on_input_focus_entered.bind(register_password_container))
+	register_password.focus_exited.connect(_on_input_focus_exited.bind(register_password_container))
+	register_confirm.focus_entered.connect(_on_input_focus_entered.bind(register_confirm_container))
+	register_confirm.focus_exited.connect(_on_input_focus_exited.bind(register_confirm_container))
+
+
+func _setup_particles() -> void:
+	"""Configure the particle system for floating ember effect."""
+	var material = ParticleProcessMaterial.new()
+	
+	# Emission from bottom of screen, spreading across width
+	material.emission_shape = ParticleProcessMaterial.EMISSION_SHAPE_BOX
+	material.emission_box_extents = Vector3(get_viewport().get_visible_rect().size.x / 2, 50, 0)
+	
+	# Direction: upward with slight spread
+	material.direction = Vector3(0, -1, 0)
+	material.spread = 15.0
+	
+	# Velocity
+	material.initial_velocity_min = 20.0
+	material.initial_velocity_max = 40.0
+	
+	# Gravity (slight upward float)
+	material.gravity = Vector3(0, -5, 0)
+	
+	# Scale variation
+	material.scale_min = 2.0
+	material.scale_max = 6.0
+	
+	# Color with fade out
+	var gradient = Gradient.new()
+	gradient.set_color(0, Color(0.83, 0.58, 0.29, 1.0))  # Gold/amber
+	gradient.set_color(1, Color(0.83, 0.58, 0.29, 0.0))  # Fade to transparent
+	var gradient_texture = GradientTexture1D.new()
+	gradient_texture.gradient = gradient
+	material.color_ramp = gradient_texture
+	
+	particle_effect.process_material = material
+	particle_effect.position = Vector2(get_viewport().get_visible_rect().size.x / 2, get_viewport().get_visible_rect().size.y + 50)
+
+
+func _on_input_focus_entered(container: PanelContainer) -> void:
+	"""Apply focused style when input gains focus."""
+	container.add_theme_stylebox_override("panel", focused_input_style)
+
+
+func _on_input_focus_exited(container: PanelContainer) -> void:
+	"""Apply normal style when input loses focus."""
+	container.add_theme_stylebox_override("panel", normal_input_style)
+
+
+func _switch_tab(index: int) -> void:
+	"""Switch between login and register tabs with animation."""
+	current_tab = index
+	
+	# Animate tab indicator
+	var tween = create_tween()
+	var target_x = 0.0 if index == 0 else login_tab_btn.size.x
+	tween.tween_property(tab_indicator, "position:x", target_x, 0.2).set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_CUBIC)
+	
+	# Update tab button colors
+	login_tab_btn.add_theme_color_override("font_color", COLOR_ACTIVE if index == 0 else COLOR_INACTIVE)
+	register_tab_btn.add_theme_color_override("font_color", COLOR_ACTIVE if index == 1 else COLOR_INACTIVE)
+	
+	# Show/hide forms
+	login_form.visible = (index == 0)
+	register_form.visible = (index == 1)
+	
+	# Clear status when switching tabs
+	status_label.text = ""
+	
+	# Focus first input of active form
+	if index == 0:
+		login_username.grab_focus()
+	else:
+		register_username.grab_focus()
+
+
+func _on_login_tab_pressed() -> void:
+	"""Handle login tab button press."""
+	_switch_tab(0)
+
+
+func _on_register_tab_pressed() -> void:
+	"""Handle register tab button press."""
+	_switch_tab(1)
 
 
 func set_player(player: Node) -> void:
@@ -48,11 +219,6 @@ func set_player(player: Node) -> void:
 		player_node.connection_failed.connect(_on_player_connection_failed)
 
 
-func get_server_address() -> String:
-	"""Get the server address from the input field."""
-	return server_input.text.strip_edges()
-
-
 func _on_login_pressed() -> void:
 	"""Handle login button press."""
 	var username = login_username.text.strip_edges()
@@ -67,11 +233,11 @@ func _on_login_pressed() -> void:
 		return
 	
 	_set_loading(true)
-	_show_status("Logging in...", Color(1, 1, 1))
+	_show_status("Connecting...", Color.WHITE)
 	
-	# Update player's server address
+	# Update player's server address and attempt login
 	if player_node:
-		player_node.server_address = get_server_address()
+		player_node.server_address = SERVER_ADDRESS
 		player_node.login(username, password)
 	
 	login_started.emit()
@@ -106,11 +272,11 @@ func _on_register_pressed() -> void:
 		return
 	
 	_set_loading(true)
-	_show_status("Creating account...", Color(1, 1, 1))
+	_show_status("Creating account...", Color.WHITE)
 	
-	# Update player's server address
+	# Update player's server address and attempt registration
 	if player_node:
-		player_node.server_address = get_server_address()
+		player_node.server_address = SERVER_ADDRESS
 		player_node.register(username, password)
 
 
@@ -131,7 +297,7 @@ func _on_register_confirm_submitted(_text: String) -> void:
 
 func _on_player_login_success(player_id: int) -> void:
 	"""Handle successful login."""
-	_show_status("Login successful!", Color(0.4, 1, 0.4))
+	_show_status("Login successful!", COLOR_SUCCESS)
 	login_success.emit(player_id)
 
 
@@ -144,7 +310,7 @@ func _on_player_login_failed(reason: String) -> void:
 func _on_player_register_success(_player_id: int) -> void:
 	"""Handle successful registration."""
 	_set_loading(false)
-	_show_status("Account created! You can now log in.", Color(0.4, 1, 0.4))
+	_show_status("Account created! You can now log in.", COLOR_SUCCESS)
 	
 	# Copy username to login tab and switch to it
 	login_username.text = register_username.text
@@ -152,7 +318,7 @@ func _on_player_register_success(_player_id: int) -> void:
 	register_password.text = ""
 	register_confirm.text = ""
 	
-	tab_container.current_tab = 0
+	_switch_tab(0)
 	login_password.grab_focus()
 
 
@@ -170,7 +336,7 @@ func _on_player_connection_failed(reason: String) -> void:
 
 func _show_error(message: String) -> void:
 	"""Show an error message in red."""
-	status_label.add_theme_color_override("font_color", Color(1, 0.4, 0.4))
+	status_label.add_theme_color_override("font_color", COLOR_ERROR)
 	status_label.text = message
 
 
@@ -181,7 +347,7 @@ func _show_status(message: String, color: Color = Color.WHITE) -> void:
 
 
 func _set_loading(loading: bool) -> void:
-	"""Enable/disable inputs during loading."""
+	"""Enable/disable inputs during loading and update button text."""
 	login_button.disabled = loading
 	register_button.disabled = loading
 	login_username.editable = not loading
@@ -189,4 +355,13 @@ func _set_loading(loading: bool) -> void:
 	register_username.editable = not loading
 	register_password.editable = not loading
 	register_confirm.editable = not loading
-	server_input.editable = not loading
+	
+	# Update button text to show loading state
+	if loading:
+		if current_tab == 0:
+			login_button.text = "CONNECTING..."
+		else:
+			register_button.text = "CONNECTING..."
+	else:
+		login_button.text = "ENTER REALM"
+		register_button.text = "CREATE ACCOUNT"

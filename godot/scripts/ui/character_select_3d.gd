@@ -12,7 +12,18 @@ const CharacterModelScene = preload("res://scenes/player/character_model.tscn")
 const CLASS_NAMES := ["Ninja", "Warrior", "Sura", "Shaman"]
 const GENDER_NAMES := ["Male", "Female"]
 const EMPIRE_NAMES := ["Shinsoo", "Chunjo", "Jinno"]
-const EMPIRE_COLORS := [Color(0.9, 0.3, 0.3), Color(0.9, 0.9, 0.3), Color(0.3, 0.5, 0.9)]
+
+## Empire colors - gold-tinted versions for the fantasy theme
+const EMPIRE_COLORS := [
+	Color(0.95, 0.45, 0.35),  # Shinsoo - warm red
+	Color(0.95, 0.85, 0.35),  # Chunjo - gold yellow
+	Color(0.45, 0.65, 0.95)   # Jinno - cool blue
+]
+
+## UI Colors matching login screen
+const COLOR_GOLD := Color(0.83, 0.66, 0.29)
+const COLOR_MUTED := Color(0.6, 0.53, 0.4)
+const COLOR_TEXT := Color(0.91, 0.89, 0.86)
 
 ## Spacing between character slots in 3D space
 ## Must be large enough that characters in adjacent slots aren't visible
@@ -42,14 +53,19 @@ var character_models: Array = [null, null, null, null]
 ## Slot container nodes
 var slot_nodes: Array[Node3D] = []
 
-# UI References
+## Dot indicator labels
+var dot_labels: Array[Label] = []
+
+# UI References - 3D Viewport
 @onready var subviewport: SubViewport = $SubViewportContainer/SubViewport
 @onready var character_slider: Node3D = $SubViewportContainer/SubViewport/CharacterSlider
 @onready var camera: Camera3D = $SubViewportContainer/SubViewport/Camera3D
 
-@onready var char_name_label: Label = $Overlay/TopInfo/CharacterName
-@onready var char_details_label: Label = $Overlay/TopInfo/CharacterDetails
-@onready var create_prompt: Label = $Overlay/CreatePrompt
+# UI References - Overlay elements
+@onready var top_info: PanelContainer = $Overlay/TopInfo
+@onready var char_name_label: Label = $Overlay/TopInfo/InfoMargin/InfoVBox/CharacterName
+@onready var char_details_label: Label = $Overlay/TopInfo/InfoMargin/InfoVBox/CharacterDetails
+@onready var create_prompt: VBoxContainer = $Overlay/CreatePrompt
 @onready var left_arrow: Label = $Overlay/LeftArrow
 @onready var right_arrow: Label = $Overlay/RightArrow
 @onready var instructions_label: Label = $Overlay/Instructions
@@ -57,12 +73,13 @@ var slot_nodes: Array[Node3D] = []
 @onready var slot_indicators: HBoxContainer = $Overlay/SlotIndicators
 @onready var delete_button: Button = $Overlay/BottomButtons/DeleteButton
 @onready var back_button: Button = $Overlay/BottomButtons/BackButton
+@onready var enter_button: Button = $Overlay/EnterButton
 
 @onready var delete_dialog: ConfirmationDialog = $DeleteDialog
 @onready var delete_name_input: LineEdit = $DeleteDialog/VBox/NameInput
 
-## Dot indicator labels
-var dot_labels: Array[Label] = []
+# Particles
+@onready var particle_effect: GPUParticles2D = $ParticleEffect
 
 
 func _ready() -> void:
@@ -72,16 +89,55 @@ func _ready() -> void:
 	# Create slot container nodes in the slider
 	_setup_dot_indicators()
 	
+	# Setup particle effect
+	_setup_particles()
+	
 	# Initial UI state
 	_update_ui()
 	
 	# Connect button signals
 	back_button.pressed.connect(_on_back_pressed)
 	delete_button.pressed.connect(_on_delete_pressed)
+	enter_button.pressed.connect(_confirm_selection)
 	delete_dialog.confirmed.connect(_on_delete_dialog_confirmed)
 	
 	# Connect visibility change to control SubViewport rendering
 	visibility_changed.connect(_on_visibility_changed)
+
+
+func _setup_particles() -> void:
+	"""Configure the particle system for floating ember effect."""
+	var material = ParticleProcessMaterial.new()
+	
+	# Emission from bottom of screen, spreading across width
+	material.emission_shape = ParticleProcessMaterial.EMISSION_SHAPE_BOX
+	material.emission_box_extents = Vector3(get_viewport().get_visible_rect().size.x / 2, 50, 0)
+	
+	# Direction: upward with slight spread
+	material.direction = Vector3(0, -1, 0)
+	material.spread = 20.0
+	
+	# Velocity
+	material.initial_velocity_min = 15.0
+	material.initial_velocity_max = 35.0
+	
+	# Gravity (slight upward float)
+	material.gravity = Vector3(0, -3, 0)
+	
+	# Scale variation
+	material.scale_min = 1.5
+	material.scale_max = 4.0
+	
+	# Color with fade out
+	var gradient = Gradient.new()
+	gradient.set_color(0, Color(0.83, 0.58, 0.29, 0.8))  # Gold/amber
+	gradient.set_color(1, Color(0.83, 0.58, 0.29, 0.0))  # Fade to transparent
+	var gradient_texture = GradientTexture1D.new()
+	gradient_texture.gradient = gradient
+	material.color_ramp = gradient_texture
+	
+	particle_effect.process_material = material
+	particle_effect.position = Vector2(get_viewport().get_visible_rect().size.x / 2, get_viewport().get_visible_rect().size.y + 50)
 
 
 func _on_visibility_changed() -> void:
@@ -140,8 +196,8 @@ func _setup_dot_indicators() -> void:
 	for i in range(MAX_SLOTS):
 		var dot = Label.new()
 		dot.text = "○"
-		dot.add_theme_font_size_override("font_size", 24)
-		dot.add_theme_color_override("font_color", Color(0.8, 0.8, 0.8))
+		dot.add_theme_font_size_override("font_size", 20)
+		dot.add_theme_color_override("font_color", COLOR_MUTED)
 		slot_indicators.add_child(dot)
 		dot_labels.append(dot)
 
@@ -232,7 +288,7 @@ func _position_slider_for_index(index: int, animate: bool = true) -> void:
 		is_transitioning = true
 		var tween = create_tween()
 		tween.tween_property(character_slider, "position:x", target_x, SLIDE_DURATION) \
-			.set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_QUAD)
+			.set_ease(Tween.EASE_OUT).set_trans(Tween.TRANS_CUBIC)
 		tween.tween_callback(_on_transition_finished)
 	else:
 		character_slider.position.x = target_x
@@ -276,6 +332,7 @@ func _select_previous() -> void:
 		current_index -= 1
 		_position_slider_for_index(current_index)
 		_update_ui()
+		_animate_arrow(left_arrow)
 
 
 func _select_next() -> void:
@@ -284,6 +341,14 @@ func _select_next() -> void:
 		current_index += 1
 		_position_slider_for_index(current_index)
 		_update_ui()
+		_animate_arrow(right_arrow)
+
+
+func _animate_arrow(arrow: Label) -> void:
+	"""Brief scale animation on arrow press."""
+	var tween = create_tween()
+	tween.tween_property(arrow, "scale", Vector2(1.2, 1.2), 0.1)
+	tween.tween_property(arrow, "scale", Vector2(1.0, 1.0), 0.1)
 
 
 func _confirm_selection() -> void:
@@ -293,6 +358,8 @@ func _confirm_selection() -> void:
 		var char_data = characters[current_index]
 		var char_id = char_data.get("id", 0)
 		if player_node:
+			enter_button.text = "ENTERING..."
+			enter_button.disabled = true
 			player_node.select_character(char_id)
 	else:
 		# Empty slot - go to character creation
@@ -318,32 +385,44 @@ func _update_ui() -> void:
 		# Color the name by empire
 		char_name_label.add_theme_color_override("font_color", EMPIRE_COLORS[empire_idx])
 		
-		char_name_label.visible = true
-		char_details_label.visible = true
+		top_info.visible = true
 		create_prompt.visible = false
 		delete_button.disabled = false
+		enter_button.text = "ENTER WORLD"
+		enter_button.disabled = false
 	else:
 		# Empty slot
-		char_name_label.visible = false
-		char_details_label.visible = false
+		top_info.visible = false
 		create_prompt.visible = true
 		delete_button.disabled = true
+		enter_button.text = "CREATE"
+		enter_button.disabled = false
 	
 	# Update dot indicators
 	for i in range(MAX_SLOTS):
 		if i == current_index:
 			dot_labels[i].text = "●"
-			dot_labels[i].add_theme_color_override("font_color", Color(1, 1, 1))
+			dot_labels[i].add_theme_color_override("font_color", COLOR_GOLD)
 		elif i < characters.size():
-			dot_labels[i].text = "○"
-			dot_labels[i].add_theme_color_override("font_color", Color(0.7, 0.7, 0.7))
+			dot_labels[i].text = "●"
+			dot_labels[i].add_theme_color_override("font_color", COLOR_MUTED)
 		else:
 			dot_labels[i].text = "○"
-			dot_labels[i].add_theme_color_override("font_color", Color(0.4, 0.4, 0.4))
+			dot_labels[i].add_theme_color_override("font_color", Color(COLOR_MUTED.r, COLOR_MUTED.g, COLOR_MUTED.b, 0.4))
 	
-	# Update arrow visibility
-	left_arrow.modulate.a = 1.0 if current_index > 0 else 0.3
-	right_arrow.modulate.a = 1.0 if current_index < MAX_SLOTS - 1 else 0.3
+	# Update arrow visibility with animation
+	_update_arrow_visibility()
+
+
+func _update_arrow_visibility() -> void:
+	"""Update arrow opacity based on navigation availability."""
+	var left_alpha = 1.0 if current_index > 0 else 0.25
+	var right_alpha = 1.0 if current_index < MAX_SLOTS - 1 else 0.25
+	
+	var tween = create_tween()
+	tween.set_parallel(true)
+	tween.tween_property(left_arrow, "modulate:a", left_alpha, 0.15)
+	tween.tween_property(right_arrow, "modulate:a", right_alpha, 0.15)
 
 
 func _on_back_pressed() -> void:
@@ -359,8 +438,7 @@ func _on_delete_pressed() -> void:
 		return
 	
 	var c = characters[current_index]
-	delete_dialog.title = "Delete Character"
-	delete_dialog.dialog_text = "Type the character name to confirm deletion:\n\n%s" % c.get("name", "")
+	delete_dialog.dialog_text = ""
 	delete_name_input.text = ""
 	delete_name_input.placeholder_text = c.get("name", "")
 	delete_dialog.popup_centered()
@@ -393,6 +471,8 @@ func _on_character_selected_success(character_id: int) -> void:
 func _on_character_select_failed(reason: String) -> void:
 	"""Handle failed character selection."""
 	push_warning("Character select failed: %s" % reason)
+	enter_button.text = "ENTER WORLD"
+	enter_button.disabled = false
 
 
 func _on_character_deleted(character_id: int) -> void:
@@ -409,4 +489,6 @@ func _on_character_delete_failed(reason: String) -> void:
 func reset_form() -> void:
 	"""Reset the form when shown."""
 	current_index = 0
+	enter_button.text = "ENTER WORLD"
+	enter_button.disabled = false
 	_update_ui()

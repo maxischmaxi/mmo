@@ -1,0 +1,369 @@
+[gd_scene load_steps=5 format=3 uid="uid://csettingsdialog"]
+
+[ext_resource type="Script" path="res://scripts/ui/settings_dialog.gd" id="1_script"]
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_panel"]
+bg_color = Color(0.1, 0.1, 0.12, 0.98)
+border_width_left = 2
+border_width_top = 2
+border_width_right = 2
+border_width_bottom = 2
+border_color = Color(0.4, 0.4, 0.5, 1)
+corner_radius_top_left = 10
+corner_radius_top_right = 10
+corner_radius_bottom_right = 10
+corner_radius_bottom_left = 10
+content_margin_left = 20
+content_margin_top = 15
+content_margin_right = 20
+content_margin_bottom = 15
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_button"]
+bg_color = Color(0.2, 0.2, 0.25, 1)
+border_width_left = 1
+border_width_top = 1
+border_width_right = 1
+border_width_bottom = 1
+border_color = Color(0.4, 0.4, 0.5, 1)
+corner_radius_top_left = 4
+corner_radius_top_right = 4
+corner_radius_bottom_right = 4
+corner_radius_bottom_left = 4
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_preset"]
+bg_color = Color(0.25, 0.25, 0.3, 1)
+border_width_left = 1
+border_width_top = 1
+border_width_right = 1
+border_width_bottom = 1
+border_color = Color(0.5, 0.5, 0.6, 1)
+corner_radius_top_left = 4
+corner_radius_top_right = 4
+corner_radius_bottom_right = 4
+corner_radius_bottom_left = 4
+
+[node name="SettingsDialog" type="Control"]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+script = ExtResource("1_script")
+
+[node name="CenterContainer" type="CenterContainer" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+
+[node name="Panel" type="PanelContainer" parent="CenterContainer"]
+custom_minimum_size = Vector2(500, 0)
+layout_mode = 2
+mouse_filter = 0
+theme_override_styles/panel = SubResource("StyleBoxFlat_panel")
+
+[node name="VBox" type="VBoxContainer" parent="CenterContainer/Panel"]
+layout_mode = 2
+theme_override_constants/separation = 10
+
+[node name="Header" type="HBoxContainer" parent="CenterContainer/Panel/VBox"]
+layout_mode = 2
+
+[node name="Title" type="Label" parent="CenterContainer/Panel/VBox/Header"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_colors/font_color = Color(0.9, 0.85, 0.7, 1)
+theme_override_font_sizes/font_size = 22
+text = "SETTINGS"
+
+[node name="CloseButton" type="Button" parent="CenterContainer/Panel/VBox/Header"]
+custom_minimum_size = Vector2(30, 30)
+layout_mode = 2
+theme_override_styles/normal = SubResource("StyleBoxFlat_button")
+text = "X"
+
+[node name="TabContainer" type="TabContainer" parent="CenterContainer/Panel/VBox"]
+custom_minimum_size = Vector2(0, 380)
+layout_mode = 2
+size_flags_vertical = 3
+
+[node name="Graphics" type="MarginContainer" parent="CenterContainer/Panel/VBox/TabContainer"]
+layout_mode = 2
+theme_override_constants/margin_left = 10
+theme_override_constants/margin_top = 10
+theme_override_constants/margin_right = 10
+theme_override_constants/margin_bottom = 10
+
+[node name="VBox" type="VBoxContainer" parent="CenterContainer/Panel/VBox/TabContainer/Graphics"]
+layout_mode = 2
+theme_override_constants/separation = 12
+
+[node name="PresetLabel" type="Label" parent="CenterContainer/Panel/VBox/TabContainer/Graphics/VBox"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.8, 0.8, 0.8, 1)
+theme_override_font_sizes/font_size = 12
+text = "QUALITY PRESETS"
+
+[node name="PresetContainer" type="HBoxContainer" parent="CenterContainer/Panel/VBox/TabContainer/Graphics/VBox"]
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="LowButton" type="Button" parent="CenterContainer/Panel/VBox/TabContainer/Graphics/VBox/PresetContainer"]
+custom_minimum_size = Vector2(80, 32)
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_styles/normal = SubResource("StyleBoxFlat_preset")
+text = "Low"
+
+[node name="MediumButton" type="Button" parent="CenterContainer/Panel/VBox/TabContainer/Graphics/VBox/PresetContainer"]
+custom_minimum_size = Vector2(80, 32)
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_styles/normal = SubResource("StyleBoxFlat_preset")
+text = "Medium"
+
+[node name="HighButton" type="Button" parent="CenterContainer/Panel/VBox/TabContainer/Graphics/VBox/PresetContainer"]
+custom_minimum_size = Vector2(80, 32)
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_styles/normal = SubResource("StyleBoxFlat_preset")
+text = "High"
+
+[node name="UltraButton" type="Button" parent="CenterContainer/Panel/VBox/TabContainer/Graphics/VBox/PresetContainer"]
+custom_minimum_size = Vector2(80, 32)
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_styles/normal = SubResource("StyleBoxFlat_preset")
+text = "Ultra"
+
+[node name="Sep1" type="HSeparator" parent="CenterContainer/Panel/VBox/TabContainer/Graphics/VBox"]
+layout_mode = 2
+
+[node name="DisplaySection" type="VBoxContainer" parent="CenterContainer/Panel/VBox/TabContainer/Graphics/VBox"]
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="DisplayLabel" type="Label" parent="CenterContainer/Panel/VBox/TabContainer/Graphics/VBox/DisplaySection"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.7, 0.7, 0.5, 1)
+theme_override_font_sizes/font_size = 13
+text = "DISPLAY"
+
+[node name="WindowModeRow" type="HBoxContainer" parent="CenterContainer/Panel/VBox/TabContainer/Graphics/VBox/DisplaySection"]
+layout_mode = 2
+
+[node name="WindowModeLabel" type="Label" parent="CenterContainer/Panel/VBox/TabContainer/Graphics/VBox/DisplaySection/WindowModeRow"]
+custom_minimum_size = Vector2(140, 0)
+layout_mode = 2
+text = "Window Mode"
+
+[node name="WindowModeOption" type="OptionButton" parent="CenterContainer/Panel/VBox/TabContainer/Graphics/VBox/DisplaySection/WindowModeRow"]
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="ResolutionRow" type="HBoxContainer" parent="CenterContainer/Panel/VBox/TabContainer/Graphics/VBox/DisplaySection"]
+layout_mode = 2
+
+[node name="ResolutionLabel" type="Label" parent="CenterContainer/Panel/VBox/TabContainer/Graphics/VBox/DisplaySection/ResolutionRow"]
+custom_minimum_size = Vector2(140, 0)
+layout_mode = 2
+text = "Resolution"
+
+[node name="ResolutionOption" type="OptionButton" parent="CenterContainer/Panel/VBox/TabContainer/Graphics/VBox/DisplaySection/ResolutionRow"]
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="VSyncRow" type="HBoxContainer" parent="CenterContainer/Panel/VBox/TabContainer/Graphics/VBox/DisplaySection"]
+layout_mode = 2
+
+[node name="VSyncLabel" type="Label" parent="CenterContainer/Panel/VBox/TabContainer/Graphics/VBox/DisplaySection/VSyncRow"]
+custom_minimum_size = Vector2(140, 0)
+layout_mode = 2
+text = "VSync"
+
+[node name="VSyncOption" type="OptionButton" parent="CenterContainer/Panel/VBox/TabContainer/Graphics/VBox/DisplaySection/VSyncRow"]
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="FPSLimitRow" type="HBoxContainer" parent="CenterContainer/Panel/VBox/TabContainer/Graphics/VBox/DisplaySection"]
+layout_mode = 2
+
+[node name="FPSLimitLabel" type="Label" parent="CenterContainer/Panel/VBox/TabContainer/Graphics/VBox/DisplaySection/FPSLimitRow"]
+custom_minimum_size = Vector2(140, 0)
+layout_mode = 2
+text = "FPS Limit"
+
+[node name="FPSLimitOption" type="OptionButton" parent="CenterContainer/Panel/VBox/TabContainer/Graphics/VBox/DisplaySection/FPSLimitRow"]
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="Sep2" type="HSeparator" parent="CenterContainer/Panel/VBox/TabContainer/Graphics/VBox"]
+layout_mode = 2
+
+[node name="QualitySection" type="VBoxContainer" parent="CenterContainer/Panel/VBox/TabContainer/Graphics/VBox"]
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="QualityLabel" type="Label" parent="CenterContainer/Panel/VBox/TabContainer/Graphics/VBox/QualitySection"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.7, 0.7, 0.5, 1)
+theme_override_font_sizes/font_size = 13
+text = "QUALITY"
+
+[node name="RenderScaleRow" type="HBoxContainer" parent="CenterContainer/Panel/VBox/TabContainer/Graphics/VBox/QualitySection"]
+layout_mode = 2
+
+[node name="RenderScaleLabel" type="Label" parent="CenterContainer/Panel/VBox/TabContainer/Graphics/VBox/QualitySection/RenderScaleRow"]
+custom_minimum_size = Vector2(140, 0)
+layout_mode = 2
+text = "Render Scale"
+
+[node name="RenderScaleSlider" type="HSlider" parent="CenterContainer/Panel/VBox/TabContainer/Graphics/VBox/QualitySection/RenderScaleRow"]
+custom_minimum_size = Vector2(150, 0)
+layout_mode = 2
+size_flags_horizontal = 3
+min_value = 0.5
+max_value = 1.0
+step = 0.05
+value = 1.0
+
+[node name="RenderScaleValue" type="Label" parent="CenterContainer/Panel/VBox/TabContainer/Graphics/VBox/QualitySection/RenderScaleRow"]
+custom_minimum_size = Vector2(50, 0)
+layout_mode = 2
+text = "100%"
+horizontal_alignment = 2
+
+[node name="AARow" type="HBoxContainer" parent="CenterContainer/Panel/VBox/TabContainer/Graphics/VBox/QualitySection"]
+layout_mode = 2
+
+[node name="AALabel" type="Label" parent="CenterContainer/Panel/VBox/TabContainer/Graphics/VBox/QualitySection/AARow"]
+custom_minimum_size = Vector2(140, 0)
+layout_mode = 2
+text = "Anti-Aliasing"
+
+[node name="AAOption" type="OptionButton" parent="CenterContainer/Panel/VBox/TabContainer/Graphics/VBox/QualitySection/AARow"]
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="ShadowRow" type="HBoxContainer" parent="CenterContainer/Panel/VBox/TabContainer/Graphics/VBox/QualitySection"]
+layout_mode = 2
+
+[node name="ShadowLabel" type="Label" parent="CenterContainer/Panel/VBox/TabContainer/Graphics/VBox/QualitySection/ShadowRow"]
+custom_minimum_size = Vector2(140, 0)
+layout_mode = 2
+text = "Shadow Quality"
+
+[node name="ShadowOption" type="OptionButton" parent="CenterContainer/Panel/VBox/TabContainer/Graphics/VBox/QualitySection/ShadowRow"]
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="Sep3" type="HSeparator" parent="CenterContainer/Panel/VBox/TabContainer/Graphics/VBox"]
+layout_mode = 2
+
+[node name="EffectsSection" type="VBoxContainer" parent="CenterContainer/Panel/VBox/TabContainer/Graphics/VBox"]
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="EffectsLabel" type="Label" parent="CenterContainer/Panel/VBox/TabContainer/Graphics/VBox/EffectsSection"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.7, 0.7, 0.5, 1)
+theme_override_font_sizes/font_size = 13
+text = "EFFECTS"
+
+[node name="SSAORow" type="HBoxContainer" parent="CenterContainer/Panel/VBox/TabContainer/Graphics/VBox/EffectsSection"]
+layout_mode = 2
+
+[node name="SSAOLabel" type="Label" parent="CenterContainer/Panel/VBox/TabContainer/Graphics/VBox/EffectsSection/SSAORow"]
+custom_minimum_size = Vector2(140, 0)
+layout_mode = 2
+text = "Ambient Occlusion"
+
+[node name="SSAOCheck" type="CheckBox" parent="CenterContainer/Panel/VBox/TabContainer/Graphics/VBox/EffectsSection/SSAORow"]
+layout_mode = 2
+
+[node name="BloomRow" type="HBoxContainer" parent="CenterContainer/Panel/VBox/TabContainer/Graphics/VBox/EffectsSection"]
+layout_mode = 2
+
+[node name="BloomLabel" type="Label" parent="CenterContainer/Panel/VBox/TabContainer/Graphics/VBox/EffectsSection/BloomRow"]
+custom_minimum_size = Vector2(140, 0)
+layout_mode = 2
+text = "Bloom"
+
+[node name="BloomCheck" type="CheckBox" parent="CenterContainer/Panel/VBox/TabContainer/Graphics/VBox/EffectsSection"]
+layout_mode = 2
+
+[node name="Audio" type="MarginContainer" parent="CenterContainer/Panel/VBox/TabContainer"]
+visible = false
+layout_mode = 2
+theme_override_constants/margin_left = 10
+theme_override_constants/margin_top = 10
+theme_override_constants/margin_right = 10
+theme_override_constants/margin_bottom = 10
+
+[node name="PlaceholderLabel" type="Label" parent="CenterContainer/Panel/VBox/TabContainer/Audio"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.6, 0.6, 0.6, 1)
+text = "Audio settings coming soon..."
+horizontal_alignment = 1
+vertical_alignment = 1
+
+[node name="Controls" type="MarginContainer" parent="CenterContainer/Panel/VBox/TabContainer"]
+visible = false
+layout_mode = 2
+theme_override_constants/margin_left = 10
+theme_override_constants/margin_top = 10
+theme_override_constants/margin_right = 10
+theme_override_constants/margin_bottom = 10
+
+[node name="PlaceholderLabel" type="Label" parent="CenterContainer/Panel/VBox/TabContainer/Controls"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.6, 0.6, 0.6, 1)
+text = "Control settings coming soon..."
+horizontal_alignment = 1
+vertical_alignment = 1
+
+[node name="Gameplay" type="MarginContainer" parent="CenterContainer/Panel/VBox/TabContainer"]
+visible = false
+layout_mode = 2
+theme_override_constants/margin_left = 10
+theme_override_constants/margin_top = 10
+theme_override_constants/margin_right = 10
+theme_override_constants/margin_bottom = 10
+
+[node name="PlaceholderLabel" type="Label" parent="CenterContainer/Panel/VBox/TabContainer/Gameplay"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.6, 0.6, 0.6, 1)
+text = "Gameplay settings coming soon..."
+horizontal_alignment = 1
+vertical_alignment = 1
+
+[node name="BottomButtons" type="HBoxContainer" parent="CenterContainer/Panel/VBox"]
+layout_mode = 2
+alignment = 2
+
+[node name="ResetButton" type="Button" parent="CenterContainer/Panel/VBox/BottomButtons"]
+custom_minimum_size = Vector2(120, 35)
+layout_mode = 2
+theme_override_styles/normal = SubResource("StyleBoxFlat_button")
+text = "Reset Defaults"
+
+[node name="Spacer" type="Control" parent="CenterContainer/Panel/VBox/BottomButtons"]
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="CancelButton" type="Button" parent="CenterContainer/Panel/VBox/BottomButtons"]
+custom_minimum_size = Vector2(80, 35)
+layout_mode = 2
+theme_override_styles/normal = SubResource("StyleBoxFlat_button")
+text = "Cancel"
+
+[node name="ApplyButton" type="Button" parent="CenterContainer/Panel/VBox/BottomButtons"]
+custom_minimum_size = Vector2(80, 35)
+layout_mode = 2
+theme_override_styles/normal = SubResource("StyleBoxFlat_button")
+text = "Apply"

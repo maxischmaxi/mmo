@@ -1,6 +1,142 @@
-[gd_scene load_steps=2 format=3 uid="uid://ccharcreate"]
+[gd_scene load_steps=14 format=3 uid="uid://ccharcreate"]
 
 [ext_resource type="Script" path="res://scripts/ui/character_create.gd" id="1_script"]
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_panel"]
+bg_color = Color(0.06, 0.07, 0.1, 0.92)
+border_width_left = 2
+border_width_top = 2
+border_width_right = 2
+border_width_bottom = 2
+border_color = Color(0.55, 0.45, 0.33, 1)
+corner_radius_top_left = 8
+corner_radius_top_right = 8
+corner_radius_bottom_right = 8
+corner_radius_bottom_left = 8
+shadow_color = Color(0, 0, 0, 0.5)
+shadow_size = 8
+shadow_offset = Vector2(0, 4)
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_input"]
+bg_color = Color(0.03, 0.04, 0.06, 0.9)
+border_width_left = 1
+border_width_top = 1
+border_width_right = 1
+border_width_bottom = 1
+border_color = Color(0.29, 0.25, 0.21, 1)
+corner_radius_top_left = 4
+corner_radius_top_right = 4
+corner_radius_bottom_right = 4
+corner_radius_bottom_left = 4
+content_margin_left = 10.0
+content_margin_top = 8.0
+content_margin_right = 10.0
+content_margin_bottom = 8.0
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_button_normal"]
+bg_color = Color(0.35, 0.29, 0.2, 1)
+border_width_left = 2
+border_width_top = 2
+border_width_right = 2
+border_width_bottom = 2
+border_color = Color(0.55, 0.45, 0.33, 1)
+corner_radius_top_left = 4
+corner_radius_top_right = 4
+corner_radius_bottom_right = 4
+corner_radius_bottom_left = 4
+content_margin_left = 14.0
+content_margin_top = 8.0
+content_margin_right = 14.0
+content_margin_bottom = 8.0
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_button_hover"]
+bg_color = Color(0.48, 0.39, 0.26, 1)
+border_width_left = 2
+border_width_top = 2
+border_width_right = 2
+border_width_bottom = 2
+border_color = Color(0.83, 0.66, 0.29, 1)
+corner_radius_top_left = 4
+corner_radius_top_right = 4
+corner_radius_bottom_right = 4
+corner_radius_bottom_left = 4
+content_margin_left = 14.0
+content_margin_top = 8.0
+content_margin_right = 14.0
+content_margin_bottom = 8.0
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_button_pressed"]
+bg_color = Color(0.25, 0.2, 0.14, 1)
+border_width_left = 2
+border_width_top = 2
+border_width_right = 2
+border_width_bottom = 2
+border_color = Color(0.55, 0.45, 0.33, 1)
+corner_radius_top_left = 4
+corner_radius_top_right = 4
+corner_radius_bottom_right = 4
+corner_radius_bottom_left = 4
+content_margin_left = 14.0
+content_margin_top = 8.0
+content_margin_right = 14.0
+content_margin_bottom = 8.0
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_button_disabled"]
+bg_color = Color(0.2, 0.18, 0.15, 0.5)
+border_width_left = 2
+border_width_top = 2
+border_width_right = 2
+border_width_bottom = 2
+border_color = Color(0.3, 0.28, 0.25, 0.5)
+corner_radius_top_left = 4
+corner_radius_top_right = 4
+corner_radius_bottom_right = 4
+corner_radius_bottom_left = 4
+content_margin_left = 14.0
+content_margin_top = 8.0
+content_margin_right = 14.0
+content_margin_bottom = 8.0
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_toggle_normal"]
+bg_color = Color(0.15, 0.14, 0.12, 0.8)
+border_width_left = 2
+border_width_top = 2
+border_width_right = 2
+border_width_bottom = 2
+border_color = Color(0.35, 0.3, 0.25, 1)
+corner_radius_top_left = 4
+corner_radius_top_right = 4
+corner_radius_bottom_right = 4
+corner_radius_bottom_left = 4
+content_margin_left = 10.0
+content_margin_top = 8.0
+content_margin_right = 10.0
+content_margin_bottom = 8.0
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_toggle_hover"]
+bg_color = Color(0.25, 0.22, 0.18, 0.9)
+border_width_left = 2
+border_width_top = 2
+border_width_right = 2
+border_width_bottom = 2
+border_color = Color(0.55, 0.45, 0.33, 1)
+corner_radius_top_left = 4
+corner_radius_top_right = 4
+corner_radius_bottom_right = 4
+corner_radius_bottom_left = 4
+content_margin_left = 10.0
+content_margin_top = 8.0
+content_margin_right = 10.0
+content_margin_bottom = 8.0
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_transparent"]
+bg_color = Color(0, 0, 0, 0)
+
+[sub_resource type="Gradient" id="Gradient_particle"]
+colors = PackedColorArray(0.83, 0.58, 0.29, 1, 0.83, 0.58, 0.29, 0)
+
+[sub_resource type="GradientTexture1D" id="GradientTexture1D_particle"]
+gradient = SubResource("Gradient_particle")
 
 [node name="CharacterCreate" type="Control"]
 layout_mode = 3
@@ -18,9 +154,21 @@ anchor_right = 1.0
 anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
-color = Color(0.1, 0.12, 0.15, 1)
+color = Color(0.04, 0.05, 0.07, 1)
 
-[node name="CenterContainer" type="CenterContainer" parent="."]
+[node name="ParticleEffect" type="GPUParticles2D" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+amount = 50
+lifetime = 5.0
+preprocess = 3.0
+randomness = 0.5
+
+[node name="ContentContainer" type="CenterContainer" parent="."]
 layout_mode = 1
 anchors_preset = 15
 anchor_right = 1.0
@@ -28,152 +176,320 @@ anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
 
-[node name="Panel" type="PanelContainer" parent="CenterContainer"]
-custom_minimum_size = Vector2(450, 0)
+[node name="MainVBox" type="VBoxContainer" parent="ContentContainer"]
 layout_mode = 2
+theme_override_constants/separation = 0
 
-[node name="VBox" type="VBoxContainer" parent="CenterContainer/Panel"]
+[node name="TitleSection" type="VBoxContainer" parent="ContentContainer/MainVBox"]
 layout_mode = 2
-theme_override_constants/separation = 12
+theme_override_constants/separation = 5
 
-[node name="Title" type="Label" parent="CenterContainer/Panel/VBox"]
+[node name="OrnamentTop" type="Label" parent="ContentContainer/MainVBox/TitleSection"]
 layout_mode = 2
-theme_override_font_sizes/font_size = 24
-text = "Create Character"
+theme_override_colors/font_color = Color(0.6, 0.53, 0.4, 1)
+theme_override_font_sizes/font_size = 14
+text = "═══════════ ⚔ ═══════════"
 horizontal_alignment = 1
 
-[node name="NameSection" type="VBoxContainer" parent="CenterContainer/Panel/VBox"]
+[node name="Title" type="Label" parent="ContentContainer/MainVBox/TitleSection"]
 layout_mode = 2
-theme_override_constants/separation = 5
+theme_override_colors/font_color = Color(0.83, 0.66, 0.29, 1)
+theme_override_font_sizes/font_size = 32
+text = "CREATE CHARACTER"
+horizontal_alignment = 1
 
-[node name="NameLabel" type="Label" parent="CenterContainer/Panel/VBox/NameSection"]
+[node name="Subtitle" type="Label" parent="ContentContainer/MainVBox/TitleSection"]
 layout_mode = 2
-text = "Character Name (alphanumeric, max 32 chars)"
+theme_override_colors/font_color = Color(0.6, 0.53, 0.4, 1)
+theme_override_font_sizes/font_size = 14
+text = "Forge Your Legend"
+horizontal_alignment = 1
 
-[node name="NameInput" type="LineEdit" parent="CenterContainer/Panel/VBox/NameSection"]
+[node name="OrnamentBottom" type="Label" parent="ContentContainer/MainVBox/TitleSection"]
 layout_mode = 2
-placeholder_text = "Enter name..."
+theme_override_colors/font_color = Color(0.6, 0.53, 0.4, 1)
+theme_override_font_sizes/font_size = 14
+text = "═════════════════════════"
+horizontal_alignment = 1
+
+[node name="Spacer" type="Control" parent="ContentContainer/MainVBox"]
+custom_minimum_size = Vector2(0, 25)
+layout_mode = 2
+
+[node name="Panel" type="PanelContainer" parent="ContentContainer/MainVBox"]
+custom_minimum_size = Vector2(500, 0)
+layout_mode = 2
+theme_override_styles/panel = SubResource("StyleBoxFlat_panel")
+
+[node name="PanelMargin" type="MarginContainer" parent="ContentContainer/MainVBox/Panel"]
+layout_mode = 2
+theme_override_constants/margin_left = 25
+theme_override_constants/margin_top = 20
+theme_override_constants/margin_right = 25
+theme_override_constants/margin_bottom = 20
+
+[node name="VBox" type="VBoxContainer" parent="ContentContainer/MainVBox/Panel/PanelMargin"]
+layout_mode = 2
+theme_override_constants/separation = 18
+
+[node name="NameSection" type="VBoxContainer" parent="ContentContainer/MainVBox/Panel/PanelMargin/VBox"]
+layout_mode = 2
+theme_override_constants/separation = 6
+
+[node name="NameLabel" type="Label" parent="ContentContainer/MainVBox/Panel/PanelMargin/VBox/NameSection"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.6, 0.53, 0.4, 1)
+theme_override_font_sizes/font_size = 13
+text = "Character Name"
+
+[node name="NameContainer" type="PanelContainer" parent="ContentContainer/MainVBox/Panel/PanelMargin/VBox/NameSection"]
+layout_mode = 2
+theme_override_styles/panel = SubResource("StyleBoxFlat_input")
+
+[node name="NameInput" type="LineEdit" parent="ContentContainer/MainVBox/Panel/PanelMargin/VBox/NameSection/NameContainer"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.91, 0.89, 0.86, 1)
+theme_override_colors/font_placeholder_color = Color(0.6, 0.53, 0.4, 0.5)
+theme_override_colors/caret_color = Color(0.83, 0.66, 0.29, 1)
+theme_override_styles/normal = SubResource("StyleBoxFlat_transparent")
+theme_override_styles/focus = SubResource("StyleBoxFlat_transparent")
+placeholder_text = "Enter a name (alphanumeric, max 32)"
 max_length = 32
+flat = true
 
-[node name="ClassSection" type="VBoxContainer" parent="CenterContainer/Panel/VBox"]
+[node name="ClassSection" type="VBoxContainer" parent="ContentContainer/MainVBox/Panel/PanelMargin/VBox"]
 layout_mode = 2
-theme_override_constants/separation = 5
+theme_override_constants/separation = 8
 
-[node name="ClassLabel" type="Label" parent="CenterContainer/Panel/VBox/ClassSection"]
+[node name="ClassLabel" type="Label" parent="ContentContainer/MainVBox/Panel/PanelMargin/VBox/ClassSection"]
 layout_mode = 2
+theme_override_colors/font_color = Color(0.6, 0.53, 0.4, 1)
+theme_override_font_sizes/font_size = 13
 text = "Class"
 
-[node name="ClassGrid" type="GridContainer" parent="CenterContainer/Panel/VBox/ClassSection"]
+[node name="ClassGrid" type="HBoxContainer" parent="ContentContainer/MainVBox/Panel/PanelMargin/VBox/ClassSection"]
 layout_mode = 2
-theme_override_constants/h_separation = 8
-theme_override_constants/v_separation = 8
-columns = 4
+theme_override_constants/separation = 8
 
-[node name="NinjaBtn" type="Button" parent="CenterContainer/Panel/VBox/ClassSection/ClassGrid"]
-custom_minimum_size = Vector2(90, 35)
+[node name="NinjaBtn" type="Button" parent="ContentContainer/MainVBox/Panel/PanelMargin/VBox/ClassSection/ClassGrid"]
+custom_minimum_size = Vector2(105, 38)
 layout_mode = 2
+size_flags_horizontal = 3
+theme_override_colors/font_color = Color(0.91, 0.89, 0.86, 1)
+theme_override_colors/font_hover_color = Color(1, 1, 1, 1)
+theme_override_colors/font_pressed_color = Color(0.83, 0.66, 0.29, 1)
+theme_override_font_sizes/font_size = 14
+theme_override_styles/normal = SubResource("StyleBoxFlat_toggle_normal")
+theme_override_styles/hover = SubResource("StyleBoxFlat_toggle_hover")
+theme_override_styles/pressed = SubResource("StyleBoxFlat_button_hover")
 toggle_mode = true
 text = "Ninja"
 
-[node name="WarriorBtn" type="Button" parent="CenterContainer/Panel/VBox/ClassSection/ClassGrid"]
-custom_minimum_size = Vector2(90, 35)
+[node name="WarriorBtn" type="Button" parent="ContentContainer/MainVBox/Panel/PanelMargin/VBox/ClassSection/ClassGrid"]
+custom_minimum_size = Vector2(105, 38)
 layout_mode = 2
+size_flags_horizontal = 3
+theme_override_colors/font_color = Color(0.91, 0.89, 0.86, 1)
+theme_override_colors/font_hover_color = Color(1, 1, 1, 1)
+theme_override_colors/font_pressed_color = Color(0.83, 0.66, 0.29, 1)
+theme_override_font_sizes/font_size = 14
+theme_override_styles/normal = SubResource("StyleBoxFlat_toggle_normal")
+theme_override_styles/hover = SubResource("StyleBoxFlat_toggle_hover")
+theme_override_styles/pressed = SubResource("StyleBoxFlat_button_hover")
 toggle_mode = true
 text = "Warrior"
 
-[node name="SuraBtn" type="Button" parent="CenterContainer/Panel/VBox/ClassSection/ClassGrid"]
-custom_minimum_size = Vector2(90, 35)
+[node name="SuraBtn" type="Button" parent="ContentContainer/MainVBox/Panel/PanelMargin/VBox/ClassSection/ClassGrid"]
+custom_minimum_size = Vector2(105, 38)
 layout_mode = 2
+size_flags_horizontal = 3
+theme_override_colors/font_color = Color(0.91, 0.89, 0.86, 1)
+theme_override_colors/font_hover_color = Color(1, 1, 1, 1)
+theme_override_colors/font_pressed_color = Color(0.83, 0.66, 0.29, 1)
+theme_override_font_sizes/font_size = 14
+theme_override_styles/normal = SubResource("StyleBoxFlat_toggle_normal")
+theme_override_styles/hover = SubResource("StyleBoxFlat_toggle_hover")
+theme_override_styles/pressed = SubResource("StyleBoxFlat_button_hover")
 toggle_mode = true
 text = "Sura"
 
-[node name="ShamanBtn" type="Button" parent="CenterContainer/Panel/VBox/ClassSection/ClassGrid"]
-custom_minimum_size = Vector2(90, 35)
+[node name="ShamanBtn" type="Button" parent="ContentContainer/MainVBox/Panel/PanelMargin/VBox/ClassSection/ClassGrid"]
+custom_minimum_size = Vector2(105, 38)
 layout_mode = 2
+size_flags_horizontal = 3
+theme_override_colors/font_color = Color(0.91, 0.89, 0.86, 1)
+theme_override_colors/font_hover_color = Color(1, 1, 1, 1)
+theme_override_colors/font_pressed_color = Color(0.83, 0.66, 0.29, 1)
+theme_override_font_sizes/font_size = 14
+theme_override_styles/normal = SubResource("StyleBoxFlat_toggle_normal")
+theme_override_styles/hover = SubResource("StyleBoxFlat_toggle_hover")
+theme_override_styles/pressed = SubResource("StyleBoxFlat_button_hover")
 toggle_mode = true
 text = "Shaman"
 
-[node name="ClassDescription" type="Label" parent="CenterContainer/Panel/VBox/ClassSection"]
+[node name="ClassDescription" type="Label" parent="ContentContainer/MainVBox/Panel/PanelMargin/VBox/ClassSection"]
 layout_mode = 2
+theme_override_colors/font_color = Color(0.6, 0.53, 0.4, 0.8)
 theme_override_font_sizes/font_size = 12
 text = "Powerful tank with high HP.
 HP: 120 | Mana: 20 | ATK: 10 | DEF: 8"
 horizontal_alignment = 1
 
-[node name="GenderSection" type="VBoxContainer" parent="CenterContainer/Panel/VBox"]
+[node name="GenderSection" type="VBoxContainer" parent="ContentContainer/MainVBox/Panel/PanelMargin/VBox"]
 layout_mode = 2
-theme_override_constants/separation = 5
+theme_override_constants/separation = 8
 
-[node name="GenderLabel" type="Label" parent="CenterContainer/Panel/VBox/GenderSection"]
+[node name="GenderLabel" type="Label" parent="ContentContainer/MainVBox/Panel/PanelMargin/VBox/GenderSection"]
 layout_mode = 2
+theme_override_colors/font_color = Color(0.6, 0.53, 0.4, 1)
+theme_override_font_sizes/font_size = 13
 text = "Gender"
 
-[node name="GenderRow" type="HBoxContainer" parent="CenterContainer/Panel/VBox/GenderSection"]
+[node name="GenderRow" type="HBoxContainer" parent="ContentContainer/MainVBox/Panel/PanelMargin/VBox/GenderSection"]
 layout_mode = 2
 alignment = 1
+theme_override_constants/separation = 12
 
-[node name="MaleBtn" type="Button" parent="CenterContainer/Panel/VBox/GenderSection/GenderRow"]
-custom_minimum_size = Vector2(100, 35)
+[node name="MaleBtn" type="Button" parent="ContentContainer/MainVBox/Panel/PanelMargin/VBox/GenderSection/GenderRow"]
+custom_minimum_size = Vector2(140, 38)
 layout_mode = 2
+theme_override_colors/font_color = Color(0.91, 0.89, 0.86, 1)
+theme_override_colors/font_hover_color = Color(1, 1, 1, 1)
+theme_override_colors/font_pressed_color = Color(0.83, 0.66, 0.29, 1)
+theme_override_font_sizes/font_size = 14
+theme_override_styles/normal = SubResource("StyleBoxFlat_toggle_normal")
+theme_override_styles/hover = SubResource("StyleBoxFlat_toggle_hover")
+theme_override_styles/pressed = SubResource("StyleBoxFlat_button_hover")
 toggle_mode = true
 text = "Male"
 
-[node name="FemaleBtn" type="Button" parent="CenterContainer/Panel/VBox/GenderSection/GenderRow"]
-custom_minimum_size = Vector2(100, 35)
+[node name="FemaleBtn" type="Button" parent="ContentContainer/MainVBox/Panel/PanelMargin/VBox/GenderSection/GenderRow"]
+custom_minimum_size = Vector2(140, 38)
 layout_mode = 2
+theme_override_colors/font_color = Color(0.91, 0.89, 0.86, 1)
+theme_override_colors/font_hover_color = Color(1, 1, 1, 1)
+theme_override_colors/font_pressed_color = Color(0.83, 0.66, 0.29, 1)
+theme_override_font_sizes/font_size = 14
+theme_override_styles/normal = SubResource("StyleBoxFlat_toggle_normal")
+theme_override_styles/hover = SubResource("StyleBoxFlat_toggle_hover")
+theme_override_styles/pressed = SubResource("StyleBoxFlat_button_hover")
 toggle_mode = true
 text = "Female"
 
-[node name="EmpireSection" type="VBoxContainer" parent="CenterContainer/Panel/VBox"]
+[node name="EmpireSection" type="VBoxContainer" parent="ContentContainer/MainVBox/Panel/PanelMargin/VBox"]
 layout_mode = 2
-theme_override_constants/separation = 5
+theme_override_constants/separation = 8
 
-[node name="EmpireLabel" type="Label" parent="CenterContainer/Panel/VBox/EmpireSection"]
+[node name="EmpireLabel" type="Label" parent="ContentContainer/MainVBox/Panel/PanelMargin/VBox/EmpireSection"]
 layout_mode = 2
-text = "Empire (starting zone)"
+theme_override_colors/font_color = Color(0.6, 0.53, 0.4, 1)
+theme_override_font_sizes/font_size = 13
+text = "Empire (Starting Zone)"
 
-[node name="EmpireGrid" type="GridContainer" parent="CenterContainer/Panel/VBox/EmpireSection"]
+[node name="EmpireGrid" type="HBoxContainer" parent="ContentContainer/MainVBox/Panel/PanelMargin/VBox/EmpireSection"]
 layout_mode = 2
-theme_override_constants/h_separation = 8
-columns = 3
+theme_override_constants/separation = 8
 
-[node name="RedBtn" type="Button" parent="CenterContainer/Panel/VBox/EmpireSection/EmpireGrid"]
-custom_minimum_size = Vector2(120, 40)
+[node name="ShinsooBtn" type="Button" parent="ContentContainer/MainVBox/Panel/PanelMargin/VBox/EmpireSection/EmpireGrid"]
+custom_minimum_size = Vector2(145, 42)
 layout_mode = 2
+size_flags_horizontal = 3
+theme_override_colors/font_color = Color(0.95, 0.45, 0.35, 1)
+theme_override_colors/font_hover_color = Color(1, 0.6, 0.5, 1)
+theme_override_colors/font_pressed_color = Color(0.95, 0.45, 0.35, 1)
+theme_override_font_sizes/font_size = 14
+theme_override_styles/normal = SubResource("StyleBoxFlat_toggle_normal")
+theme_override_styles/hover = SubResource("StyleBoxFlat_toggle_hover")
+theme_override_styles/pressed = SubResource("StyleBoxFlat_button_hover")
 toggle_mode = true
-text = "Shinsoo (Red)"
+text = "Shinsoo"
 
-[node name="YellowBtn" type="Button" parent="CenterContainer/Panel/VBox/EmpireSection/EmpireGrid"]
-custom_minimum_size = Vector2(120, 40)
+[node name="ChunjoBtn" type="Button" parent="ContentContainer/MainVBox/Panel/PanelMargin/VBox/EmpireSection/EmpireGrid"]
+custom_minimum_size = Vector2(145, 42)
 layout_mode = 2
+size_flags_horizontal = 3
+theme_override_colors/font_color = Color(0.95, 0.85, 0.35, 1)
+theme_override_colors/font_hover_color = Color(1, 0.95, 0.5, 1)
+theme_override_colors/font_pressed_color = Color(0.95, 0.85, 0.35, 1)
+theme_override_font_sizes/font_size = 14
+theme_override_styles/normal = SubResource("StyleBoxFlat_toggle_normal")
+theme_override_styles/hover = SubResource("StyleBoxFlat_toggle_hover")
+theme_override_styles/pressed = SubResource("StyleBoxFlat_button_hover")
 toggle_mode = true
-text = "Chunjo (Yellow)"
+text = "Chunjo"
 
-[node name="BlueBtn" type="Button" parent="CenterContainer/Panel/VBox/EmpireSection/EmpireGrid"]
-custom_minimum_size = Vector2(120, 40)
+[node name="JinnoBtn" type="Button" parent="ContentContainer/MainVBox/Panel/PanelMargin/VBox/EmpireSection/EmpireGrid"]
+custom_minimum_size = Vector2(145, 42)
 layout_mode = 2
+size_flags_horizontal = 3
+theme_override_colors/font_color = Color(0.45, 0.65, 0.95, 1)
+theme_override_colors/font_hover_color = Color(0.6, 0.75, 1, 1)
+theme_override_colors/font_pressed_color = Color(0.45, 0.65, 0.95, 1)
+theme_override_font_sizes/font_size = 14
+theme_override_styles/normal = SubResource("StyleBoxFlat_toggle_normal")
+theme_override_styles/hover = SubResource("StyleBoxFlat_toggle_hover")
+theme_override_styles/pressed = SubResource("StyleBoxFlat_button_hover")
 toggle_mode = true
-text = "Jinno (Blue)"
+text = "Jinno"
 
-[node name="StatusLabel" type="Label" parent="CenterContainer/Panel/VBox"]
+[node name="StatusLabel" type="Label" parent="ContentContainer/MainVBox/Panel/PanelMargin/VBox"]
+custom_minimum_size = Vector2(0, 20)
 layout_mode = 2
+theme_override_colors/font_color = Color(0.91, 0.33, 0.33, 1)
+theme_override_font_sizes/font_size = 13
 text = ""
 horizontal_alignment = 1
 autowrap_mode = 2
 
-[node name="ButtonRow" type="HBoxContainer" parent="CenterContainer/Panel/VBox"]
+[node name="ButtonRow" type="HBoxContainer" parent="ContentContainer/MainVBox/Panel/PanelMargin/VBox"]
 layout_mode = 2
 alignment = 1
+theme_override_constants/separation = 15
 
-[node name="BackButton" type="Button" parent="CenterContainer/Panel/VBox/ButtonRow"]
-custom_minimum_size = Vector2(120, 40)
+[node name="BackButton" type="Button" parent="ContentContainer/MainVBox/Panel/PanelMargin/VBox/ButtonRow"]
+custom_minimum_size = Vector2(140, 42)
 layout_mode = 2
-text = "Back"
+theme_override_colors/font_color = Color(0.91, 0.89, 0.86, 1)
+theme_override_colors/font_hover_color = Color(1, 1, 1, 1)
+theme_override_colors/font_pressed_color = Color(0.8, 0.8, 0.8, 1)
+theme_override_font_sizes/font_size = 15
+theme_override_styles/normal = SubResource("StyleBoxFlat_button_normal")
+theme_override_styles/hover = SubResource("StyleBoxFlat_button_hover")
+theme_override_styles/pressed = SubResource("StyleBoxFlat_button_pressed")
+theme_override_styles/disabled = SubResource("StyleBoxFlat_button_disabled")
+text = "BACK"
 
-[node name="CreateButton" type="Button" parent="CenterContainer/Panel/VBox/ButtonRow"]
-custom_minimum_size = Vector2(120, 40)
+[node name="CreateButton" type="Button" parent="ContentContainer/MainVBox/Panel/PanelMargin/VBox/ButtonRow"]
+custom_minimum_size = Vector2(180, 42)
 layout_mode = 2
-text = "Create"
+theme_override_colors/font_color = Color(0.91, 0.89, 0.86, 1)
+theme_override_colors/font_hover_color = Color(1, 1, 1, 1)
+theme_override_colors/font_pressed_color = Color(0.8, 0.8, 0.8, 1)
+theme_override_colors/font_disabled_color = Color(0.5, 0.5, 0.5, 0.5)
+theme_override_font_sizes/font_size = 15
+theme_override_styles/normal = SubResource("StyleBoxFlat_button_normal")
+theme_override_styles/hover = SubResource("StyleBoxFlat_button_hover")
+theme_override_styles/pressed = SubResource("StyleBoxFlat_button_pressed")
+theme_override_styles/disabled = SubResource("StyleBoxFlat_button_disabled")
+text = "CREATE CHARACTER"
 
-[connection signal="pressed" from="CenterContainer/Panel/VBox/ButtonRow/BackButton" to="." method="_on_back_pressed"]
-[connection signal="pressed" from="CenterContainer/Panel/VBox/ButtonRow/CreateButton" to="." method="_on_create_pressed"]
+[node name="VersionLabel" type="Label" parent="."]
+layout_mode = 1
+anchors_preset = 3
+anchor_left = 1.0
+anchor_top = 1.0
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = -70.0
+offset_top = -30.0
+offset_right = -15.0
+offset_bottom = -10.0
+grow_horizontal = 0
+grow_vertical = 0
+theme_override_colors/font_color = Color(0.6, 0.53, 0.4, 0.5)
+theme_override_font_sizes/font_size = 12
+text = "v0.1.0"
+horizontal_alignment = 2
+
+[connection signal="pressed" from="ContentContainer/MainVBox/Panel/PanelMargin/VBox/ButtonRow/BackButton" to="." method="_on_back_pressed"]
+[connection signal="pressed" from="ContentContainer/MainVBox/Panel/PanelMargin/VBox/ButtonRow/CreateButton" to="." method="_on_create_pressed"]
