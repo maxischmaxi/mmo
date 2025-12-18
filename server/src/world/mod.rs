@@ -5,7 +5,7 @@ use log::{info, debug};
 use rand::Rng;
 
 use mmo_shared::{
-    ServerMessage, AnimationState, EnemyType, InventorySlot,
+    ServerMessage, AnimationState, EnemyType, InventorySlot, ItemDef,
     CharacterClass, Gender, Empire,
 };
 
@@ -17,19 +17,22 @@ use crate::entities::{ServerPlayer, ServerEnemy, WorldItem};
 pub struct GameWorld {
     players: HashMap<u64, ServerPlayer>,
     enemies: HashMap<u64, ServerEnemy>,
-    items: HashMap<u64, WorldItem>,
+    world_items: HashMap<u64, WorldItem>,
     next_enemy_id: u64,
     next_item_id: u64,
+    /// Item definitions loaded from database
+    pub items: HashMap<u32, ItemDef>,
 }
 
 impl GameWorld {
-    pub fn new() -> Self {
+    pub fn new(items: HashMap<u32, ItemDef>) -> Self {
         let mut world = Self {
             players: HashMap::new(),
             enemies: HashMap::new(),
-            items: HashMap::new(),
+            world_items: HashMap::new(),
             next_enemy_id: 10000, // Start enemy IDs high to avoid confusion with player IDs
             next_item_id: 20000,
+            items,
         };
         
         // Spawn some initial enemies
@@ -84,6 +87,7 @@ impl GameWorld {
         attack: u32,
         defense: u32,
         inventory_data: &[InventorySlotData],
+        equipped_weapon_id: Option<u32>,
     ) {
         // Convert inventory data to slots
         let mut inventory: Vec<Option<InventorySlot>> = vec![None; 20];
@@ -111,6 +115,7 @@ impl GameWorld {
             attack,
             defense,
             inventory,
+            equipped_weapon_id,
         );
         self.players.insert(id, player);
     }
@@ -179,8 +184,8 @@ impl GameWorld {
                 return None;
             }
             
-            // Calculate damage
-            let base_damage = attacker.attack_power;
+            // Calculate damage based on equipped weapon
+            let base_damage = attacker.calculate_attack_damage(&self.items);
             let mut rng = rand::thread_rng();
             let is_critical = rng.gen_bool(0.1); // 10% crit chance
             let damage = if is_critical { base_damage * 2 } else { base_damage };
@@ -205,7 +210,7 @@ impl GameWorld {
     
     /// Pickup an item from the world
     pub fn pickup_item(&mut self, player_id: u64, item_entity_id: u64) -> Option<(ServerMessage, ServerMessage)> {
-        let item = self.items.remove(&item_entity_id)?;
+        let item = self.world_items.remove(&item_entity_id)?;
         let player = self.players.get_mut(&player_id)?;
         
         // Try to add to inventory
@@ -242,7 +247,7 @@ impl GameWorld {
         self.next_item_id += 1;
         
         let position = player.position;
-        self.items.insert(entity_id, WorldItem {
+        self.world_items.insert(entity_id, WorldItem {
             entity_id,
             item_id,
             quantity,
@@ -260,6 +265,31 @@ impl GameWorld {
         };
         
         Some((spawn_msg, inv_msg))
+    }
+    
+    /// Equip an item from inventory
+    /// Returns Ok(new_weapon_id) on success, Err(reason) on failure
+    pub fn equip_item(&mut self, player_id: u64, inventory_slot: u8) -> Result<Option<u32>, &'static str> {
+        let player = self.players.get_mut(&player_id).ok_or("Player not found")?;
+        player.try_equip_weapon(inventory_slot, &self.items)?;
+        Ok(player.equipped_weapon_id)
+    }
+    
+    /// Unequip weapon
+    /// Returns the previously equipped weapon ID
+    pub fn unequip_weapon(&mut self, player_id: u64) -> Option<u32> {
+        let player = self.players.get_mut(&player_id)?;
+        player.unequip_weapon()
+    }
+    
+    /// Add item to a player's inventory (for dev commands)
+    pub fn add_item_to_player(&mut self, player_id: u64, item_id: u32, quantity: u32) -> Option<ServerMessage> {
+        let player = self.players.get_mut(&player_id)?;
+        player.add_to_inventory(item_id, quantity);
+        
+        Some(ServerMessage::InventoryUpdate {
+            slots: player.get_inventory_slots(),
+        })
     }
     
     /// Update the world (called every tick)
@@ -364,7 +394,7 @@ impl GameWorld {
                         quantity: 1,
                         position: enemy.position,
                     };
-                    self.items.insert(item_entity_id, item.clone());
+                    self.world_items.insert(item_entity_id, item.clone());
                     
                     messages.push(ServerMessage::ItemSpawn {
                         entity_id: item_entity_id,
@@ -390,7 +420,7 @@ impl GameWorld {
                         quantity: 1,
                         position,
                     };
-                    self.items.insert(item_entity_id, item);
+                    self.world_items.insert(item_entity_id, item);
                     
                     messages.push(ServerMessage::ItemSpawn {
                         entity_id: item_entity_id,

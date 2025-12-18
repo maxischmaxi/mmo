@@ -1,6 +1,7 @@
 //! Server-side player entity.
 
-use mmo_shared::{AnimationState, InventorySlot, ItemEffect, CharacterClass, Gender, Empire, get_item_definitions};
+use mmo_shared::{AnimationState, InventorySlot, ItemEffect, ItemDef, ItemType, CharacterClass, Gender, Empire, get_item_definitions};
+use std::collections::HashMap;
 
 /// Maximum inventory slots
 const INVENTORY_SIZE: usize = 20;
@@ -24,6 +25,8 @@ pub struct ServerPlayer {
     pub defense: u32,
     pub animation_state: AnimationState,
     pub inventory: Vec<Option<InventorySlot>>,
+    /// Currently equipped weapon item ID (None = unarmed)
+    pub equipped_weapon_id: Option<u32>,
     /// Whether death has been announced (prevents duplicate EntityDeath messages)
     pub death_announced: bool,
 }
@@ -46,6 +49,7 @@ impl ServerPlayer {
         attack_power: u32,
         defense: u32,
         inventory: Vec<Option<InventorySlot>>,
+        equipped_weapon_id: Option<u32>,
     ) -> Self {
         Self {
             id,
@@ -64,6 +68,7 @@ impl ServerPlayer {
             defense,
             animation_state: AnimationState::Idle,
             inventory,
+            equipped_weapon_id,
             death_announced: false,
         }
     }
@@ -177,16 +182,106 @@ impl ServerPlayer {
         self.health == 0
     }
     
-    /// Get attack speed (base from class + equipment bonuses)
+    /// Get attack speed (base from class * weapon multiplier)
     /// Returns attacks per second multiplier (1.0 = normal, higher = faster)
-    pub fn get_attack_speed(&self) -> f32 {
+    pub fn get_attack_speed(&self, items: &HashMap<u32, ItemDef>) -> f32 {
         // Base attack speed from class
         let base_speed = self.class.base_attack_speed();
         
-        // TODO: Add equipment bonuses when weapon system is implemented
-        // let weapon_bonus = self.get_equipped_weapon_attack_speed_bonus();
-        let weapon_bonus = 0.0;
+        // Get weapon attack speed multiplier
+        if let Some(weapon_id) = self.equipped_weapon_id {
+            if let Some(item) = items.get(&weapon_id) {
+                if let Some(stats) = &item.weapon_stats {
+                    return base_speed * stats.attack_speed;
+                }
+            }
+        }
         
-        base_speed + weapon_bonus
+        // Unarmed is slower
+        base_speed * 0.8
+    }
+    
+    /// Calculate attack damage based on equipped weapon
+    /// Formula: weapon_damage + (base_attack / 2), or base_attack / 2 if unarmed
+    pub fn calculate_attack_damage(&self, items: &HashMap<u32, ItemDef>) -> u32 {
+        if let Some(weapon_id) = self.equipped_weapon_id {
+            if let Some(item) = items.get(&weapon_id) {
+                if let Some(stats) = &item.weapon_stats {
+                    return stats.damage + (self.attack_power / 2);
+                }
+            }
+        }
+        
+        // Unarmed: reduced damage
+        self.attack_power / 2
+    }
+    
+    /// Try to equip a weapon from inventory
+    /// Returns Ok(old_weapon_id) if successful, Err with reason if failed
+    /// The item is removed from inventory; if there was an old weapon, it goes into the vacated slot
+    pub fn try_equip_weapon(&mut self, inventory_slot: u8, items: &HashMap<u32, ItemDef>) -> Result<Option<u32>, &'static str> {
+        let slot_idx = inventory_slot as usize;
+        if slot_idx >= self.inventory.len() {
+            return Err("Invalid inventory slot");
+        }
+        
+        let inv_slot = self.inventory[slot_idx].as_ref().ok_or("No item in slot")?;
+        let item_id = inv_slot.item_id;
+        
+        let item = items.get(&item_id).ok_or("Item not found")?;
+        
+        // Check if it's a weapon
+        if item.item_type != ItemType::Weapon {
+            return Err("Item is not a weapon");
+        }
+        
+        // Check class restriction
+        if let Some(stats) = &item.weapon_stats {
+            if let Some(required_class) = stats.class_restriction {
+                if required_class != self.class {
+                    return Err("Cannot equip: wrong class");
+                }
+            }
+        }
+        
+        // Store the old weapon before we modify anything
+        let old_weapon = self.equipped_weapon_id;
+        
+        // Remove item from inventory slot
+        self.inventory[slot_idx] = None;
+        
+        // If we had a weapon equipped, put it in the now-empty inventory slot
+        if let Some(old_weapon_id) = old_weapon {
+            self.inventory[slot_idx] = Some(InventorySlot {
+                item_id: old_weapon_id,
+                quantity: 1,
+            });
+        }
+        
+        // Equip the new weapon
+        self.equipped_weapon_id = Some(item_id);
+        
+        Ok(old_weapon)
+    }
+    
+    /// Unequip weapon and put it back in inventory
+    /// Returns the previously equipped weapon ID, or None if no weapon was equipped or no space
+    pub fn unequip_weapon(&mut self) -> Option<u32> {
+        let weapon_id = self.equipped_weapon_id.take()?;
+        
+        // Find an empty inventory slot
+        let empty_slot = self.inventory.iter().position(|s| s.is_none());
+        
+        if let Some(slot_idx) = empty_slot {
+            self.inventory[slot_idx] = Some(InventorySlot {
+                item_id: weapon_id,
+                quantity: 1,
+            });
+            Some(weapon_id)
+        } else {
+            // No space in inventory, re-equip the weapon
+            self.equipped_weapon_id = Some(weapon_id);
+            None
+        }
     }
 }

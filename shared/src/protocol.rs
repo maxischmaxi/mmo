@@ -221,6 +221,23 @@ pub enum ClientMessage {
     RespawnRequest {
         respawn_type: u8,
     },
+    
+    /// Equip an item from inventory
+    EquipItem {
+        inventory_slot: u8,
+    },
+    
+    /// Unequip an item from an equipment slot
+    UnequipItem {
+        /// Equipment slot name: "weapon" (future: "head", "chest", etc.)
+        equipment_slot: String,
+    },
+    
+    /// Dev command: Add item to inventory (debug only)
+    DevAddItem {
+        item_id: u32,
+        quantity: u32,
+    },
 }
 
 // =============================================================================
@@ -284,6 +301,8 @@ pub enum ServerMessage {
         defense: u32,
         attack_speed: f32,
         inventory: Vec<Option<InventorySlot>>,
+        /// Currently equipped weapon item ID (None = unarmed)
+        equipped_weapon_id: Option<u32>,
     },
     
     /// Character selection failed
@@ -390,6 +409,12 @@ pub enum ServerMessage {
     /// Enemy despawned
     EnemyDespawn {
         id: u64,
+    },
+    
+    /// Equipment update (weapon equipped/unequipped)
+    EquipmentUpdate {
+        /// Currently equipped weapon item ID (None = unarmed)
+        equipped_weapon_id: Option<u32>,
     },
 }
 

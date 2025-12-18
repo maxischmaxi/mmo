@@ -150,6 +150,10 @@ func stop_auto_attack() -> void:
 	attack_target_node = null
 	pending_attack_target_id = -1  # Clear pending attack
 	
+	# Cancel click movement if we were moving to attack
+	if click_movement_controller:
+		click_movement_controller.cancel_movement()
+	
 	# Cancel attack animation if playing
 	if animation_controller and animation_controller.has_method("cancel_attack"):
 		animation_controller.cancel_attack()

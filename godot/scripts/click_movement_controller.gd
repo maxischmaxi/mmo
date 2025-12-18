@@ -78,6 +78,9 @@ func _physics_process(delta: float) -> void:
 	var target_yaw := atan2(direction.x, direction.z)
 	var current_rot := player.rotation
 	player.rotation.y = lerp_angle(current_rot.y, target_yaw, 10.0 * delta)
+	
+	# Actually move the player (Player's move_and_slide already ran with potentially zero velocity)
+	player.move_and_slide()
 
 
 ## Check if any WASD key is pressed
@@ -95,12 +98,21 @@ func move_to(position: Vector3) -> void:
 	target_position = position
 	target_position.y = player.global_position.y  # Keep same Y level
 	is_moving_to_target = true
+	
+	# Notify player that click movement is active
+	if player.has_method("set_click_moving"):
+		player.set_click_moving(true)
 
 
 ## Cancel current click-to-move
 func cancel_movement() -> void:
 	if is_moving_to_target:
 		is_moving_to_target = false
+		
+		# Notify player that click movement is no longer active
+		if player and player.has_method("set_click_moving"):
+			player.set_click_moving(false)
+		
 		emit_signal("movement_cancelled")
 
 
@@ -108,12 +120,17 @@ func cancel_movement() -> void:
 func _arrive_at_destination() -> void:
 	is_moving_to_target = false
 	
+	# Notify player that click movement is no longer active
+	if player and player.has_method("set_click_moving"):
+		player.set_click_moving(false)
+	
 	# Stop horizontal movement
 	if player:
 		var velocity := player.velocity
 		velocity.x = 0
 		velocity.z = 0
 		player.velocity = velocity
+		player.move_and_slide()
 	
 	emit_signal("destination_reached")
 

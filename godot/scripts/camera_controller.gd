@@ -39,8 +39,8 @@ signal clicked_nothing
 @export var smooth_speed: float = 10.0
 
 ## Click vs drag detection thresholds
-@export var click_threshold_distance: float = 5.0  # pixels
-@export var click_threshold_time: float = 0.25  # seconds
+@export var click_threshold_distance: float = 20.0  # pixels - increased for better fast-click detection
+@export var click_threshold_time: float = 0.35  # seconds - increased for better fast-click detection
 
 ## Current camera state
 var current_yaw: float = 0.0
@@ -62,6 +62,16 @@ var right_click_start_pos: Vector2 = Vector2.ZERO
 var right_click_start_time: float = 0.0
 var right_click_is_drag: bool = false
 var right_mouse_down: bool = false
+
+## Rotation indicator (shown at click position when rotating)
+var rotation_start_pos: Vector2 = Vector2.ZERO
+var rotation_indicator: TextureRect = null
+var rotation_indicator_layer: CanvasLayer = null
+const ROTATION_INDICATOR_TEXTURE = preload("res://assets/magic_cursors/36x36px/Cursor Target Move A.png")
+
+## Click indicator (Metin2-style ground click effect)
+const ClickIndicatorScene = preload("res://scenes/effects/click_indicator.tscn")
+var current_click_indicator: Node3D = null
 
 ## References
 @onready var spring_arm: SpringArm3D = $SpringArm3D
@@ -94,6 +104,9 @@ func _ready() -> void:
 	if target == null:
 		target = get_parent()
 	
+	# Create rotation indicator
+	_create_rotation_indicator()
+	
 	# Find controllers and managers after a frame
 	await get_tree().process_frame
 	_find_references()
@@ -115,6 +128,56 @@ func _find_references() -> void:
 		var main = get_tree().current_scene
 		if main:
 			game_manager = main.get_node_or_null("GameManager")
+
+
+func _create_rotation_indicator() -> void:
+	"""Create a visual indicator shown at the rotation pivot point."""
+	# Create CanvasLayer to ensure it renders on top of everything
+	rotation_indicator_layer = CanvasLayer.new()
+	rotation_indicator_layer.layer = 100  # High layer to be on top
+	add_child(rotation_indicator_layer)
+	
+	# Create the indicator texture
+	rotation_indicator = TextureRect.new()
+	rotation_indicator.texture = ROTATION_INDICATOR_TEXTURE
+	rotation_indicator.visible = false
+	rotation_indicator_layer.add_child(rotation_indicator)
+
+
+func _start_camera_rotation() -> void:
+	"""Start camera rotation mode - capture mouse and show indicator."""
+	if is_rotating:
+		return
+	
+	rotation_start_pos = get_viewport().get_mouse_position()
+	is_rotating = true
+	
+	# Capture the mouse - hides cursor and prevents UI from intercepting
+	Input.set_mouse_mode(Input.MOUSE_MODE_CAPTURED)
+	
+	# Show indicator at the position where rotation started
+	if rotation_indicator:
+		var tex_size = rotation_indicator.texture.get_size()
+		rotation_indicator.position = rotation_start_pos - tex_size / 2
+		rotation_indicator.visible = true
+
+
+func _stop_camera_rotation() -> void:
+	"""Stop camera rotation mode - release mouse and hide indicator."""
+	if not is_rotating:
+		return
+	
+	is_rotating = false
+	
+	# Hide the indicator
+	if rotation_indicator:
+		rotation_indicator.visible = false
+	
+	# Release mouse capture and restore visibility
+	Input.set_mouse_mode(Input.MOUSE_MODE_VISIBLE)
+	
+	# Warp mouse back to where rotation started
+	get_viewport().warp_mouse(rotation_start_pos)
 
 
 func _unhandled_input(event: InputEvent) -> void:
@@ -152,10 +215,19 @@ func _handle_mouse_button(event: InputEventMouseButton) -> void:
 			left_mouse_down = false
 			
 			# Check if this was a click (not a drag)
-			if not left_click_is_drag:
-				var click_duration = Time.get_ticks_msec() / 1000.0 - left_click_start_time
-				if click_duration < click_threshold_time:
-					_handle_left_click(event.position)
+			# For click-to-move: accept ANY quick click regardless of mouse movement
+			# The player wants to move to where they RELEASE the mouse, not where they pressed
+			# Only reject if the click duration is too long (held down too long)
+			var click_duration = Time.get_ticks_msec() / 1000.0 - left_click_start_time
+			
+			# DEBUG: Log click detection details (remove after debugging)
+			print("[CLICK DEBUG] duration=%.3f (threshold=%.2f)" % [click_duration, click_threshold_time])
+			
+			if click_duration < click_threshold_time:
+				print("[CLICK DEBUG] >>> CLICK ACCEPTED")
+				_handle_left_click(event.position)
+			else:
+				print("[CLICK DEBUG] >>> CLICK REJECTED (held too long)")
 	
 	# RIGHT MOUSE BUTTON
 	if event.button_index == MOUSE_BUTTON_RIGHT:
@@ -166,7 +238,9 @@ func _handle_mouse_button(event: InputEventMouseButton) -> void:
 			right_click_is_drag = false
 		else:
 			right_mouse_down = false
-			is_rotating = false
+			
+			# Stop rotation if we were rotating
+			_stop_camera_rotation()
 			
 			# Check if this was a click (not a drag) - select target
 			if not right_click_is_drag:
@@ -184,20 +258,18 @@ func _handle_mouse_button(event: InputEventMouseButton) -> void:
 func _handle_mouse_motion(motion: InputEventMouseMotion) -> void:
 	# Check if left-click has become a drag
 	if left_mouse_down and not left_click_is_drag:
-		var current_pos = get_viewport().get_mouse_position()
-		var drag_distance = current_pos.distance_to(left_click_start_pos)
+		var drag_distance = motion.position.distance_to(left_click_start_pos)
 		if drag_distance > click_threshold_distance:
 			left_click_is_drag = true
 	
-	# Check if right-click has become a drag
+	# Check if right-click has become a drag - start rotation mode
 	if right_mouse_down and not right_click_is_drag:
-		var current_pos = get_viewport().get_mouse_position()
-		var drag_distance = current_pos.distance_to(right_click_start_pos)
+		var drag_distance = motion.position.distance_to(right_click_start_pos)
 		if drag_distance > click_threshold_distance:
 			right_click_is_drag = true
-			is_rotating = true
+			_start_camera_rotation()
 	
-	# Rotate camera when right-click is dragging
+	# Rotate camera when in rotation mode
 	if is_rotating:
 		current_yaw += motion.relative.x * rotation_speed
 		current_pitch -= motion.relative.y * rotation_speed
@@ -277,6 +349,9 @@ func _on_enemy_clicked(enemy_id: int, enemy_node: Node3D) -> void:
 
 ## Called when ground is left-clicked (move to)
 func _on_ground_clicked(world_pos: Vector3) -> void:
+	# Spawn click indicator at the click location
+	_spawn_click_indicator(world_pos)
+	
 	# Stop auto-attack
 	if combat_controller:
 		combat_controller.stop_auto_attack()
@@ -286,6 +361,34 @@ func _on_ground_clicked(world_pos: Vector3) -> void:
 		click_movement_controller.move_to(world_pos)
 	
 	emit_signal("ground_clicked", world_pos)
+
+
+## Spawn a Metin2-style click indicator at the given position
+func _spawn_click_indicator(world_pos: Vector3) -> void:
+	# Remove existing indicator if any (only one at a time)
+	if current_click_indicator and is_instance_valid(current_click_indicator):
+		current_click_indicator.queue_free()
+		current_click_indicator = null
+	
+	# Create new indicator
+	current_click_indicator = ClickIndicatorScene.instantiate()
+	
+	# Add to tree FIRST, then set position (global_position requires being in tree)
+	var effects_container := _get_effects_container()
+	if effects_container:
+		effects_container.add_child(current_click_indicator)
+	else:
+		get_tree().current_scene.add_child(current_click_indicator)
+	
+	# Now set position after it's in the tree
+	current_click_indicator.global_position = world_pos
+
+
+## Get the effects container from game manager
+func _get_effects_container() -> Node:
+	if game_manager:
+		return game_manager.get_node_or_null("EffectsContainer")
+	return null
 
 
 ## Called when entity is selected (right-click)
@@ -379,7 +482,7 @@ func _unfocus_chat() -> void:
 
 ## Reset all mouse tracking state (public for external reset on state changes)
 func reset_mouse_state() -> void:
-	is_rotating = false
+	_stop_camera_rotation()
 	left_mouse_down = false
 	left_click_is_drag = false
 	right_mouse_down = false

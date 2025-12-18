@@ -1,0 +1,199 @@
+[gd_scene load_steps=9 format=3 uid="uid://cbottombar001"]
+
+[ext_resource type="Script" path="res://scripts/ui/bottom_bar.gd" id="1_script"]
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_panel"]
+bg_color = Color(0.08, 0.08, 0.08, 0.92)
+border_width_top = 1
+border_color = Color(0.25, 0.22, 0.18, 1)
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_health_bg"]
+bg_color = Color(0.15, 0.05, 0.05, 1)
+corner_radius_top_left = 2
+corner_radius_top_right = 2
+corner_radius_bottom_right = 2
+corner_radius_bottom_left = 2
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_health_fill"]
+bg_color = Color(0.75, 0.15, 0.15, 1)
+corner_radius_top_left = 2
+corner_radius_top_right = 2
+corner_radius_bottom_right = 2
+corner_radius_bottom_left = 2
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_mana_bg"]
+bg_color = Color(0.05, 0.05, 0.15, 1)
+corner_radius_top_left = 2
+corner_radius_top_right = 2
+corner_radius_bottom_right = 2
+corner_radius_bottom_left = 2
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_mana_fill"]
+bg_color = Color(0.2, 0.35, 0.8, 1)
+corner_radius_top_left = 2
+corner_radius_top_right = 2
+corner_radius_bottom_right = 2
+corner_radius_bottom_left = 2
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_exp_bg"]
+bg_color = Color(0.1, 0.08, 0.02, 1)
+corner_radius_top_left = 1
+corner_radius_top_right = 1
+corner_radius_bottom_right = 1
+corner_radius_bottom_left = 1
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_exp_fill"]
+bg_color = Color(0.85, 0.7, 0.15, 1)
+corner_radius_top_left = 1
+corner_radius_top_right = 1
+corner_radius_bottom_right = 1
+corner_radius_bottom_left = 1
+
+[node name="BottomBar" type="Control"]
+layout_mode = 3
+anchors_preset = 12
+anchor_top = 1.0
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_top = -50.0
+grow_horizontal = 2
+grow_vertical = 0
+script = ExtResource("1_script")
+
+[node name="Panel" type="Panel" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_styles/panel = SubResource("StyleBoxFlat_panel")
+
+[node name="HBoxContainer" type="HBoxContainer" parent="Panel"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+offset_left = 8.0
+offset_top = 4.0
+offset_right = -8.0
+offset_bottom = -4.0
+grow_horizontal = 2
+grow_vertical = 2
+
+[node name="LeftSection" type="HBoxContainer" parent="Panel/HBoxContainer"]
+custom_minimum_size = Vector2(180, 0)
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="StatsContainer" type="VBoxContainer" parent="Panel/HBoxContainer/LeftSection"]
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 1
+theme_override_constants/separation = 2
+
+[node name="HealthBar" type="ProgressBar" parent="Panel/HBoxContainer/LeftSection/StatsContainer"]
+custom_minimum_size = Vector2(140, 14)
+layout_mode = 2
+theme_override_styles/background = SubResource("StyleBoxFlat_health_bg")
+theme_override_styles/fill = SubResource("StyleBoxFlat_health_fill")
+max_value = 100.0
+value = 100.0
+show_percentage = false
+
+[node name="ValueLabel" type="Label" parent="Panel/HBoxContainer/LeftSection/StatsContainer/HealthBar"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+text = "100/100"
+horizontal_alignment = 1
+vertical_alignment = 1
+theme_override_colors/font_color = Color(1, 1, 1, 0.9)
+theme_override_font_sizes/font_size = 9
+
+[node name="ManaBar" type="ProgressBar" parent="Panel/HBoxContainer/LeftSection/StatsContainer"]
+custom_minimum_size = Vector2(140, 12)
+layout_mode = 2
+theme_override_styles/background = SubResource("StyleBoxFlat_mana_bg")
+theme_override_styles/fill = SubResource("StyleBoxFlat_mana_fill")
+max_value = 50.0
+value = 50.0
+show_percentage = false
+
+[node name="ValueLabel" type="Label" parent="Panel/HBoxContainer/LeftSection/StatsContainer/ManaBar"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+text = "50/50"
+horizontal_alignment = 1
+vertical_alignment = 1
+theme_override_colors/font_color = Color(1, 1, 1, 0.9)
+theme_override_font_sizes/font_size = 8
+
+[node name="ExpBar" type="ProgressBar" parent="Panel/HBoxContainer/LeftSection/StatsContainer"]
+custom_minimum_size = Vector2(140, 6)
+layout_mode = 2
+theme_override_styles/background = SubResource("StyleBoxFlat_exp_bg")
+theme_override_styles/fill = SubResource("StyleBoxFlat_exp_fill")
+max_value = 1000.0
+value = 0.0
+show_percentage = false
+
+[node name="ValueLabel" type="Label" parent="Panel/HBoxContainer/LeftSection/StatsContainer/ExpBar"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+text = "0.0%"
+horizontal_alignment = 1
+vertical_alignment = 1
+theme_override_colors/font_color = Color(1, 1, 1, 0.8)
+theme_override_font_sizes/font_size = 7
+
+[node name="LevelContainer" type="VBoxContainer" parent="Panel/HBoxContainer/LeftSection"]
+layout_mode = 2
+size_flags_vertical = 1
+alignment = 1
+
+[node name="LevelTitle" type="Label" parent="Panel/HBoxContainer/LeftSection/LevelContainer"]
+layout_mode = 2
+text = "Lv"
+horizontal_alignment = 1
+theme_override_colors/font_color = Color(0.6, 0.55, 0.45, 1)
+theme_override_font_sizes/font_size = 8
+
+[node name="LevelLabel" type="Label" parent="Panel/HBoxContainer/LeftSection/LevelContainer"]
+layout_mode = 2
+text = "1"
+horizontal_alignment = 1
+theme_override_colors/font_color = Color(1, 0.9, 0.7, 1)
+theme_override_font_sizes/font_size = 14
+
+[node name="CenterSection" type="HBoxContainer" parent="Panel/HBoxContainer"]
+layout_mode = 2
+size_flags_horizontal = 3
+alignment = 1
+
+[node name="ActionBarContainer" type="HBoxContainer" parent="Panel/HBoxContainer/CenterSection"]
+layout_mode = 2
+theme_override_constants/separation = 3
+
+[node name="RightSection" type="HBoxContainer" parent="Panel/HBoxContainer"]
+custom_minimum_size = Vector2(60, 0)
+layout_mode = 2
+alignment = 2
+
+[node name="InventoryButton" type="Button" parent="Panel/HBoxContainer/RightSection"]
+custom_minimum_size = Vector2(40, 40)
+layout_mode = 2
+size_flags_vertical = 4
+tooltip_text = "Inventory (I)"
+text = "I"

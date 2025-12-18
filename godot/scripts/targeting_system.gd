@@ -98,6 +98,10 @@ func _process(_delta: float) -> void:
 
 
 func _input(event: InputEvent) -> void:
+	# Only process game inputs when actually in game
+	if not _is_in_game():
+		return
+	
 	# Don't process targeting input if chat is focused
 	if _is_chat_focused():
 		return
@@ -109,6 +113,15 @@ func _input(event: InputEvent) -> void:
 	# Escape to clear target
 	if event.is_action_pressed("clear_target"):
 		clear_target()
+
+
+## Check if we're in the actual game (not login/character select screens)
+func _is_in_game() -> bool:
+	var gm = get_tree().get_first_node_in_group("game_manager")
+	if gm and "current_state" in gm:
+		# GameState.IN_GAME = 3
+		return gm.current_state == 3
+	return false
 
 
 ## Check if chat input is currently focused

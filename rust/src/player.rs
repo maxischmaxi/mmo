@@ -87,6 +87,9 @@ pub struct Player {
     /// Inventory (20 slots)
     inventory: Vec<Option<InventorySlot>>,
     
+    /// Currently equipped weapon item ID (None = unarmed)
+    equipped_weapon_id: Option<u32>,
+    
     /// Movement direction set by camera controller (for both-button movement)
     camera_movement_direction: Option<Vector3>,
     
@@ -101,6 +104,9 @@ pub struct Player {
     
     /// Position where the player died (for revive-in-place)
     death_position: Option<Vector3>,
+    
+    /// Whether click-to-move is currently active (set by ClickMovementController)
+    is_click_moving: bool,
 
     base: Base<CharacterBody3D>,
 }
@@ -135,11 +141,13 @@ impl ICharacterBody3D for Player {
             level: 1,
             experience: 0,
             inventory: vec![None; 20],
+            equipped_weapon_id: None,
             camera_movement_direction: None,
             camera_forward: Vector3::new(0.0, 0.0, -1.0),
             camera_right: Vector3::new(1.0, 0.0, 0.0),
             is_dead: false,
             death_position: None,
+            is_click_moving: false,
             base,
         }
     }
@@ -301,6 +309,10 @@ impl Player {
     /// Signal emitted when another entity respawns
     #[signal]
     fn entity_respawned(entity_id: i64, position: Vector3, health: i64);
+    
+    /// Signal emitted when equipment changes
+    #[signal]
+    fn equipment_changed(weapon_id: i64);
 
     // ==========================================================================
     // Auth methods
@@ -631,6 +643,53 @@ impl Player {
             network.send_respawn_request(respawn_type as u8);
         }
     }
+    
+    /// Set whether click-to-move is active (called by ClickMovementController)
+    #[func]
+    fn set_click_moving(&mut self, active: bool) {
+        self.is_click_moving = active;
+    }
+    
+    /// Check if click-to-move is active
+    #[func]
+    fn is_click_moving(&self) -> bool {
+        self.is_click_moving
+    }
+    
+    // ==========================================================================
+    // Equipment methods
+    // ==========================================================================
+    
+    /// Get currently equipped weapon item ID (-1 if unarmed)
+    #[func]
+    fn get_equipped_weapon_id(&self) -> i64 {
+        self.equipped_weapon_id.map(|id| id as i64).unwrap_or(-1)
+    }
+    
+    /// Equip item from inventory slot
+    #[func]
+    fn equip_item(&mut self, inventory_slot: i64) {
+        if let Some(ref mut network) = self.network {
+            network.send_equip_item(inventory_slot as u8);
+        }
+    }
+    
+    /// Unequip item from equipment slot
+    /// equipment_slot: "weapon" (future: "head", "chest", etc.)
+    #[func]
+    fn unequip_item(&mut self, equipment_slot: GString) {
+        if let Some(ref mut network) = self.network {
+            network.send_unequip_item(&equipment_slot.to_string());
+        }
+    }
+    
+    /// Dev command: Add item to inventory (debug only)
+    #[func]
+    fn dev_add_item(&mut self, item_id: i64, quantity: i64) {
+        if let Some(ref mut network) = self.network {
+            network.send_dev_add_item(item_id as u32, quantity as u32);
+        }
+    }
 }
 
 impl Player {
@@ -731,6 +790,11 @@ impl Player {
         let mut velocity = self.base().get_velocity();
         
         if direction != Vector3::ZERO {
+            // WASD input cancels click-to-move
+            if self.is_click_moving {
+                self.is_click_moving = false;
+            }
+            
             // Check for sprint (shift key)
             let is_sprinting = input.is_action_pressed("sprint");
             let move_speed = if is_sprinting {
@@ -752,8 +816,13 @@ impl Player {
             let current_rot = self.base().get_rotation();
             let new_yaw = Self::lerp_angle(current_rot.y, target_yaw, 10.0 * delta as f32);
             self.base_mut().set_rotation(Vector3::new(current_rot.x, new_yaw, current_rot.z));
+        } else if self.is_click_moving {
+            // Click-to-move is active - don't reset velocity, let ClickMovementController handle it
+            // ClickMovementController will set velocity and call move_and_slide
+            // Just keep animation state as running (will be updated by AnimationController based on velocity)
+            self.animation_state = AnimationState::Running;
         } else {
-            // Stop immediately when no input
+            // No WASD input and no click-to-move - stop immediately
             velocity.x = 0.0;
             velocity.z = 0.0;
             self.animation_state = AnimationState::Idle;
@@ -765,8 +834,12 @@ impl Player {
             self.animation_state = AnimationState::Jumping;
         }
 
-        self.base_mut().set_velocity(velocity);
-        self.base_mut().move_and_slide();
+        // Only call move_and_slide if not click-moving
+        // (ClickMovementController handles movement when click-to-move is active)
+        if !self.is_click_moving {
+            self.base_mut().set_velocity(velocity);
+            self.base_mut().move_and_slide();
+        }
     }
     
     /// Lerp between two angles (handles wraparound)
@@ -888,6 +961,7 @@ impl Player {
                 defense,
                 attack_speed,
                 inventory,
+                equipped_weapon_id,
             } => {
                 // Store character info
                 self.character_id = Some(character_id);
@@ -910,6 +984,7 @@ impl Player {
                 self.defense = defense;
                 self.attack_speed = attack_speed;
                 self.inventory = inventory;
+                self.equipped_weapon_id = equipped_weapon_id;
                 
                 // Teleport to position
                 let pos = Vector3::new(position[0], position[1], position[2]);
@@ -924,6 +999,11 @@ impl Player {
                     (max_health as i64).to_variant(),
                 ]);
                 self.base_mut().emit_signal("inventory_updated", &[]);
+                
+                // Emit equipment changed signal
+                self.base_mut().emit_signal("equipment_changed", &[
+                    equipped_weapon_id.map(|id| id as i64).unwrap_or(-1).to_variant(),
+                ]);
             }
             
             ServerMessage::CharacterSelectFailed { reason } => {
@@ -1103,6 +1183,13 @@ impl Player {
                     (entity_id as i64).to_variant(),
                     pos.to_variant(),
                     (health as i64).to_variant(),
+                ]);
+            }
+            
+            ServerMessage::EquipmentUpdate { equipped_weapon_id } => {
+                self.equipped_weapon_id = equipped_weapon_id;
+                self.base_mut().emit_signal("equipment_changed", &[
+                    equipped_weapon_id.map(|id| id as i64).unwrap_or(-1).to_variant(),
                 ]);
             }
             

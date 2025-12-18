@@ -13,7 +13,7 @@ use mmo_shared::{DEFAULT_PORT, SERVER_TICK_RATE};
 
 use crate::network::Server;
 use crate::world::GameWorld;
-use crate::persistence::PersistenceHandle;
+use crate::persistence::{PersistenceHandle, Database};
 
 /// Database URL (matches docker-compose.yml)
 const DATABASE_URL: &str = "postgres://mmo:mmo_dev_password@localhost:5433/mmo";
@@ -46,8 +46,37 @@ async fn main() {
         }
     };
     
-    // Create the game world
-    let mut world = GameWorld::new();
+    // Load items from database
+    let items = match Database::connect(DATABASE_URL).await {
+        Ok(db) => {
+            match db.load_all_items().await {
+                Ok(items) => {
+                    info!("Loaded {} items from database", items.len());
+                    items
+                }
+                Err(e) => {
+                    error!("Failed to load items from database: {}", e);
+                    error!("Using fallback hardcoded items");
+                    // Fallback to hardcoded items
+                    mmo_shared::get_item_definitions()
+                        .into_iter()
+                        .map(|i| (i.id, i))
+                        .collect()
+                }
+            }
+        }
+        Err(e) => {
+            error!("Failed to connect to database for items: {}", e);
+            error!("Using fallback hardcoded items");
+            mmo_shared::get_item_definitions()
+                .into_iter()
+                .map(|i| (i.id, i))
+                .collect()
+        }
+    };
+    
+    // Create the game world with loaded items
+    let mut world = GameWorld::new(items);
     
     // Create the network server
     let mut server = match Server::new(DEFAULT_PORT, persistence.clone()).await {

@@ -1,4 +1,4 @@
-[gd_scene load_steps=14 format=3 uid="uid://dmwxm4pqywvpr"]
+[gd_scene load_steps=15 format=3 uid="uid://dmwxm4pqywvpr"]
 
 [ext_resource type="PackedScene" uid="uid://c7xqymt1kcmjk" path="res://scenes/world/zone_1.tscn" id="1_zone"]
 [ext_resource type="PackedScene" uid="uid://czone2chunjo" path="res://scenes/world/zone_2.tscn" id="1_zone2"]
@@ -6,13 +6,14 @@
 [ext_resource type="PackedScene" uid="uid://bk3qj8l2xp5yw" path="res://scenes/player/player.tscn" id="2_player"]
 [ext_resource type="Script" path="res://scripts/game_manager.gd" id="3_game_manager"]
 [ext_resource type="PackedScene" uid="uid://bfkqj2mw6xypr" path="res://scenes/ui/chat.tscn" id="4_chat"]
-[ext_resource type="PackedScene" uid="uid://cjkxm4pqh8wpr" path="res://scenes/ui/player_hud.tscn" id="5_hud"]
+[ext_resource type="PackedScene" uid="uid://cbottombar001" path="res://scenes/ui/bottom_bar.tscn" id="5_bottombar"]
 [ext_resource type="PackedScene" uid="uid://cjkxm4inventory" path="res://scenes/ui/inventory.tscn" id="6_inventory"]
 [ext_resource type="Script" path="res://scripts/targeting_system.gd" id="7_targeting"]
 [ext_resource type="PackedScene" uid="uid://ctargetframe001" path="res://scenes/ui/target_frame.tscn" id="8_target_frame"]
 [ext_resource type="PackedScene" uid="uid://ccombattext001" path="res://scenes/ui/combat_text.tscn" id="9_combat_text"]
 [ext_resource type="Script" path="res://scripts/cursor_manager.gd" id="10_cursor"]
 [ext_resource type="PackedScene" uid="uid://cloginscreen" path="res://scenes/ui/login_screen.tscn" id="11_login"]
+[ext_resource type="PackedScene" uid="uid://cmdevmenu123" path="res://scenes/ui/dev_menu.tscn" id="12_devmenu"]
 
 [node name="Main" type="Node3D"]
 
@@ -56,7 +57,7 @@ grow_horizontal = 2
 grow_vertical = 2
 mouse_filter = 2
 
-[node name="PlayerHUD" parent="UI/GameUI" instance=ExtResource("5_hud")]
+[node name="BottomBar" parent="UI/GameUI" instance=ExtResource("5_bottombar")]
 
 [node name="TargetFrame" parent="UI/GameUI" instance=ExtResource("8_target_frame")]
 
@@ -65,3 +66,5 @@ mouse_filter = 2
 [node name="InventoryUI" parent="UI/GameUI" instance=ExtResource("6_inventory")]
 
 [node name="CombatText" parent="UI/GameUI" instance=ExtResource("9_combat_text")]
+
+[node name="DevMenu" parent="UI/GameUI" instance=ExtResource("12_devmenu")]

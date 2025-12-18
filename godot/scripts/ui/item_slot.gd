@@ -17,14 +17,10 @@ signal slot_hovered(index: int)
 signal slot_unhovered(index: int)
 
 ## UI References
-@onready var background: ColorRect = $Background
+@onready var background: Panel = $Background
 @onready var icon: ColorRect = $Icon
 @onready var quantity_label: Label = $QuantityLabel
 @onready var highlight: ColorRect = $Highlight
-
-## Colors
-const EMPTY_COLOR: Color = Color(0.15, 0.15, 0.15, 0.9)
-const HIGHLIGHT_COLOR: Color = Color(1, 0.9, 0.5, 0.3)
 
 
 func _ready() -> void:

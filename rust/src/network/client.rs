@@ -336,6 +336,30 @@ impl NetworkClient {
         let msg = ClientMessage::RespawnRequest { respawn_type };
         let _ = self.send_message(&msg);
     }
+    
+    // =========================================================================
+    // Equipment Methods
+    // =========================================================================
+    
+    /// Send equip item request
+    pub fn send_equip_item(&mut self, inventory_slot: u8) {
+        let msg = ClientMessage::EquipItem { inventory_slot };
+        let _ = self.send_message(&msg);
+    }
+    
+    /// Send unequip item request
+    pub fn send_unequip_item(&mut self, equipment_slot: &str) {
+        let msg = ClientMessage::UnequipItem {
+            equipment_slot: equipment_slot.to_string(),
+        };
+        let _ = self.send_message(&msg);
+    }
+    
+    /// Send dev add item command (debug only)
+    pub fn send_dev_add_item(&mut self, item_id: u32, quantity: u32) {
+        let msg = ClientMessage::DevAddItem { item_id, quantity };
+        let _ = self.send_message(&msg);
+    }
 }
 
 impl Default for NetworkClient {

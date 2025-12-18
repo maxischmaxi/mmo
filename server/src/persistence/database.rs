@@ -6,7 +6,8 @@ use argon2::{
     Argon2,
 };
 use serde::{Deserialize, Serialize};
-use mmo_shared::{CharacterClass, Gender, Empire, CharacterInfo, MAX_CHARACTERS_PER_ACCOUNT};
+use mmo_shared::{CharacterClass, Gender, Empire, CharacterInfo, MAX_CHARACTERS_PER_ACCOUNT, ItemDef, ItemType, ItemRarity, ItemEffect, WeaponStats};
+use std::collections::HashMap;
 
 /// Player account data from the database
 #[derive(Debug, Clone)]
@@ -100,24 +101,36 @@ pub struct InventorySlotData {
     pub quantity: i32,
 }
 
+/// Get starter weapon ID for a character class
+pub fn get_starter_weapon_id(class: CharacterClass) -> i32 {
+    match class {
+        CharacterClass::Ninja => 10,    // Shadow Dagger
+        CharacterClass::Warrior => 12,  // Steel Claymore
+        CharacterClass::Sura => 14,     // Cursed Scimitar
+        CharacterClass::Shaman => 16,   // Oak Staff
+    }
+}
+
 /// Get starter items based on character class
 pub fn get_starter_items(class: CharacterClass) -> Vec<InventorySlotData> {
+    let starter_weapon = get_starter_weapon_id(class);
+    
     match class {
         CharacterClass::Ninja => vec![
-            InventorySlotData { slot: 0, item_id: 4, quantity: 1 },  // Rusty Sword (fast weapon)
+            InventorySlotData { slot: 0, item_id: starter_weapon, quantity: 1 },  // Shadow Dagger
             InventorySlotData { slot: 1, item_id: 1, quantity: 10 }, // Health Potions
         ],
         CharacterClass::Warrior => vec![
-            InventorySlotData { slot: 0, item_id: 5, quantity: 1 },  // Iron Sword (heavy weapon)
+            InventorySlotData { slot: 0, item_id: starter_weapon, quantity: 1 },  // Steel Claymore
             InventorySlotData { slot: 1, item_id: 1, quantity: 5 },  // Health Potions
         ],
         CharacterClass::Sura => vec![
-            InventorySlotData { slot: 0, item_id: 4, quantity: 1 },  // Rusty Sword
+            InventorySlotData { slot: 0, item_id: starter_weapon, quantity: 1 },  // Cursed Scimitar
             InventorySlotData { slot: 1, item_id: 1, quantity: 5 },  // Health Potions
             InventorySlotData { slot: 2, item_id: 2, quantity: 5 },  // Mana Potions
         ],
         CharacterClass::Shaman => vec![
-            InventorySlotData { slot: 0, item_id: 4, quantity: 1 },  // Rusty Sword (backup weapon)
+            InventorySlotData { slot: 0, item_id: starter_weapon, quantity: 1 },  // Oak Staff
             InventorySlotData { slot: 1, item_id: 1, quantity: 3 },  // Health Potions
             InventorySlotData { slot: 2, item_id: 2, quantity: 10 }, // Mana Potions
         ],
@@ -358,6 +371,17 @@ impl Database {
                 .map_err(|e| CharacterError::Database(e.to_string()))?;
         }
         
+        // Create equipment record with starter weapon auto-equipped
+        let starter_weapon_id = get_starter_weapon_id(class);
+        sqlx::query(
+            "INSERT INTO character_equipment (character_id, weapon_slot) VALUES ($1, $2)"
+        )
+            .bind(character_id)
+            .bind(starter_weapon_id)
+            .execute(&mut *tx)
+            .await
+            .map_err(|e| CharacterError::Database(e.to_string()))?;
+        
         tx.commit().await
             .map_err(|e| CharacterError::Database(e.to_string()))?;
         
@@ -544,6 +568,151 @@ impl Database {
         }
         
         tx.commit().await?;
+        Ok(())
+    }
+    
+    // =========================================================================
+    // Item Operations
+    // =========================================================================
+    
+    /// Load all items from the database
+    pub async fn load_all_items(&self) -> Result<HashMap<u32, ItemDef>, sqlx::Error> {
+        let rows = sqlx::query(
+            "SELECT id, name, description, item_type, rarity, max_stack, 
+                    damage, attack_speed, class_restriction, effects
+             FROM items"
+        )
+            .fetch_all(&self.pool)
+            .await?;
+        
+        let mut items = HashMap::new();
+        
+        for row in rows {
+            let id: i32 = row.get("id");
+            let item_type_val: i16 = row.get("item_type");
+            let rarity_val: i16 = row.get("rarity");
+            let damage: Option<i32> = row.get("damage");
+            let attack_speed: Option<f32> = row.get("attack_speed");
+            let class_restriction: Option<i16> = row.get("class_restriction");
+            let effects_json: serde_json::Value = row.get("effects");
+            
+            // Parse item type
+            let item_type = match item_type_val {
+                0 => ItemType::Consumable,
+                1 => ItemType::Weapon,
+                2 => ItemType::Armor,
+                3 => ItemType::Material,
+                4 => ItemType::Quest,
+                _ => ItemType::Material,
+            };
+            
+            // Parse rarity
+            let rarity = match rarity_val {
+                0 => ItemRarity::Common,
+                1 => ItemRarity::Uncommon,
+                2 => ItemRarity::Rare,
+                3 => ItemRarity::Epic,
+                4 => ItemRarity::Legendary,
+                _ => ItemRarity::Common,
+            };
+            
+            // Parse effects from JSON
+            let effects = Self::parse_item_effects(&effects_json);
+            
+            // Parse weapon stats if present
+            let weapon_stats = if let (Some(dmg), Some(spd)) = (damage, attack_speed) {
+                Some(WeaponStats {
+                    damage: dmg as u32,
+                    attack_speed: spd,
+                    class_restriction: class_restriction.and_then(|c| CharacterClass::from_u8(c as u8)),
+                })
+            } else {
+                None
+            };
+            
+            items.insert(id as u32, ItemDef {
+                id: id as u32,
+                name: row.get("name"),
+                description: row.get("description"),
+                item_type,
+                rarity,
+                max_stack: row.get::<i32, _>("max_stack") as u32,
+                effects,
+                weapon_stats,
+            });
+        }
+        
+        Ok(items)
+    }
+    
+    /// Parse item effects from JSON
+    fn parse_item_effects(json: &serde_json::Value) -> Vec<ItemEffect> {
+        let mut effects = Vec::new();
+        
+        if let Some(arr) = json.as_array() {
+            for effect in arr {
+                if let Some(obj) = effect.as_object() {
+                    if let Some(val) = obj.get("RestoreHealth") {
+                        if let Some(amount) = val.as_u64() {
+                            effects.push(ItemEffect::RestoreHealth(amount as u32));
+                        }
+                    } else if let Some(val) = obj.get("RestoreMana") {
+                        if let Some(amount) = val.as_u64() {
+                            effects.push(ItemEffect::RestoreMana(amount as u32));
+                        }
+                    } else if let Some(val) = obj.get("IncreaseAttack") {
+                        if let Some(amount) = val.as_u64() {
+                            effects.push(ItemEffect::IncreaseAttack(amount as u32));
+                        }
+                    } else if let Some(val) = obj.get("IncreaseDefense") {
+                        if let Some(amount) = val.as_u64() {
+                            effects.push(ItemEffect::IncreaseDefense(amount as u32));
+                        }
+                    } else if let Some(val) = obj.get("IncreaseSpeed") {
+                        if let Some(amount) = val.as_f64() {
+                            effects.push(ItemEffect::IncreaseSpeed(amount as f32));
+                        }
+                    }
+                }
+            }
+        }
+        
+        effects
+    }
+    
+    // =========================================================================
+    // Equipment Operations
+    // =========================================================================
+    
+    /// Load character equipment from database
+    pub async fn load_character_equipment(&self, character_id: i64) -> Result<Option<u32>, sqlx::Error> {
+        let row = sqlx::query(
+            "SELECT weapon_slot FROM character_equipment WHERE character_id = $1"
+        )
+            .bind(character_id)
+            .fetch_optional(&self.pool)
+            .await?;
+        
+        Ok(row.and_then(|r| {
+            let weapon_slot: Option<i32> = r.get("weapon_slot");
+            weapon_slot.map(|w| w as u32)
+        }))
+    }
+    
+    /// Save character equipment to database
+    pub async fn save_character_equipment(&self, character_id: i64, weapon_id: Option<u32>) -> Result<(), sqlx::Error> {
+        sqlx::query(
+            "INSERT INTO character_equipment (character_id, weapon_slot)
+             VALUES ($1, $2)
+             ON CONFLICT (character_id) DO UPDATE SET
+                weapon_slot = EXCLUDED.weapon_slot,
+                updated_at = NOW()"
+        )
+            .bind(character_id)
+            .bind(weapon_id.map(|w| w as i32))
+            .execute(&self.pool)
+            .await?;
+        
         Ok(())
     }
 }

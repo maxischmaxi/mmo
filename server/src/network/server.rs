@@ -207,6 +207,15 @@ impl Server {
             ClientMessage::RespawnRequest { respawn_type } => {
                 self.handle_respawn(addr, respawn_type, world).await;
             }
+            ClientMessage::EquipItem { inventory_slot } => {
+                self.handle_equip_item(addr, inventory_slot, world).await;
+            }
+            ClientMessage::UnequipItem { equipment_slot } => {
+                self.handle_unequip_item(addr, equipment_slot, world).await;
+            }
+            ClientMessage::DevAddItem { item_id, quantity } => {
+                self.handle_dev_add_item(addr, item_id, quantity, world).await;
+            }
         }
     }
     
@@ -481,17 +490,18 @@ impl Server {
             }
         };
         
-        // Load character state
-        let (player_state, inventory_data) = match (
+        // Load character state, inventory, and equipment
+        let (player_state, inventory_data, equipped_weapon_id) = match (
             db.load_character_state(character_id as i64).await,
             db.load_character_inventory(character_id as i64).await,
+            db.load_character_equipment(character_id as i64).await,
         ) {
-            (Ok(Some(state)), Ok(inv)) => (state, inv),
-            (Ok(None), Ok(inv)) => {
+            (Ok(Some(state)), Ok(inv), Ok(equip)) => (state, inv, equip),
+            (Ok(None), Ok(inv), Ok(equip)) => {
                 // No state yet - use default for class
-                (PlayerStateData::new_for_class(character.class, character.empire), inv)
+                (PlayerStateData::new_for_class(character.class, character.empire), inv, equip)
             }
-            (Err(e), _) | (_, Err(e)) => {
+            (Err(e), _, _) | (_, Err(e), _) | (_, _, Err(e)) => {
                 error!("Failed to load character state for {}: {}", character_id, e);
                 let msg = ServerMessage::CharacterSelectFailed {
                     reason: "Failed to load character state".to_string(),
@@ -538,6 +548,7 @@ impl Server {
             player_state.attack as u32,
             player_state.defense as u32,
             &inventory_data,
+            equipped_weapon_id,
         );
         
         info!("Character '{}' (ID: {}) entered game for account '{}'", 
@@ -546,8 +557,12 @@ impl Server {
         // Convert inventory for protocol
         let inventory_slots = inventory_data_to_slots(&inventory_data);
         
-        // Calculate attack speed from class (+ equipment bonuses later)
-        let attack_speed = character.class.base_attack_speed();
+        // Calculate attack speed from class and weapon
+        let attack_speed = if let Some(player) = world.get_player(player_id) {
+            player.get_attack_speed(&world.items)
+        } else {
+            character.class.base_attack_speed()
+        };
         
         // Send character selected with full state
         let msg = ServerMessage::CharacterSelected {
@@ -568,6 +583,7 @@ impl Server {
             defense: player_state.defense as u32,
             attack_speed,
             inventory: inventory_slots,
+            equipped_weapon_id,
         };
         self.send_to(addr, &msg).await;
         
@@ -853,6 +869,142 @@ impl Server {
             health: respawn_health,
         };
         self.broadcast_to_ingame_except(addr, broadcast_msg);
+    }
+    
+    /// Handle equip item request
+    async fn handle_equip_item(&mut self, addr: SocketAddr, inventory_slot: u8, world: &mut GameWorld) {
+        let (player_id, character_id) = match self.clients.get(&addr) {
+            Some(c) => {
+                if let ConnectionState::InGame { character_id, .. } = &c.state {
+                    (c.player_id, *character_id)
+                } else {
+                    return;
+                }
+            }
+            _ => return,
+        };
+        
+        // Try to equip the item
+        let result = world.equip_item(player_id, inventory_slot);
+        
+        match result {
+            Ok(new_weapon_id) => {
+                // Save equipment to database
+                if let Some(ref db) = self.database {
+                    if let Err(e) = db.save_character_equipment(character_id, new_weapon_id).await {
+                        error!("Failed to save equipment for character {}: {}", character_id, e);
+                    }
+                }
+                
+                // Send equipment update to client
+                let equip_msg = ServerMessage::EquipmentUpdate {
+                    equipped_weapon_id: new_weapon_id,
+                };
+                
+                // Send inventory update (item was removed/swapped)
+                let inv_msg = if let Some(player) = world.get_player(player_id) {
+                    Some(ServerMessage::InventoryUpdate {
+                        slots: player.get_inventory_slots(),
+                    })
+                } else {
+                    None
+                };
+                
+                if let Some(client) = self.clients.get_mut(&addr) {
+                    client.outgoing_queue.push(equip_msg);
+                    if let Some(inv) = inv_msg {
+                        client.outgoing_queue.push(inv);
+                    }
+                }
+                
+                info!("Player {} equipped weapon {:?}", player_id, new_weapon_id);
+            }
+            Err(reason) => {
+                warn!("Player {} failed to equip item from slot {}: {}", player_id, inventory_slot, reason);
+                // Could send error message to client here
+            }
+        }
+    }
+    
+    /// Handle unequip item request
+    async fn handle_unequip_item(&mut self, addr: SocketAddr, equipment_slot: String, world: &mut GameWorld) {
+        let (player_id, character_id) = match self.clients.get(&addr) {
+            Some(c) => {
+                if let ConnectionState::InGame { character_id, .. } = &c.state {
+                    (c.player_id, *character_id)
+                } else {
+                    return;
+                }
+            }
+            _ => return,
+        };
+        
+        // Only "weapon" slot supported for now
+        if equipment_slot != "weapon" {
+            warn!("Unknown equipment slot: {}", equipment_slot);
+            return;
+        }
+        
+        // Unequip the weapon (puts it back in inventory)
+        let old_weapon = world.unequip_weapon(player_id);
+        
+        if old_weapon.is_none() {
+            // Either no weapon was equipped, or no inventory space
+            warn!("Player {} could not unequip weapon (none equipped or no space)", player_id);
+            return;
+        }
+        
+        // Save equipment to database
+        if let Some(ref db) = self.database {
+            if let Err(e) = db.save_character_equipment(character_id, None).await {
+                error!("Failed to save equipment for character {}: {}", character_id, e);
+            }
+        }
+        
+        // Send equipment update to client
+        let equip_msg = ServerMessage::EquipmentUpdate {
+            equipped_weapon_id: None,
+        };
+        
+        // Send inventory update (weapon was added back)
+        let inv_msg = if let Some(player) = world.get_player(player_id) {
+            Some(ServerMessage::InventoryUpdate {
+                slots: player.get_inventory_slots(),
+            })
+        } else {
+            None
+        };
+        
+        if let Some(client) = self.clients.get_mut(&addr) {
+            client.outgoing_queue.push(equip_msg);
+            if let Some(inv) = inv_msg {
+                client.outgoing_queue.push(inv);
+            }
+        }
+        
+        info!("Player {} unequipped weapon {:?}", player_id, old_weapon);
+    }
+    
+    /// Handle dev add item command (debug only)
+    async fn handle_dev_add_item(&mut self, addr: SocketAddr, item_id: u32, quantity: u32, world: &mut GameWorld) {
+        let player_id = match self.clients.get(&addr) {
+            Some(c) if c.is_in_game() => c.player_id,
+            _ => return,
+        };
+        
+        // Verify item exists
+        if !world.items.contains_key(&item_id) {
+            warn!("Dev add item: unknown item ID {}", item_id);
+            return;
+        }
+        
+        // Add item to player's inventory
+        if let Some(inv_msg) = world.add_item_to_player(player_id, item_id, quantity) {
+            if let Some(client) = self.clients.get_mut(&addr) {
+                client.outgoing_queue.push(inv_msg);
+            }
+            info!("Dev: Added {}x item {} to player {}", quantity, item_id, player_id);
+        }
     }
     
     /// Check for timed out connections

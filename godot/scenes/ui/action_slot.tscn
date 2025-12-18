@@ -1,25 +1,25 @@
-[gd_scene load_steps=3 format=3 uid="uid://dkxm4pqh8slot"]
+[gd_scene load_steps=3 format=3 uid="uid://cactionslot001"]
 
-[ext_resource type="Script" path="res://scripts/ui/item_slot.gd" id="1_script"]
+[ext_resource type="Script" path="res://scripts/ui/action_slot.gd" id="1_script"]
 
 [sub_resource type="StyleBoxFlat" id="StyleBoxFlat_slot"]
-bg_color = Color(0.15, 0.15, 0.15, 0.9)
+bg_color = Color(0.12, 0.12, 0.12, 0.95)
 border_width_left = 1
 border_width_top = 1
 border_width_right = 1
 border_width_bottom = 1
-border_color = Color(0.35, 0.32, 0.25, 1)
+border_color = Color(0.3, 0.28, 0.22, 1)
 corner_radius_top_left = 3
 corner_radius_top_right = 3
 corner_radius_bottom_right = 3
 corner_radius_bottom_left = 3
 
-[node name="ItemSlot" type="Control"]
-custom_minimum_size = Vector2(50, 50)
+[node name="ActionSlot" type="Control"]
+custom_minimum_size = Vector2(40, 40)
 layout_mode = 3
 anchors_preset = 0
-offset_right = 50.0
-offset_bottom = 50.0
+offset_right = 40.0
+offset_bottom = 40.0
 script = ExtResource("1_script")
 
 [node name="Background" type="Panel" parent="."]
@@ -32,36 +32,50 @@ grow_vertical = 2
 mouse_filter = 2
 theme_override_styles/panel = SubResource("StyleBoxFlat_slot")
 
-[node name="Icon" type="ColorRect" parent="."]
+[node name="Icon" type="TextureRect" parent="."]
 visible = false
 layout_mode = 1
 anchors_preset = 15
 anchor_right = 1.0
 anchor_bottom = 1.0
-offset_left = 6.0
-offset_top = 6.0
-offset_right = -6.0
-offset_bottom = -6.0
+offset_left = 4.0
+offset_top = 4.0
+offset_right = -4.0
+offset_bottom = -12.0
 grow_horizontal = 2
 grow_vertical = 2
 mouse_filter = 2
-color = Color(0.5, 0.5, 0.5, 1)
+expand_mode = 1
+stretch_mode = 5
 
-[node name="QuantityLabel" type="Label" parent="."]
+[node name="CooldownOverlay" type="ColorRect" parent="."]
 visible = false
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+color = Color(0, 0, 0, 0.6)
+
+[node name="KeybindLabel" type="Label" parent="."]
 layout_mode = 1
 anchors_preset = 3
 anchor_left = 1.0
 anchor_top = 1.0
 anchor_right = 1.0
 anchor_bottom = 1.0
-offset_left = -24.0
-offset_top = -20.0
+offset_left = -14.0
+offset_top = -14.0
 grow_horizontal = 0
 grow_vertical = 0
 mouse_filter = 2
-text = "99"
+text = "1"
 horizontal_alignment = 2
+vertical_alignment = 2
+theme_override_colors/font_color = Color(0.6, 0.55, 0.45, 1)
+theme_override_font_sizes/font_size = 10
 
 [node name="Highlight" type="ColorRect" parent="."]
 visible = false
@@ -72,4 +86,4 @@ anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
 mouse_filter = 2
-color = Color(1, 0.9, 0.5, 0.3)
+color = Color(1, 0.9, 0.6, 0.2)

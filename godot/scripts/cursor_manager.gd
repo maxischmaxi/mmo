@@ -80,6 +80,9 @@ func _find_references() -> void:
 
 
 func _process(_delta: float) -> void:
+	# Skip cursor updates when mouse is captured (camera rotation mode)
+	if Input.get_mouse_mode() == Input.MOUSE_MODE_CAPTURED:
+		return
 	_update_cursor_from_hover()
 
 
