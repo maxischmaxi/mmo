@@ -6,6 +6,7 @@ mod network;
 mod world;
 mod entities;
 mod persistence;
+pub mod commands;
 
 use std::time::{Duration, Instant};
 use log::{info, error};
@@ -158,6 +159,12 @@ async fn main() {
         // Queue any broadcast messages from world update (enemy deaths, spawns, etc.)
         if !world_messages.is_empty() {
             server.queue_broadcasts(world_messages);
+        }
+        
+        // Update player abilities (cooldowns, buffs/debuffs)
+        let ability_updates = world.update_player_abilities(delta);
+        if !ability_updates.is_empty() {
+            server.queue_player_ability_updates(ability_updates);
         }
         
         // Send world state to all clients

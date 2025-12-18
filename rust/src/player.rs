@@ -87,6 +87,12 @@ pub struct Player {
     /// Experience
     experience: u32,
     
+    /// Experience needed to reach next level
+    experience_to_next_level: u32,
+    
+    /// Gold currency
+    gold: u64,
+    
     /// Inventory (20 slots)
     inventory: Vec<Option<InventorySlot>>,
     
@@ -110,6 +116,9 @@ pub struct Player {
     
     /// Whether click-to-move is currently active (set by ClickMovementController)
     is_click_moving: bool,
+    
+    /// Whether the zone is loaded and ready (prevents falling before ground exists)
+    zone_ready: bool,
 
     base: Base<CharacterBody3D>,
 }
@@ -144,6 +153,8 @@ impl ICharacterBody3D for Player {
             attack_speed: 1.0,
             level: 1,
             experience: 0,
+            experience_to_next_level: 100,
+            gold: 0,
             inventory: vec![None; 20],
             equipped_weapon_id: None,
             camera_movement_direction: None,
@@ -152,6 +163,7 @@ impl ICharacterBody3D for Player {
             is_dead: false,
             death_position: None,
             is_click_moving: false,
+            zone_ready: false,
             base,
         }
     }
@@ -167,6 +179,16 @@ impl ICharacterBody3D for Player {
             return;
         }
         
+        // Always process network (handles login responses, etc.)
+        if self.is_local {
+            self.process_network();
+        }
+        
+        // Don't apply physics until zone is loaded (prevents falling through void)
+        if !self.zone_ready {
+            return;
+        }
+        
         let gravity = 9.8_f32;
         
         // Apply gravity when not on floor
@@ -179,11 +201,6 @@ impl ICharacterBody3D for Player {
         // Only process input for local player when connected and alive
         if self.is_local && self.is_connected_to_server() && !self.is_dead {
             self.process_input(delta);
-        }
-        
-        // Always process network (handles login responses, etc.)
-        if self.is_local {
-            self.process_network();
         }
     }
 }
@@ -296,7 +313,7 @@ impl Player {
     
     /// Signal emitted when a remote player's state is updated (from WorldState)
     #[signal]
-    fn player_state_updated(id: i64, position: Vector3, rotation: f64, health: i64, animation_state: i64);
+    fn player_state_updated(id: i64, position: Vector3, rotation: f64, health: i64, animation_state: i64, equipped_weapon_id: i64);
     
     /// Signal emitted when local player's health changes
     #[signal]
@@ -332,6 +349,64 @@ impl Player {
     /// spawn_x, spawn_y, spawn_z: spawn position in the zone
     #[signal]
     fn zone_change(zone_id: i64, zone_name: GString, scene_path: GString, spawn_x: f64, spawn_y: f64, spawn_z: f64);
+    
+    /// Signal emitted when a command response is received (from /commands)
+    /// success: whether the command succeeded
+    /// message: response message to display
+    #[signal]
+    fn command_response(success: bool, message: GString);
+    
+    /// Signal emitted when stats are updated (from /lvl or other stat-changing commands)
+    /// Includes all stats that can be changed by commands
+    #[signal]
+    fn stats_updated(level: i64, max_health: i64, max_mana: i64, attack: i64, defense: i64, gold: i64, health: i64, mana: i64);
+    
+    /// Signal emitted when gold changes
+    #[signal]
+    fn gold_updated(gold: i64);
+    
+    /// Signal emitted when experience is gained
+    /// amount: XP gained, current_xp: total XP, xp_to_next: XP needed for next level
+    #[signal]
+    fn experience_gained(amount: i64, current_xp: i64, xp_to_next: i64);
+    
+    /// Signal emitted when player levels up
+    #[signal]
+    fn level_up(new_level: i64, max_health: i64, max_mana: i64, attack: i64, defense: i64);
+    
+    // ==========================================================================
+    // Ability signals
+    // ==========================================================================
+    
+    /// Signal emitted when ability is used successfully
+    /// caster_id: who used the ability, ability_id: which ability, target_id: target (0 if none)
+    #[signal]
+    fn ability_used(caster_id: i64, ability_id: i64, target_id: i64);
+    
+    /// Signal emitted when ability fails (only sent to caster)
+    #[signal]
+    fn ability_failed(ability_id: i64, reason: GString);
+    
+    /// Signal emitted when ability cooldown starts or updates
+    #[signal]
+    fn ability_cooldown(ability_id: i64, remaining: f64, total: f64);
+    
+    /// Signal emitted when a buff/debuff is applied
+    #[signal]
+    fn buff_applied(target_id: i64, buff_id: i64, ability_id: i64, duration: f64, is_debuff: bool);
+    
+    /// Signal emitted when a buff/debuff is removed
+    #[signal]
+    fn buff_removed(target_id: i64, buff_id: i64);
+    
+    /// Signal emitted when healing occurs
+    #[signal]
+    fn heal_received(healer_id: i64, target_id: i64, amount: i64, new_health: i64);
+    
+    /// Signal emitted when action bar is received (on character select)
+    /// slots: Array of 8 ability IDs (-1 for empty)
+    #[signal]
+    fn action_bar_received(slots: Array<i64>);
 
     // ==========================================================================
     // Auth methods
@@ -387,6 +462,9 @@ impl Player {
         self.character_class = None;
         self.character_gender = None;
         self.character_empire = None;
+        // Reset zone state - ensures zone will be properly loaded on next login
+        self.current_zone_id = 0;
+        self.zone_ready = false;
         self.base_mut().emit_signal("disconnected", &[]);
     }
     
@@ -599,6 +677,18 @@ impl Player {
         self.experience as i64
     }
     
+    /// Get experience needed to reach next level
+    #[func]
+    fn get_experience_to_next_level(&self) -> i64 {
+        self.experience_to_next_level as i64
+    }
+    
+    /// Get gold
+    #[func]
+    fn get_gold(&self) -> i64 {
+        self.gold as i64
+    }
+    
     /// Get attack power
     #[func]
     fn get_attack_power(&self) -> i64 {
@@ -739,6 +829,35 @@ impl Player {
         if let Some(ref mut network) = self.network {
             network.send_dev_add_item(item_id as u32, quantity as u32);
         }
+    }
+    
+    // ==========================================================================
+    // Ability methods
+    // ==========================================================================
+    
+    /// Use an ability
+    /// ability_id: ID of the ability to use
+    /// target_id: Target entity ID (-1 for no target/self)
+    #[func]
+    fn use_ability(&mut self, ability_id: i64, target_id: i64) {
+        if let Some(ref mut network) = self.network {
+            let target = if target_id < 0 { None } else { Some(target_id as u64) };
+            network.send_use_ability(ability_id as u32, target);
+        }
+    }
+    
+    /// Called by ZoneManager when zone is fully loaded and ready
+    /// This enables physics/gravity - prevents falling through void before ground exists
+    #[func]
+    fn set_zone_ready(&mut self, ready: bool) {
+        self.zone_ready = ready;
+        godot_print!("Player: zone_ready set to {}", ready);
+    }
+    
+    /// Check if zone is ready
+    #[func]
+    fn is_zone_ready(&self) -> bool {
+        self.zone_ready
     }
 }
 
@@ -1008,11 +1127,13 @@ impl Player {
                 max_mana,
                 level,
                 experience,
+                experience_to_next_level,
                 attack,
                 defense,
                 attack_speed,
                 inventory,
                 equipped_weapon_id,
+                gold,
             } => {
                 // Store character info
                 self.character_id = Some(character_id);
@@ -1032,6 +1153,8 @@ impl Player {
                 self.max_mana = max_mana;
                 self.level = level;
                 self.experience = experience;
+                self.experience_to_next_level = experience_to_next_level;
+                self.gold = gold;
                 self.attack_power = attack;
                 self.defense = defense;
                 self.attack_speed = attack_speed;
@@ -1113,12 +1236,15 @@ impl Player {
                         AnimationState::Dying => 6,
                         AnimationState::Dead => 7,
                     };
+                    // Convert equipped weapon ID (-1 for unarmed)
+                    let weapon_id: i64 = player.equipped_weapon_id.map(|id| id as i64).unwrap_or(-1);
                     self.base_mut().emit_signal("player_state_updated", &[
                         (player.id as i64).to_variant(),
                         pos.to_variant(),
                         (player.rotation as f64).to_variant(),
                         (player.health as i64).to_variant(),
                         anim_state.to_variant(),
+                        weapon_id.to_variant(),
                     ]);
                 }
                 
@@ -1267,6 +1393,154 @@ impl Player {
                     (spawn_position[1] as f64).to_variant(),
                     (spawn_position[2] as f64).to_variant(),
                 ]);
+            }
+            
+            ServerMessage::CommandResponse { success, message } => {
+                self.base_mut().emit_signal("command_response", &[
+                    success.to_variant(),
+                    GString::from(&message).to_variant(),
+                ]);
+            }
+            
+            ServerMessage::StatsUpdate { level, experience, experience_to_next_level, max_health, max_mana, attack, defense, gold, health, mana } => {
+                // Update local state
+                self.level = level;
+                self.experience = experience;
+                self.experience_to_next_level = experience_to_next_level;
+                self.max_health = max_health;
+                self.max_mana = max_mana;
+                self.attack_power = attack;
+                self.defense = defense;
+                self.gold = gold;
+                self.current_health = health;
+                self.current_mana = mana;
+                
+                // Emit stats updated signal
+                self.base_mut().emit_signal("stats_updated", &[
+                    (level as i64).to_variant(),
+                    (max_health as i64).to_variant(),
+                    (max_mana as i64).to_variant(),
+                    (attack as i64).to_variant(),
+                    (defense as i64).to_variant(),
+                    (gold as i64).to_variant(),
+                    (health as i64).to_variant(),
+                    (mana as i64).to_variant(),
+                ]);
+                
+                // Also emit health_changed for UI update
+                self.base_mut().emit_signal("health_changed", &[
+                    (health as i64).to_variant(),
+                    (max_health as i64).to_variant(),
+                ]);
+            }
+            
+            ServerMessage::GoldUpdate { gold } => {
+                self.gold = gold;
+                self.base_mut().emit_signal("gold_updated", &[(gold as i64).to_variant()]);
+            }
+            
+            ServerMessage::ExperienceGained { amount, current_experience, experience_to_next_level } => {
+                self.experience = current_experience;
+                self.experience_to_next_level = experience_to_next_level;
+                self.base_mut().emit_signal("experience_gained", &[
+                    (amount as i64).to_variant(),
+                    (current_experience as i64).to_variant(),
+                    (experience_to_next_level as i64).to_variant(),
+                ]);
+            }
+            
+            ServerMessage::LevelUp { new_level, max_health, max_mana, attack, defense } => {
+                self.level = new_level;
+                self.max_health = max_health;
+                self.max_mana = max_mana;
+                self.attack_power = attack;
+                self.defense = defense;
+                // Level up heals to full
+                self.current_health = max_health;
+                self.current_mana = max_mana;
+                
+                self.base_mut().emit_signal("level_up", &[
+                    (new_level as i64).to_variant(),
+                    (max_health as i64).to_variant(),
+                    (max_mana as i64).to_variant(),
+                    (attack as i64).to_variant(),
+                    (defense as i64).to_variant(),
+                ]);
+                
+                // Also emit health_changed for UI update
+                self.base_mut().emit_signal("health_changed", &[
+                    (max_health as i64).to_variant(),
+                    (max_health as i64).to_variant(),
+                ]);
+            }
+            
+            ServerMessage::AbilityUsed { caster_id, ability_id, target_id } => {
+                self.base_mut().emit_signal("ability_used", &[
+                    (caster_id as i64).to_variant(),
+                    (ability_id as i64).to_variant(),
+                    (target_id.unwrap_or(0) as i64).to_variant(),
+                ]);
+            }
+            
+            ServerMessage::AbilityFailed { ability_id, reason } => {
+                self.base_mut().emit_signal("ability_failed", &[
+                    (ability_id as i64).to_variant(),
+                    GString::from(&reason).to_variant(),
+                ]);
+            }
+            
+            ServerMessage::AbilityCooldown { ability_id, remaining, total } => {
+                self.base_mut().emit_signal("ability_cooldown", &[
+                    (ability_id as i64).to_variant(),
+                    (remaining as f64).to_variant(),
+                    (total as f64).to_variant(),
+                ]);
+            }
+            
+            ServerMessage::BuffApplied { target_id, buff_id, ability_id, duration, is_debuff } => {
+                self.base_mut().emit_signal("buff_applied", &[
+                    (target_id as i64).to_variant(),
+                    (buff_id as i64).to_variant(),
+                    (ability_id as i64).to_variant(),
+                    (duration as f64).to_variant(),
+                    is_debuff.to_variant(),
+                ]);
+            }
+            
+            ServerMessage::BuffRemoved { target_id, buff_id } => {
+                self.base_mut().emit_signal("buff_removed", &[
+                    (target_id as i64).to_variant(),
+                    (buff_id as i64).to_variant(),
+                ]);
+            }
+            
+            ServerMessage::HealEvent { healer_id, target_id, amount, target_new_health } => {
+                // If we were the target, update our health
+                if let Some(my_id) = self.player_id {
+                    if target_id == my_id {
+                        self.current_health = target_new_health;
+                        let max_hp = self.max_health;
+                        self.base_mut().emit_signal("health_changed", &[
+                            (target_new_health as i64).to_variant(),
+                            (max_hp as i64).to_variant(),
+                        ]);
+                    }
+                }
+                
+                self.base_mut().emit_signal("heal_received", &[
+                    (healer_id as i64).to_variant(),
+                    (target_id as i64).to_variant(),
+                    (amount as i64).to_variant(),
+                    (target_new_health as i64).to_variant(),
+                ]);
+            }
+            
+            ServerMessage::ActionBarUpdate { slots } => {
+                let mut arr = Array::new();
+                for slot in slots.iter() {
+                    arr.push(slot.map(|id| id as i64).unwrap_or(-1));
+                }
+                self.base_mut().emit_signal("action_bar_received", &[arr.to_variant()]);
             }
             
             // Handle other messages as needed

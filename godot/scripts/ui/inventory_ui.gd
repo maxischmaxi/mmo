@@ -58,6 +58,9 @@ var inventory_slots: Array = []
 ## Currently equipped weapon item ID (-1 = unarmed)
 var equipped_weapon_id: int = -1
 
+## Current gold
+var current_gold: int = 0
+
 ## Window dragging state
 var is_dragging: bool = false
 var drag_offset: Vector2 = Vector2.ZERO
@@ -86,6 +89,10 @@ var equipment_panel: Control = null
 var weapon_slot: Control = null
 var weapon_name_label: Label = null
 var weapon_stats_label: Label = null
+
+## Gold display references
+var gold_panel: Control = null
+var gold_label: Label = null
 
 ## Item slot scene
 var ItemSlotScene = preload("res://scenes/ui/item_slot.tscn")
@@ -119,6 +126,9 @@ func _ready() -> void:
 	# Create slot UI elements
 	_create_slots()
 	
+	# Create gold display
+	_create_gold_panel()
+	
 	# Hide tooltip initially
 	if tooltip:
 		tooltip.visible = false
@@ -144,14 +154,27 @@ func _ready() -> void:
 	if local_player:
 		local_player.connect("inventory_updated", _on_inventory_updated)
 		local_player.connect("equipment_changed", _on_equipment_changed)
+		# Connect to gold signals
+		if local_player.has_signal("gold_updated"):
+			local_player.connect("gold_updated", _on_gold_updated)
+		if local_player.has_signal("stats_updated"):
+			local_player.connect("stats_updated", _on_stats_updated)
 		# Close inventory when teleporting to another zone
 		if local_player.has_signal("zone_change"):
 			local_player.connect("zone_change", _on_zone_change)
+		# Load initial gold value
+		if local_player.has_method("get_gold"):
+			current_gold = local_player.get_gold()
+			_refresh_gold_display()
 
 
 func _input(event: InputEvent) -> void:
 	# Only process game inputs when actually in game
 	if not _is_in_game():
+		return
+	
+	# Don't toggle inventory if chat is focused
+	if _is_chat_focused():
 		return
 	
 	if event.is_action_pressed("toggle_inventory"):
@@ -181,6 +204,14 @@ func _is_in_game() -> bool:
 		return game_manager.current_state == 3
 	# Fallback - assume we're in game if no game manager found
 	return true
+
+
+## Check if chat input is currently focused
+func _is_chat_focused() -> bool:
+	var chat_ui = get_tree().get_first_node_in_group("chat_ui")
+	if chat_ui and chat_ui.has_method("is_input_focused"):
+		return chat_ui.call("is_input_focused")
+	return false
 
 
 # =============================================================================
@@ -346,6 +377,69 @@ func _create_slots() -> void:
 		slot.connect("drag_ended", _on_item_drag_ended)
 		grid.add_child(slot)
 		slot_nodes.append(slot)
+
+
+func _create_gold_panel() -> void:
+	# Get the VBoxContainer that holds everything
+	var vbox = $Panel/MarginContainer/VBoxContainer
+	if not vbox:
+		return
+	
+	# Create gold panel (horizontal container)
+	gold_panel = HBoxContainer.new()
+	gold_panel.name = "GoldPanel"
+	gold_panel.add_theme_constant_override("separation", 8)
+	gold_panel.alignment = BoxContainer.ALIGNMENT_END  # Right-align
+	
+	# Separator
+	var sep = HSeparator.new()
+	vbox.add_child(sep)
+	
+	# Gold icon placeholder (a small yellow square for now)
+	var gold_icon = ColorRect.new()
+	gold_icon.custom_minimum_size = Vector2(16, 16)
+	gold_icon.color = Color(1.0, 0.85, 0.0, 1.0)  # Gold color
+	gold_panel.add_child(gold_icon)
+	
+	# Gold label
+	gold_label = Label.new()
+	gold_label.text = "0"
+	gold_label.add_theme_color_override("font_color", Color(1.0, 0.85, 0.0, 1.0))  # Gold color
+	gold_label.add_theme_font_size_override("font_size", 14)
+	gold_panel.add_child(gold_label)
+	
+	# Add gold panel at the end
+	vbox.add_child(gold_panel)
+
+
+func _refresh_gold_display() -> void:
+	if gold_label:
+		# Format gold with commas for readability
+		gold_label.text = _format_gold(current_gold)
+
+
+func _format_gold(amount: int) -> String:
+	"""Format gold amount with commas for readability."""
+	var str_amount = str(amount)
+	var result = ""
+	var count = 0
+	for i in range(str_amount.length() - 1, -1, -1):
+		if count > 0 and count % 3 == 0:
+			result = "," + result
+		result = str_amount[i] + result
+		count += 1
+	return result
+
+
+func _on_gold_updated(gold: int) -> void:
+	current_gold = gold
+	_refresh_gold_display()
+
+
+func _on_stats_updated(_level: int, _max_health: int, _max_mana: int, _attack: int, _defense: int, gold: int, _health: int, _mana: int) -> void:
+	# Extract gold from stats update
+	current_gold = gold
+	_refresh_gold_display()
 
 
 func toggle_visibility() -> void:

@@ -294,7 +294,7 @@ custom_minimum_size = Vector2(140, 0)
 layout_mode = 2
 text = "Bloom"
 
-[node name="BloomCheck" type="CheckBox" parent="CenterContainer/Panel/VBox/TabContainer/Graphics/VBox/EffectsSection"]
+[node name="BloomCheck" type="CheckBox" parent="CenterContainer/Panel/VBox/TabContainer/Graphics/VBox/EffectsSection/BloomRow"]
 layout_mode = 2
 
 [node name="Audio" type="MarginContainer" parent="CenterContainer/Panel/VBox/TabContainer"]

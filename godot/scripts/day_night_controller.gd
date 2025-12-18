@@ -420,8 +420,10 @@ func _apply_visuals() -> void:
 	
 	# Update ambient light on camera environment
 	var main_viewport = get_viewport()
-	var main_camera = main_viewport.get_camera_3d() if main_viewport else null
-	if main_camera and main_camera.environment:
+	if not main_viewport:
+		return
+	var main_camera = main_viewport.get_camera_3d()
+	if main_camera and is_instance_valid(main_camera) and main_camera.environment:
 		main_camera.environment.ambient_light_energy = current_ambient_energy
 		# Tint ambient light based on time - bluer at night, warmer during day
 		var night_factor = clamp(-current_sun_elevation / 12.0, 0.0, 1.0)

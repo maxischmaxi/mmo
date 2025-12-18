@@ -51,6 +51,13 @@ func _ready() -> void:
 	_force_apply_cursor()
 
 
+func _exit_tree() -> void:
+	# Reset to system cursor to prevent texture leaks on exit
+	Input.set_custom_mouse_cursor(null)
+	# Clear texture references
+	cursors.clear()
+
+
 func _load_cursors() -> void:
 	var base_path = "res://assets/magic_cursors/" + CURSOR_SIZE + "/"
 	

@@ -58,6 +58,10 @@ var normal_input_style: StyleBoxFlat
 ## StyleBox for focused input state
 var focused_input_style: StyleBoxFlat
 
+## Settings key for remembering last username
+const SETTINGS_SECTION := "auth"
+const SETTINGS_KEY_USERNAME := "last_username"
+
 
 func _ready() -> void:
 	# Clear any status
@@ -72,8 +76,14 @@ func _ready() -> void:
 	# Setup particle effect
 	_setup_particles()
 	
-	# Focus username field on start
-	login_username.grab_focus()
+	# Load last used username
+	_load_last_username()
+	
+	# Focus appropriate field on start
+	if login_username.text.is_empty():
+		login_username.grab_focus()
+	else:
+		login_password.grab_focus()
 
 
 func _setup_input_styles() -> void:
@@ -298,6 +308,10 @@ func _on_register_confirm_submitted(_text: String) -> void:
 func _on_player_login_success(player_id: int) -> void:
 	"""Handle successful login."""
 	_show_status("Login successful!", COLOR_SUCCESS)
+	
+	# Save the username for next time
+	_save_last_username(login_username.text.strip_edges())
+	
 	login_success.emit(player_id)
 
 
@@ -365,3 +379,45 @@ func _set_loading(loading: bool) -> void:
 	else:
 		login_button.text = "ENTER REALM"
 		register_button.text = "CREATE ACCOUNT"
+
+
+func _load_last_username() -> void:
+	"""Load the last used username from settings."""
+	var last_username = SettingsManager.get_setting(SETTINGS_SECTION, SETTINGS_KEY_USERNAME, "")
+	if not last_username.is_empty():
+		login_username.text = last_username
+
+
+func _save_last_username(username: String) -> void:
+	"""Save the username to settings for next time."""
+	SettingsManager.set_setting(SETTINGS_SECTION, SETTINGS_KEY_USERNAME, username)
+	SettingsManager.save_settings()
+
+
+func clear_form() -> void:
+	"""Clear all form fields except username, and reset UI state.
+	Called when returning to login screen from character select."""
+	# Guard against being called before @onready vars are initialized
+	if not is_node_ready():
+		return
+	
+	# Clear passwords (but keep username for convenience)
+	login_password.text = ""
+	register_username.text = ""
+	register_password.text = ""
+	register_confirm.text = ""
+	
+	# Clear status
+	status_label.text = ""
+	
+	# Reset loading state
+	_set_loading(false)
+	
+	# Switch to login tab
+	_switch_tab(0)
+	
+	# Focus password field if username is filled, otherwise username
+	if login_username.text.is_empty():
+		login_username.grab_focus()
+	else:
+		login_password.grab_focus()

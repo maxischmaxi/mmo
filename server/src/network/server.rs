@@ -47,10 +47,12 @@ pub struct ClientConnection {
     pub last_seen: std::time::Instant,
     /// Outgoing message queue (reliable messages)
     pub outgoing_queue: Vec<ServerMessage>,
+    /// Whether this player is an admin
+    pub is_admin: bool,
 }
 
 impl ClientConnection {
-    pub fn new(addr: SocketAddr, player_id: u64, db_player_id: i64, username: String) -> Self {
+    pub fn new(addr: SocketAddr, player_id: u64, db_player_id: i64, username: String, is_admin: bool) -> Self {
         Self {
             addr,
             player_id,
@@ -59,6 +61,7 @@ impl ClientConnection {
             state: ConnectionState::CharacterSelect,
             last_seen: std::time::Instant::now(),
             outgoing_queue: Vec::new(),
+            is_admin,
         }
     }
     
@@ -190,7 +193,7 @@ impl Server {
                 self.handle_player_update(addr, position, rotation, velocity, animation_state, world);
             }
             ClientMessage::ChatMessage { content } => {
-                self.handle_chat(addr, content);
+                self.handle_chat(addr, content, world);
             }
             ClientMessage::Attack { target_id } => {
                 self.handle_attack(addr, target_id, world);
@@ -221,6 +224,9 @@ impl Server {
             }
             ClientMessage::SwapInventorySlots { from_slot, to_slot } => {
                 self.handle_swap_inventory_slots(addr, from_slot, to_slot, world).await;
+            }
+            ClientMessage::UseAbility { ability_id, target_id } => {
+                self.handle_use_ability(addr, ability_id, target_id, world);
             }
         }
     }
@@ -341,8 +347,17 @@ impl Server {
         let player_id = self.next_player_id;
         self.next_player_id += 1;
         
+        // Check if player is admin
+        let is_admin = match db.is_player_admin(db_player_id).await {
+            Ok(admin) => admin,
+            Err(e) => {
+                warn!("Failed to check admin status for {}: {}", db_player_id, e);
+                false
+            }
+        };
+        
         // Create connection in CharacterSelect state
-        let connection = ClientConnection::new(addr, player_id, db_player_id, username.clone());
+        let connection = ClientConnection::new(addr, player_id, db_player_id, username.clone(), is_admin);
         self.clients.insert(addr, connection);
         self.addr_to_player.insert(addr, player_id);
         
@@ -351,7 +366,8 @@ impl Server {
             persistence.update_last_login(db_player_id);
         }
         
-        info!("Account '{}' (DB: {}) authenticated from {}", username, db_player_id, addr);
+        let admin_str = if is_admin { " [ADMIN]" } else { "" };
+        info!("Account '{}' (DB: {}){} authenticated from {}", username, db_player_id, admin_str, addr);
         
         // Send login success - client should now request character list
         let msg = ServerMessage::LoginSuccess {
@@ -536,11 +552,18 @@ impl Server {
         };
         
         // If player has 0 health (died and logged out), respawn them at zone spawn with 20% HP
+        // Also reset players who fell through the world (Y < -50)
         let (spawn_position, spawn_health) = if player_state.health <= 0 {
             let zone_spawn = world.zone_manager.get_default_spawn_point(zone_id);
             let respawn_health = (player_state.max_health as f32 * 0.2).max(1.0) as i32;
             info!("Character '{}' was dead, respawning at zone {} spawn with {} HP", character.name, zone_id, respawn_health);
             (zone_spawn, respawn_health)
+        } else if player_state.position_y < -50.0 {
+            // Player fell through the world - reset to zone spawn
+            let zone_spawn = world.zone_manager.get_default_spawn_point(zone_id);
+            info!("Character '{}' was below world (Y={}), resetting to zone {} spawn", 
+                  character.name, player_state.position_y, zone_id);
+            (zone_spawn, player_state.health)
         } else {
             ([player_state.position_x, player_state.position_y, player_state.position_z], player_state.health)
         };
@@ -563,6 +586,9 @@ impl Server {
             player_state.defense as u32,
             &inventory_data,
             equipped_weapon_id,
+            player_state.level as u32,
+            player_state.experience as u32,
+            player_state.gold as u64,
         );
         
         info!("Character '{}' (ID: {}) entered game for account '{}'", 
@@ -577,6 +603,9 @@ impl Server {
         } else {
             character.class.base_attack_speed()
         };
+        
+        // Calculate XP to next level
+        let experience_to_next_level = ServerPlayer::experience_to_next_level(player_state.level as u32);
         
         // Send character selected with full state
         let msg = ServerMessage::CharacterSelected {
@@ -594,11 +623,13 @@ impl Server {
             max_mana: player_state.max_mana as u32,
             level: player_state.level as u32,
             experience: player_state.experience as u32,
+            experience_to_next_level,
             attack: player_state.attack as u32,
             defense: player_state.defense as u32,
             attack_speed,
             inventory: inventory_slots,
             equipped_weapon_id,
+            gold: player_state.gold as u64,
         };
         self.send_to(addr, &msg).await;
         
@@ -611,6 +642,12 @@ impl Server {
                 spawn_position,
             };
             self.send_to(addr, &zone_change_msg).await;
+        }
+        
+        // Send action bar (abilities assigned to slots)
+        if let Some(action_bar) = world.get_player_action_bar(player_id) {
+            let action_bar_msg = ServerMessage::ActionBarUpdate { slots: action_bar };
+            self.send_to(addr, &action_bar_msg).await;
         }
         
         // Send time sync for day/night cycle (Berlin, Germany coordinates)
@@ -783,20 +820,56 @@ impl Server {
     }
     
     /// Handle chat message
-    fn handle_chat(&mut self, addr: SocketAddr, content: String) {
-        let connection = match self.clients.get(&addr) {
-            Some(c) => c,
-            None => return,
+    fn handle_chat(&mut self, addr: SocketAddr, content: String, world: &mut GameWorld) {
+        let (player_id, is_admin, sender_name) = {
+            let connection = match self.clients.get(&addr) {
+                Some(c) => c,
+                None => return,
+            };
+            
+            // Get character name if in game, otherwise reject
+            let sender_name = match &connection.state {
+                ConnectionState::InGame { character_name, .. } => character_name.clone(),
+                ConnectionState::CharacterSelect => return, // Can't chat from char select
+            };
+            
+            (connection.player_id, connection.is_admin, sender_name)
         };
         
-        // Get character name if in game, otherwise use account name
-        let sender_name = match &connection.state {
-            ConnectionState::InGame { character_name, .. } => character_name.clone(),
-            ConnectionState::CharacterSelect => return, // Can't chat from char select
-        };
+        // Check if it's a command
+        if content.starts_with('/') {
+            // Parse and execute command
+            if let Some(result) = crate::commands::parse_and_execute(&content, player_id, is_admin, world) {
+                // Send command response to the player
+                let response_msg = ServerMessage::CommandResponse {
+                    success: result.success,
+                    message: result.message,
+                };
+                if let Some(client) = self.clients.get_mut(&addr) {
+                    client.outgoing_queue.push(response_msg);
+                    
+                    // Send stats update if present
+                    if let Some(stats_msg) = result.stats_update {
+                        client.outgoing_queue.push(stats_msg);
+                    }
+                    
+                    // Send gold update if present
+                    if let Some(gold_msg) = result.gold_update {
+                        client.outgoing_queue.push(gold_msg);
+                    }
+                    
+                    // Send inventory update if present
+                    if let Some(inv_msg) = result.inventory_update {
+                        client.outgoing_queue.push(inv_msg);
+                    }
+                }
+            }
+            return; // Don't broadcast commands to chat
+        }
         
+        // Regular chat message - broadcast to all
         let msg = ServerMessage::ChatBroadcast {
-            sender_id: connection.player_id,
+            sender_id: player_id,
             sender_name,
             content,
         };
@@ -812,6 +885,26 @@ impl Server {
         
         if let Some(damage_event) = world.process_attack(client.player_id, target_id) {
             self.broadcast_to_ingame(damage_event);
+        }
+    }
+    
+    /// Handle ability use request
+    fn handle_use_ability(&mut self, addr: SocketAddr, ability_id: u32, target_id: Option<u64>, world: &mut GameWorld) {
+        let player_id = match self.clients.get(&addr) {
+            Some(c) if c.is_in_game() => c.player_id,
+            _ => return,
+        };
+        
+        let (caster_msgs, broadcast_msgs) = world.process_ability(player_id, ability_id, target_id);
+        
+        // Send caster-specific messages
+        if let Some(client) = self.clients.get_mut(&addr) {
+            client.outgoing_queue.extend(caster_msgs);
+        }
+        
+        // Broadcast to all players in game
+        for msg in broadcast_msgs {
+            self.broadcast_to_ingame(msg);
         }
     }
     
@@ -1203,6 +1296,7 @@ impl Server {
                 state: c.state.clone(),
                 last_seen: c.last_seen,
                 outgoing_queue: Vec::new(),
+                is_admin: c.is_admin,
             }))
             .collect();
         
@@ -1283,6 +1377,7 @@ impl Server {
                     health: p.health,
                     max_health: p.max_health,
                     animation_state: p.animation_state,
+                    equipped_weapon_id: p.equipped_weapon_id,
                 })
                 .collect();
             
@@ -1400,6 +1495,24 @@ impl Server {
         }
     }
     
+    /// Queue messages for a specific player
+    pub fn queue_messages_for_player(&mut self, player_id: u64, messages: Vec<ServerMessage>) {
+        // Find client by player_id
+        for client in self.clients.values_mut() {
+            if client.player_id == player_id && client.is_in_game() {
+                client.outgoing_queue.extend(messages);
+                return;
+            }
+        }
+    }
+    
+    /// Queue player-specific messages from ability updates
+    pub fn queue_player_ability_updates(&mut self, updates: Vec<(u64, Vec<ServerMessage>)>) {
+        for (player_id, messages) in updates {
+            self.queue_messages_for_player(player_id, messages);
+        }
+    }
+    
     /// Save all connected players that are in game (called periodically)
     pub fn save_all_players(&self, world: &GameWorld, persistence: &PersistenceHandle) {
         for client in self.clients.values() {
@@ -1431,10 +1544,11 @@ fn player_to_state_data(player: &ServerPlayer) -> PlayerStateData {
         max_health: player.max_health as i32,
         mana: player.mana as i32,
         max_mana: player.max_mana as i32,
-        level: 1,  // TODO: add level to ServerPlayer
-        experience: 0,  // TODO: add experience to ServerPlayer
+        level: player.level as i32,
+        experience: player.experience as i32,
         attack: player.attack_power as i32,
         defense: player.defense as i32,
+        gold: player.gold as i64,
     }
 }
 

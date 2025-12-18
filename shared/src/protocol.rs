@@ -3,7 +3,7 @@
 use serde::{Deserialize, Serialize};
 
 /// Protocol version for compatibility checking
-pub const PROTOCOL_VERSION: u32 = 5;
+pub const PROTOCOL_VERSION: u32 = 9;
 
 /// Server tick rate in Hz
 pub const SERVER_TICK_RATE: u32 = 20;
@@ -249,6 +249,14 @@ pub enum ClientMessage {
         from_slot: u8,
         to_slot: u8,
     },
+    
+    /// Use an ability
+    UseAbility {
+        /// Ability ID to use
+        ability_id: u32,
+        /// Target entity ID (for targeted abilities)
+        target_id: Option<u64>,
+    },
 }
 
 // =============================================================================
@@ -310,12 +318,16 @@ pub enum ServerMessage {
         max_mana: u32,
         level: u32,
         experience: u32,
+        /// XP needed to reach next level
+        experience_to_next_level: u32,
         attack: u32,
         defense: u32,
         attack_speed: f32,
         inventory: Vec<Option<InventorySlot>>,
         /// Currently equipped weapon item ID (None = unarmed)
         equipped_weapon_id: Option<u32>,
+        /// Player's gold currency
+        gold: u64,
     },
     
     /// Character selection failed
@@ -455,6 +467,110 @@ pub enum ServerMessage {
         /// Spawn position in the zone
         spawn_position: [f32; 3],
     },
+    
+    /// Command response (for chat commands like /help, /pos, etc.)
+    CommandResponse {
+        /// Whether the command succeeded
+        success: bool,
+        /// Message to display to the user
+        message: String,
+    },
+    
+    /// Stats update (when level, gold, or stats change via commands)
+    StatsUpdate {
+        level: u32,
+        experience: u32,
+        experience_to_next_level: u32,
+        max_health: u32,
+        max_mana: u32,
+        attack: u32,
+        defense: u32,
+        gold: u64,
+        /// Current health after update (in case max_health changed)
+        health: u32,
+        /// Current mana after update (in case max_mana changed)
+        mana: u32,
+    },
+    
+    /// Experience gained (for XP notifications)
+    ExperienceGained {
+        amount: u32,
+        current_experience: u32,
+        experience_to_next_level: u32,
+    },
+    
+    /// Level up notification
+    LevelUp {
+        new_level: u32,
+        max_health: u32,
+        max_mana: u32,
+        attack: u32,
+        defense: u32,
+    },
+    
+    /// Gold update (when gold changes from loot, trade, or commands)
+    GoldUpdate {
+        gold: u64,
+    },
+    
+    /// Ability used successfully (for visual feedback)
+    AbilityUsed {
+        /// Player who used the ability
+        caster_id: u64,
+        /// Ability that was used
+        ability_id: u32,
+        /// Target (if any)
+        target_id: Option<u64>,
+    },
+    
+    /// Ability failed (error feedback for caster only)
+    AbilityFailed {
+        ability_id: u32,
+        reason: String,
+    },
+    
+    /// Cooldown started/updated for an ability
+    AbilityCooldown {
+        ability_id: u32,
+        /// Remaining cooldown in seconds
+        remaining: f32,
+        /// Total cooldown duration in seconds
+        total: f32,
+    },
+    
+    /// Buff/debuff applied to entity
+    BuffApplied {
+        /// Entity that received the buff
+        target_id: u64,
+        /// Unique buff instance ID
+        buff_id: u32,
+        /// Source ability ID
+        ability_id: u32,
+        /// Duration in seconds
+        duration: f32,
+        /// Is this a debuff (negative effect)?
+        is_debuff: bool,
+    },
+    
+    /// Buff/debuff removed from entity
+    BuffRemoved {
+        target_id: u64,
+        buff_id: u32,
+    },
+    
+    /// Heal event (similar to damage event but for healing)
+    HealEvent {
+        healer_id: u64,
+        target_id: u64,
+        amount: u32,
+        target_new_health: u32,
+    },
+    
+    /// Action bar configuration (sent on character select)
+    ActionBarUpdate {
+        /// 8 slots, each containing an optional ability ID
+        slots: [Option<u32>; 8],
+    },
 }
 
 // =============================================================================
@@ -472,6 +588,8 @@ pub struct PlayerState {
     pub health: u32,
     pub max_health: u32,
     pub animation_state: AnimationState,
+    /// Currently equipped weapon item ID (None = unarmed) - for visual display on other clients
+    pub equipped_weapon_id: Option<u32>,
 }
 
 /// Enemy state for world updates

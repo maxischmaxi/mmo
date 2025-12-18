@@ -378,6 +378,16 @@ impl NetworkClient {
         let msg = ClientMessage::DropItem { slot };
         let _ = self.send_message(&msg);
     }
+    
+    // =========================================================================
+    // Ability Methods
+    // =========================================================================
+    
+    /// Send use ability request
+    pub fn send_use_ability(&mut self, ability_id: u32, target_id: Option<u64>) {
+        let msg = ClientMessage::UseAbility { ability_id, target_id };
+        let _ = self.send_message(&msg);
+    }
 }
 
 impl Default for NetworkClient {

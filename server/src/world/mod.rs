@@ -10,8 +10,11 @@ use rand::Rng;
 
 use mmo_shared::{
     ServerMessage, AnimationState, EnemyType, InventorySlot, ItemDef,
-    CharacterClass, Gender, Empire,
+    CharacterClass, Gender, Empire, AbilityEffect, TargetType,
+    get_ability_by_id,
 };
+
+use crate::entities::player::BuffEffect;
 
 use crate::persistence::InventorySlotData;
 
@@ -131,6 +134,9 @@ impl GameWorld {
         defense: u32,
         inventory_data: &[InventorySlotData],
         equipped_weapon_id: Option<u32>,
+        level: u32,
+        experience: u32,
+        gold: u64,
     ) {
         // Convert inventory data to slots
         let mut inventory: Vec<Option<InventorySlot>> = vec![None; 20];
@@ -160,6 +166,9 @@ impl GameWorld {
             defense,
             inventory,
             equipped_weapon_id,
+            level,
+            experience,
+            gold,
         );
         self.players.insert(id, player);
     }
@@ -211,6 +220,21 @@ impl GameWorld {
         self.enemies.values()
             .filter(|e| e.zone_id == zone_id)
             .collect()
+    }
+    
+    /// Check if an enemy exists
+    pub fn has_enemy(&self, id: u64) -> bool {
+        self.enemies.contains_key(&id)
+    }
+    
+    /// Get an enemy by ID
+    pub fn get_enemy(&self, id: u64) -> Option<&ServerEnemy> {
+        self.enemies.get(&id)
+    }
+    
+    /// Get a mutable reference to an enemy by ID
+    pub fn get_enemy_mut(&mut self, id: u64) -> Option<&mut ServerEnemy> {
+        self.enemies.get_mut(&id)
     }
     
     /// Update player state from client input
@@ -454,22 +478,61 @@ impl GameWorld {
         damage_events
     }
     
-    /// Process enemy deaths and spawn loot
-    /// Returns messages to broadcast (despawns, spawns, item spawns)
+    /// Process enemy deaths and spawn loot, award XP and gold
+    /// Returns (broadcast_messages, player_specific_messages)
+    /// player_specific_messages is a Vec of (player_id, Vec<ServerMessage>)
     fn process_enemy_deaths(&mut self) -> Vec<ServerMessage> {
         let mut messages = Vec::new();
         
-        let dead_enemies: Vec<u64> = self.enemies
+        // Collect dead enemies with their killer info
+        let dead_enemies: Vec<(u64, Option<u64>, u8)> = self.enemies
             .iter()
             .filter(|(_, e)| e.health == 0)
-            .map(|(id, _)| *id)
+            .map(|(id, e)| (*id, e.target_id, e.level))
             .collect();
         
         let mut rng = rand::thread_rng();
         
-        for enemy_id in dead_enemies {
+        for (enemy_id, killer_id, enemy_level) in dead_enemies {
             if let Some(enemy) = self.enemies.remove(&enemy_id) {
-                info!("Enemy {} died", enemy_id);
+                info!("Enemy {} (level {}) died, killer: {:?}", enemy_id, enemy_level, killer_id);
+                
+                // Award XP and gold to killer
+                if let Some(player_id) = killer_id {
+                    if let Some(player) = self.players.get_mut(&player_id) {
+                        // Calculate and award XP
+                        let xp_gained = ServerPlayer::calculate_xp_for_enemy(player.level, enemy_level);
+                        let level_up = player.add_experience(xp_gained);
+                        
+                        info!("Player {} gained {} XP (total: {})", player.name, xp_gained, player.experience);
+                        
+                        // Send XP gained message
+                        messages.push(ServerMessage::ExperienceGained {
+                            amount: xp_gained,
+                            current_experience: player.experience,
+                            experience_to_next_level: player.get_experience_to_next_level(),
+                        });
+                        
+                        // If leveled up, send level up message
+                        if let Some(new_level) = level_up {
+                            info!("Player {} leveled up to {}", player.name, new_level);
+                            messages.push(ServerMessage::LevelUp {
+                                new_level,
+                                max_health: player.max_health,
+                                max_mana: player.max_mana,
+                                attack: player.attack_power,
+                                defense: player.defense,
+                            });
+                        }
+                        
+                        // Award gold (enemy_level * 5-15 random)
+                        let gold_gained = (enemy_level as u64) * rng.gen_range(5..=15);
+                        player.gold += gold_gained;
+                        
+                        info!("Player {} gained {} gold", player.name, gold_gained);
+                        messages.push(ServerMessage::GoldUpdate { gold: player.gold });
+                    }
+                }
                 
                 // Broadcast enemy despawn
                 messages.push(ServerMessage::EnemyDespawn { id: enemy_id });
@@ -546,5 +609,389 @@ impl GameWorld {
         }
         
         messages
+    }
+    
+    /// Award XP to a player (for commands)
+    pub fn add_experience_to_player(&mut self, player_id: u64, amount: u32) -> Option<(u32, Option<u32>)> {
+        let player = self.players.get_mut(&player_id)?;
+        let level_up = player.add_experience(amount);
+        Some((player.experience, level_up))
+    }
+    
+    /// Set XP for a player (for commands)
+    pub fn set_player_experience(&mut self, player_id: u64, experience: u32) -> Option<(u32, u32, Option<u32>)> {
+        let player = self.players.get_mut(&player_id)?;
+        let level_changed = player.set_experience(experience);
+        Some((player.experience, player.level, level_changed))
+    }
+    
+    // ==========================================================================
+    // Ability System
+    // ==========================================================================
+    
+    /// Process an ability use request
+    /// Returns (messages_for_caster, messages_for_broadcast)
+    pub fn process_ability(
+        &mut self,
+        caster_id: u64,
+        ability_id: u32,
+        target_id: Option<u64>,
+    ) -> (Vec<ServerMessage>, Vec<ServerMessage>) {
+        let mut caster_msgs = Vec::new();
+        let mut broadcast_msgs = Vec::new();
+        
+        // Get ability definition
+        let ability = match get_ability_by_id(ability_id) {
+            Some(a) => a,
+            None => {
+                caster_msgs.push(ServerMessage::AbilityFailed {
+                    ability_id,
+                    reason: "Unknown ability".into(),
+                });
+                return (caster_msgs, broadcast_msgs);
+            }
+        };
+        
+        // Get caster
+        let caster = match self.players.get(&caster_id) {
+            Some(p) => p,
+            None => return (caster_msgs, broadcast_msgs),
+        };
+        
+        // Check if dead
+        if caster.is_dead() {
+            caster_msgs.push(ServerMessage::AbilityFailed {
+                ability_id,
+                reason: "You are dead".into(),
+            });
+            return (caster_msgs, broadcast_msgs);
+        }
+        
+        // Check if stunned
+        if caster.is_stunned() {
+            caster_msgs.push(ServerMessage::AbilityFailed {
+                ability_id,
+                reason: "You are stunned".into(),
+            });
+            return (caster_msgs, broadcast_msgs);
+        }
+        
+        // Check class restriction
+        if let Some(required_class) = ability.class_restriction {
+            if caster.class != required_class {
+                caster_msgs.push(ServerMessage::AbilityFailed {
+                    ability_id,
+                    reason: format!("Requires {} class", required_class.name()),
+                });
+                return (caster_msgs, broadcast_msgs);
+            }
+        }
+        
+        // Check level requirement
+        if caster.level < ability.level_requirement {
+            caster_msgs.push(ServerMessage::AbilityFailed {
+                ability_id,
+                reason: format!("Requires level {}", ability.level_requirement),
+            });
+            return (caster_msgs, broadcast_msgs);
+        }
+        
+        // Check cooldown
+        if caster.is_ability_on_cooldown(ability_id) {
+            let remaining = caster.get_ability_cooldown(ability_id);
+            caster_msgs.push(ServerMessage::AbilityFailed {
+                ability_id,
+                reason: format!("On cooldown ({:.1}s)", remaining),
+            });
+            return (caster_msgs, broadcast_msgs);
+        }
+        
+        // Check mana
+        if caster.mana < ability.mana_cost {
+            caster_msgs.push(ServerMessage::AbilityFailed {
+                ability_id,
+                reason: "Not enough mana".into(),
+            });
+            return (caster_msgs, broadcast_msgs);
+        }
+        
+        // Validate target based on ability type
+        let validated_target = match ability.target_type {
+            TargetType::SelfOnly => Some(caster_id),
+            TargetType::Enemy => {
+                match target_id {
+                    Some(tid) => {
+                        // Check if target exists and is an enemy
+                        if !self.enemies.contains_key(&tid) {
+                            caster_msgs.push(ServerMessage::AbilityFailed {
+                                ability_id,
+                                reason: "Invalid target".into(),
+                            });
+                            return (caster_msgs, broadcast_msgs);
+                        }
+                        // Check range
+                        if let Some(enemy) = self.enemies.get(&tid) {
+                            let dx = enemy.position[0] - caster.position[0];
+                            let dz = enemy.position[2] - caster.position[2];
+                            let dist = (dx * dx + dz * dz).sqrt();
+                            if dist > ability.range {
+                                caster_msgs.push(ServerMessage::AbilityFailed {
+                                    ability_id,
+                                    reason: "Out of range".into(),
+                                });
+                                return (caster_msgs, broadcast_msgs);
+                            }
+                        }
+                        Some(tid)
+                    }
+                    None => {
+                        caster_msgs.push(ServerMessage::AbilityFailed {
+                            ability_id,
+                            reason: "No target".into(),
+                        });
+                        return (caster_msgs, broadcast_msgs);
+                    }
+                }
+            }
+            TargetType::Ally => {
+                // For now, ally abilities only work on self
+                Some(caster_id)
+            }
+            TargetType::None | TargetType::AreaAroundSelf | TargetType::AreaAroundTarget => None,
+        };
+        
+        // All checks passed - consume mana and start cooldown
+        let caster = self.players.get_mut(&caster_id).unwrap();
+        caster.consume_mana(ability.mana_cost);
+        caster.start_ability_cooldown(ability_id, ability.cooldown);
+        
+        // Send cooldown message
+        caster_msgs.push(ServerMessage::AbilityCooldown {
+            ability_id,
+            remaining: ability.cooldown,
+            total: ability.cooldown,
+        });
+        
+        // Broadcast ability used
+        broadcast_msgs.push(ServerMessage::AbilityUsed {
+            caster_id,
+            ability_id,
+            target_id: validated_target,
+        });
+        
+        // Apply effects
+        for effect in &ability.effects {
+            match effect {
+                AbilityEffect::Damage { base, attack_scaling } => {
+                    if let Some(tid) = validated_target {
+                        if let Some(enemy) = self.enemies.get_mut(&tid) {
+                            let caster = self.players.get(&caster_id).unwrap();
+                            let damage = caster.calculate_ability_damage(*base, *attack_scaling, &self.items);
+                            
+                            enemy.health = enemy.health.saturating_sub(damage);
+                            enemy.target_id = Some(caster_id); // Aggro
+                            
+                            broadcast_msgs.push(ServerMessage::DamageEvent {
+                                attacker_id: caster_id,
+                                target_id: tid,
+                                damage,
+                                target_new_health: enemy.health,
+                                is_critical: false,
+                            });
+                        }
+                    }
+                }
+                AbilityEffect::Heal { base, health_scaling } => {
+                    let target = validated_target.unwrap_or(caster_id);
+                    if let Some(player) = self.players.get_mut(&target) {
+                        let heal_amount = player.calculate_heal_amount(*base, *health_scaling);
+                        let old_health = player.health;
+                        player.health = (player.health + heal_amount).min(player.max_health);
+                        let actual_heal = player.health - old_health;
+                        
+                        if actual_heal > 0 {
+                            broadcast_msgs.push(ServerMessage::HealEvent {
+                                healer_id: caster_id,
+                                target_id: target,
+                                amount: actual_heal,
+                                target_new_health: player.health,
+                            });
+                        }
+                    }
+                }
+                AbilityEffect::DamageOverTime { damage_per_tick, interval, duration } => {
+                    if let Some(tid) = validated_target {
+                        if let Some(enemy) = self.enemies.get_mut(&tid) {
+                            // For enemies, we'll track DOT separately
+                            // For now, just apply first tick immediately
+                            enemy.health = enemy.health.saturating_sub(*damage_per_tick);
+                            broadcast_msgs.push(ServerMessage::DamageEvent {
+                                attacker_id: caster_id,
+                                target_id: tid,
+                                damage: *damage_per_tick,
+                                target_new_health: enemy.health,
+                                is_critical: false,
+                            });
+                            // TODO: Track DOT on enemies properly
+                        }
+                    }
+                }
+                AbilityEffect::HealOverTime { heal_per_tick, interval, duration } => {
+                    let target = validated_target.unwrap_or(caster_id);
+                    if let Some(player) = self.players.get_mut(&target) {
+                        // Calculate heal per tick (if 0, use 2% of max health)
+                        let tick_heal = if *heal_per_tick == 0 {
+                            (player.max_health as f32 * 0.02) as u32
+                        } else {
+                            *heal_per_tick
+                        };
+                        
+                        let buff_id = player.add_buff(
+                            ability_id,
+                            BuffEffect::HealOverTime {
+                                heal_per_tick: tick_heal,
+                                interval: *interval,
+                                next_tick: *interval,
+                            },
+                            *duration,
+                            false,
+                        );
+                        
+                        broadcast_msgs.push(ServerMessage::BuffApplied {
+                            target_id: target,
+                            buff_id,
+                            ability_id,
+                            duration: *duration,
+                            is_debuff: false,
+                        });
+                    }
+                }
+                AbilityEffect::BuffAttack { amount, duration } => {
+                    let target = validated_target.unwrap_or(caster_id);
+                    if let Some(player) = self.players.get_mut(&target) {
+                        let buff_id = player.add_buff(
+                            ability_id,
+                            BuffEffect::AttackBonus(*amount),
+                            *duration,
+                            false,
+                        );
+                        
+                        broadcast_msgs.push(ServerMessage::BuffApplied {
+                            target_id: target,
+                            buff_id,
+                            ability_id,
+                            duration: *duration,
+                            is_debuff: false,
+                        });
+                    }
+                }
+                AbilityEffect::BuffDefense { amount, duration } => {
+                    let target = validated_target.unwrap_or(caster_id);
+                    if let Some(player) = self.players.get_mut(&target) {
+                        let buff_id = player.add_buff(
+                            ability_id,
+                            BuffEffect::DefenseBonus(*amount),
+                            *duration,
+                            false,
+                        );
+                        
+                        broadcast_msgs.push(ServerMessage::BuffApplied {
+                            target_id: target,
+                            buff_id,
+                            ability_id,
+                            duration: *duration,
+                            is_debuff: false,
+                        });
+                    }
+                }
+                AbilityEffect::BuffAttackSpeed { multiplier, duration } => {
+                    let target = validated_target.unwrap_or(caster_id);
+                    if let Some(player) = self.players.get_mut(&target) {
+                        let buff_id = player.add_buff(
+                            ability_id,
+                            BuffEffect::AttackSpeedMultiplier(*multiplier),
+                            *duration,
+                            false,
+                        );
+                        
+                        broadcast_msgs.push(ServerMessage::BuffApplied {
+                            target_id: target,
+                            buff_id,
+                            ability_id,
+                            duration: *duration,
+                            is_debuff: false,
+                        });
+                    }
+                }
+                AbilityEffect::DebuffAttack { amount, duration } => {
+                    // Debuffs go on enemies (for now, track separately)
+                    // TODO: Implement enemy debuff tracking
+                }
+                AbilityEffect::DebuffDefense { amount, duration } => {
+                    // TODO: Implement enemy debuff tracking
+                }
+                AbilityEffect::Slow { multiplier, duration } => {
+                    // TODO: Implement enemy slow
+                }
+                AbilityEffect::Stun { duration } => {
+                    // TODO: Implement enemy stun
+                }
+            }
+        }
+        
+        (caster_msgs, broadcast_msgs)
+    }
+    
+    /// Update player cooldowns and buffs
+    /// Returns messages to send to individual players (player_id, messages)
+    pub fn update_player_abilities(&mut self, delta: f32) -> Vec<(u64, Vec<ServerMessage>)> {
+        let mut player_messages = Vec::new();
+        
+        // Collect player IDs first to avoid borrow issues
+        let player_ids: Vec<u64> = self.players.keys().copied().collect();
+        
+        for player_id in player_ids {
+            let mut messages = Vec::new();
+            
+            if let Some(player) = self.players.get_mut(&player_id) {
+                // Update cooldowns
+                player.update_cooldowns(delta);
+                
+                // Update buffs and get events
+                let (expired_buffs, dot_damage, hot_heal) = player.update_buffs(delta);
+                
+                // Send buff removed messages
+                for buff_id in expired_buffs {
+                    messages.push(ServerMessage::BuffRemoved {
+                        target_id: player_id,
+                        buff_id,
+                    });
+                }
+                
+                // DOT damage is handled separately (on enemies)
+                // HOT heal already applied in update_buffs
+                
+                // Send heal event for HOT if any
+                if hot_heal > 0 {
+                    messages.push(ServerMessage::HealEvent {
+                        healer_id: player_id,
+                        target_id: player_id,
+                        amount: hot_heal,
+                        target_new_health: player.health,
+                    });
+                }
+            }
+            
+            if !messages.is_empty() {
+                player_messages.push((player_id, messages));
+            }
+        }
+        
+        player_messages
+    }
+    
+    /// Get a player's action bar
+    pub fn get_player_action_bar(&self, player_id: u64) -> Option<[Option<u32>; 8]> {
+        self.players.get(&player_id).map(|p| p.action_bar)
     }
 }

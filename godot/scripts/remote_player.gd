@@ -23,6 +23,9 @@ var calculated_velocity: Vector3 = Vector3.ZERO
 ## Animation state received from server
 var server_animation_state: int = 0
 
+## Currently equipped weapon ID (for visual sync)
+var current_weapon_id: int = -1
+
 ## Interpolation speed
 const INTERPOLATION_SPEED: float = 15.0
 
@@ -31,6 +34,9 @@ const INTERPOLATION_SPEED: float = 15.0
 
 ## Reference to the animation controller
 @onready var animation_controller: Node3D = $CharacterModel/AnimationController
+
+## Reference to the weapon visual manager
+@onready var weapon_visual_manager: Node3D = $CharacterModel/WeaponVisualManager
 
 
 func _ready() -> void:
@@ -98,15 +104,31 @@ func set_player_info(id: int, username: String) -> void:
 
 
 ## Update the position from server data
-func update_from_server(pos: Vector3, rot: float, animation_state: int = -1) -> void:
+func update_from_server(pos: Vector3, rot: float, animation_state: int = -1, weapon_id: int = -1) -> void:
 	target_position = pos
 	target_rotation = rot
 	
 	# Update animation state if provided
 	if animation_state >= 0:
 		server_animation_state = animation_state
+	
+	# Update weapon visual if changed
+	if weapon_id != current_weapon_id:
+		current_weapon_id = weapon_id
+		_update_weapon_visual(weapon_id)
 
 
 func update_name_label() -> void:
 	if name_label:
 		name_label.text = player_username
+
+
+## Update the weapon visual based on equipped weapon ID
+func _update_weapon_visual(weapon_id: int) -> void:
+	if not weapon_visual_manager:
+		return
+	
+	if weapon_id < 0:
+		weapon_visual_manager.unequip_weapon()
+	else:
+		weapon_visual_manager.equip_weapon(weapon_id)

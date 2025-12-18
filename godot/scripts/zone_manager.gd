@@ -42,6 +42,10 @@ func _ready() -> void:
 		if local_player.has_signal("zone_change"):
 			local_player.connect("zone_change", _on_zone_change)
 			print("ZoneManager: Connected to player zone_change signal")
+		# Connect to disconnected signal to reset zone state on sign out
+		if local_player.has_signal("disconnected"):
+			local_player.connect("disconnected", _on_player_disconnected)
+			print("ZoneManager: Connected to player disconnected signal")
 	else:
 		push_error("ZoneManager: Could not find local player!")
 	
@@ -69,10 +73,16 @@ func _load_zone(zone_id: int, zone_name: String, scene_path: String, spawn_posit
 	"""Load a new zone scene."""
 	zone_loading_started.emit(zone_id, zone_name)
 	
-	# Show loading screen with fade
+	# Disable player physics while loading (prevents falling through void)
+	if local_player and local_player.has_method("set_zone_ready"):
+		local_player.set_zone_ready(false)
+	
+	# Show loading screen with fade (only if not already visible - e.g., from character select transition)
 	if loading_screen and loading_screen.has_method("fade_in"):
-		loading_screen.fade_in()
-		await loading_screen.fade_finished
+		if not loading_screen.visible or loading_screen.modulate.a < 1.0:
+			loading_screen.fade_in()
+			await loading_screen.fade_finished
+		# If already fully visible, no need to fade in again
 	
 	# Unload current zone
 	if current_zone_instance:
@@ -99,10 +109,20 @@ func _load_zone(zone_id: int, zone_name: String, scene_path: String, spawn_posit
 	current_zone_id = zone_id
 	current_zone_name = zone_name
 	
-	# Move player to spawn position
+	# Move player to spawn position AFTER zone is loaded
 	if local_player:
 		local_player.global_position = spawn_position
+		# Reset velocity to prevent any accumulated falling
+		local_player.velocity = Vector3.ZERO
 		print("ZoneManager: Moved player to spawn position: ", spawn_position)
+	
+	# Wait one frame for physics to process the new collision shapes
+	await get_tree().physics_frame
+	
+	# Enable player physics now that zone is loaded
+	if local_player and local_player.has_method("set_zone_ready"):
+		local_player.set_zone_ready(true)
+		print("ZoneManager: Player physics enabled")
 	
 	# Hide loading screen with fade
 	if loading_screen and loading_screen.has_method("fade_out"):
@@ -175,3 +195,22 @@ func is_loading() -> bool:
 	if loading_screen and loading_screen.has_method("is_visible"):
 		return loading_screen.visible
 	return false
+
+
+## Handle player disconnect - reset zone state so it reloads on next login
+func _on_player_disconnected() -> void:
+	print("ZoneManager: Player disconnected, resetting zone state")
+	
+	# Unload current zone
+	if current_zone_instance:
+		current_zone_instance.queue_free()
+		current_zone_instance = null
+	
+	# Reset zone tracking
+	current_zone_id = 0
+	current_zone_name = ""
+	
+	# Hide loading screen if visible (in case we disconnected during loading)
+	if loading_screen and loading_screen.visible:
+		loading_screen.visible = false
+		loading_screen.modulate.a = 0.0

@@ -487,3 +487,10 @@ func reset_mouse_state() -> void:
 	left_click_is_drag = false
 	right_mouse_down = false
 	right_click_is_drag = false
+
+
+func _exit_tree() -> void:
+	# Clean up texture references to prevent RID leaks on exit
+	if rotation_indicator:
+		rotation_indicator.texture = null
+	ROTATION_INDICATOR_TEXTURE = null

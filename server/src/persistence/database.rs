@@ -6,7 +6,7 @@ use argon2::{
     Argon2,
 };
 use serde::{Deserialize, Serialize};
-use mmo_shared::{CharacterClass, Gender, Empire, CharacterInfo, MAX_CHARACTERS_PER_ACCOUNT, ItemDef, ItemType, ItemRarity, ItemEffect, WeaponStats};
+use mmo_shared::{CharacterClass, Gender, Empire, CharacterInfo, MAX_CHARACTERS_PER_ACCOUNT, ItemDef, ItemType, ItemRarity, ItemEffect, WeaponStats, WeaponVisualType};
 use std::collections::HashMap;
 
 /// Player account data from the database
@@ -45,6 +45,7 @@ pub struct PlayerStateData {
     pub experience: i32,
     pub attack: i32,
     pub defense: i32,
+    pub gold: i64,
 }
 
 impl PlayerStateData {
@@ -79,6 +80,7 @@ impl PlayerStateData {
             experience: 0,
             attack,
             defense,
+            gold: 100, // Starting gold
         }
     }
 }
@@ -99,6 +101,7 @@ impl Default for PlayerStateData {
             experience: 0,
             attack: 10,
             defense: 5,
+            gold: 100,
         }
     }
 }
@@ -253,6 +256,18 @@ impl Database {
             .execute(&self.pool)
             .await?;
         Ok(())
+    }
+    
+    /// Check if a player account is an admin
+    pub async fn is_player_admin(&self, player_id: i64) -> Result<bool, sqlx::Error> {
+        let is_admin: bool = sqlx::query_scalar(
+            "SELECT COALESCE(is_admin, FALSE) FROM players WHERE id = $1"
+        )
+            .bind(player_id)
+            .fetch_one(&self.pool)
+            .await?;
+        
+        Ok(is_admin)
     }
     
     // =========================================================================
@@ -486,7 +501,7 @@ impl Database {
         let row = sqlx::query(
             "SELECT zone_id, position_x, position_y, position_z, rotation, 
                     health, max_health, mana, max_mana, 
-                    level, experience, attack, defense
+                    level, experience, attack, defense, gold
              FROM player_state WHERE character_id = $1"
         )
             .bind(character_id)
@@ -507,6 +522,7 @@ impl Database {
             experience: r.get("experience"),
             attack: r.get("attack"),
             defense: r.get("defense"),
+            gold: r.get::<Option<i64>, _>("gold").unwrap_or(0),
         }))
     }
     
@@ -514,8 +530,8 @@ impl Database {
     pub async fn save_character_state(&self, character_id: i64, state: &PlayerStateData) -> Result<(), sqlx::Error> {
         sqlx::query(
             "INSERT INTO player_state (character_id, zone_id, position_x, position_y, position_z, rotation,
-                                       health, max_health, mana, max_mana, level, experience, attack, defense)
-             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
+                                       health, max_health, mana, max_mana, level, experience, attack, defense, gold)
+             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
              ON CONFLICT (character_id) DO UPDATE SET
                 zone_id = EXCLUDED.zone_id,
                 position_x = EXCLUDED.position_x,
@@ -529,7 +545,8 @@ impl Database {
                 level = EXCLUDED.level,
                 experience = EXCLUDED.experience,
                 attack = EXCLUDED.attack,
-                defense = EXCLUDED.defense"
+                defense = EXCLUDED.defense,
+                gold = EXCLUDED.gold"
         )
             .bind(character_id)
             .bind(state.zone_id)
@@ -545,6 +562,7 @@ impl Database {
             .bind(state.experience)
             .bind(state.attack)
             .bind(state.defense)
+            .bind(state.gold)
             .execute(&self.pool)
             .await?;
         
@@ -600,7 +618,8 @@ impl Database {
     pub async fn load_all_items(&self) -> Result<HashMap<u32, ItemDef>, sqlx::Error> {
         let rows = sqlx::query(
             "SELECT id, name, description, item_type, rarity, max_stack, 
-                    damage, attack_speed, class_restriction, effects
+                    damage, attack_speed, class_restriction, effects,
+                    visual_type, mesh_name
              FROM items"
         )
             .fetch_all(&self.pool)
@@ -616,6 +635,8 @@ impl Database {
             let attack_speed: Option<f32> = row.get("attack_speed");
             let class_restriction: Option<i16> = row.get("class_restriction");
             let effects_json: serde_json::Value = row.get("effects");
+            let visual_type: Option<i16> = row.get("visual_type");
+            let mesh_name: Option<String> = row.get("mesh_name");
             
             // Parse item type
             let item_type = match item_type_val {
@@ -646,6 +667,10 @@ impl Database {
                     damage: dmg as u32,
                     attack_speed: spd,
                     class_restriction: class_restriction.and_then(|c| CharacterClass::from_u8(c as u8)),
+                    visual_type: visual_type
+                        .and_then(|v| WeaponVisualType::from_u8(v as u8))
+                        .unwrap_or(WeaponVisualType::OneHandedSword),
+                    mesh_name: mesh_name.unwrap_or_else(|| "Arming_Sword".to_string()),
                 })
             } else {
                 None

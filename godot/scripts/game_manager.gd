@@ -33,6 +33,9 @@ var game_ui: Control = null
 ## Reference to UI container (for adding character screens)
 var ui_container: CanvasLayer = null
 
+## Reference to loading screen
+var loading_screen: Control = null
+
 ## Dictionary of remote players by ID
 var remote_players: Dictionary = {}
 
@@ -78,6 +81,7 @@ func _ready() -> void:
 	ui_container = get_node_or_null("../UI")
 	login_screen = get_node_or_null("../UI/LoginScreen")
 	game_ui = get_node_or_null("../UI/GameUI")
+	loading_screen = get_node_or_null("../UI/LoadingScreen")
 	
 	if not ui_container:
 		push_error("GameManager: Could not find UI container at ../UI")
@@ -212,6 +216,9 @@ func _change_state(new_state: GameState) -> void:
 		GameState.LOGIN:
 			if login_screen:
 				login_screen.visible = true
+				# Clear form fields (except remembered username) when returning to login
+				if login_screen.has_method("clear_form"):
+					login_screen.clear_form()
 			Input.set_mouse_mode(Input.MOUSE_MODE_VISIBLE)
 		
 		GameState.CHARACTER_SELECT:
@@ -309,6 +316,15 @@ func _on_character_screen_selected(_character_id: int) -> void:
 func _on_character_selected(_character_id: int) -> void:
 	"""Handle character selected signal from player - enter game."""
 	print("GameManager: Character selected, entering game")
+	
+	# Show loading screen FIRST before hiding character select
+	# This prevents the "flying character" visual glitch where the player
+	# appears floating in empty space before the zone loads
+	if loading_screen and loading_screen.has_method("fade_in"):
+		loading_screen.fade_in()
+		await loading_screen.fade_finished
+	
+	# Now transition to game state (hides character select, shows game UI)
 	_change_state(GameState.IN_GAME)
 
 
@@ -558,7 +574,7 @@ func _on_damage_dealt(attacker_id: int, target_id: int, damage: int, is_critical
 
 
 ## Update remote player position from world state (with interpolation)
-func update_remote_player(id: int, position: Vector3, rotation: float, health: int = -1, animation_state: int = -1) -> void:
+func update_remote_player(id: int, position: Vector3, rotation: float, health: int = -1, animation_state: int = -1, weapon_id: int = -1) -> void:
 	if remote_players.has(id):
 		var data = remote_players[id]
 		
@@ -572,11 +588,10 @@ func update_remote_player(id: int, position: Vector3, rotation: float, health: i
 			if data.has("health_bar"):
 				data["health_bar"].set_health(health, data["max_health"])
 		
-		# Update animation state on the remote player node
-		if animation_state >= 0:
-			var remote_player_node = data["node"]
-			if remote_player_node and remote_player_node.has_method("update_from_server"):
-				remote_player_node.update_from_server(position, rotation, animation_state)
+		# Update animation state and weapon on the remote player node
+		var remote_player_node = data["node"]
+		if remote_player_node and remote_player_node.has_method("update_from_server"):
+			remote_player_node.update_from_server(position, rotation, animation_state, weapon_id)
 
 
 ## Update enemy position from world state (with interpolation)
@@ -667,8 +682,8 @@ func _on_enemy_state_updated(id: int, position: Vector3, rotation: float, health
 
 
 ## Handle remote player state update from WorldState
-func _on_player_state_updated(id: int, position: Vector3, rotation: float, health: int, animation_state: int = 0) -> void:
-	update_remote_player(id, position, rotation, health, animation_state)
+func _on_player_state_updated(id: int, position: Vector3, rotation: float, health: int, animation_state: int = 0, weapon_id: int = -1) -> void:
+	update_remote_player(id, position, rotation, health, animation_state, weapon_id)
 
 
 # =============================================================================
