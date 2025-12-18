@@ -18,6 +18,8 @@ const ENEMY_SPEED: f32 = 3.0;
 #[derive(Debug)]
 pub struct ServerEnemy {
     pub id: u64,
+    /// Zone this enemy belongs to
+    pub zone_id: u32,
     pub enemy_type: EnemyType,
     pub position: [f32; 3],
     pub spawn_position: [f32; 3],
@@ -33,7 +35,7 @@ pub struct ServerEnemy {
 }
 
 impl ServerEnemy {
-    pub fn new(id: u64, enemy_type: EnemyType, position: [f32; 3]) -> Self {
+    pub fn new(id: u64, zone_id: u32, enemy_type: EnemyType, position: [f32; 3]) -> Self {
         // Stats and level range based on enemy type
         let (health, attack_power, min_level, max_level) = match enemy_type {
             EnemyType::Goblin => (50, 8, 1, 3),
@@ -53,6 +55,7 @@ impl ServerEnemy {
         
         Self {
             id,
+            zone_id,
             enemy_type,
             position,
             spawn_position: position,

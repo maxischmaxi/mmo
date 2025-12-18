@@ -3,7 +3,7 @@
 use serde::{Deserialize, Serialize};
 
 /// Protocol version for compatibility checking
-pub const PROTOCOL_VERSION: u32 = 2;
+pub const PROTOCOL_VERSION: u32 = 3;
 
 /// Server tick rate in Hz
 pub const SERVER_TICK_RATE: u32 = 20;
@@ -87,7 +87,7 @@ impl Gender {
 }
 
 /// Empire (faction)
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[repr(u8)]
 pub enum Empire {
     Red = 0,    // Shinsoo
@@ -289,6 +289,8 @@ pub enum ServerMessage {
         class: CharacterClass,
         gender: Gender,
         empire: Empire,
+        /// Current zone ID
+        zone_id: u32,
         position: [f32; 3],
         rotation: f32,
         health: u32,
@@ -327,6 +329,7 @@ pub enum ServerMessage {
         class: CharacterClass,
         gender: Gender,
         empire: Empire,
+        zone_id: u32,
         position: [f32; 3],
         rotation: f32,
     },
@@ -399,6 +402,7 @@ pub enum ServerMessage {
     /// Enemy spawned
     EnemySpawn {
         id: u64,
+        zone_id: u32,
         enemy_type: EnemyType,
         position: [f32; 3],
         health: u32,
@@ -427,6 +431,19 @@ pub enum ServerMessage {
         /// Server longitude for solar calculations (e.g., 13.4 for Berlin)
         longitude: f32,
     },
+    
+    /// Zone change notification
+    /// Sent when player enters a new zone (on character select or zone transition)
+    ZoneChange {
+        /// Zone ID (1-99: Shinsoo, 100-199: Chunjo, 200-299: Jinno, 300+: Neutral)
+        zone_id: u32,
+        /// Display name of the zone
+        zone_name: String,
+        /// Godot scene path to load
+        scene_path: String,
+        /// Spawn position in the zone
+        spawn_position: [f32; 3],
+    },
 }
 
 // =============================================================================
@@ -437,6 +454,7 @@ pub enum ServerMessage {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PlayerState {
     pub id: u64,
+    pub zone_id: u32,
     pub position: [f32; 3],
     pub rotation: f32,
     pub velocity: [f32; 3],
@@ -449,6 +467,7 @@ pub struct PlayerState {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct EnemyState {
     pub id: u64,
+    pub zone_id: u32,
     pub enemy_type: EnemyType,
     pub position: [f32; 3],
     pub rotation: f32,

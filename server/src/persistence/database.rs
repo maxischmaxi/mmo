@@ -32,6 +32,7 @@ pub struct CharacterData {
 /// Player state data for persistence (now per-character)
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PlayerStateData {
+    pub zone_id: i32,
     pub position_x: f32,
     pub position_y: f32,
     pub position_z: f32,
@@ -49,7 +50,14 @@ pub struct PlayerStateData {
 impl PlayerStateData {
     /// Create default state based on class and empire
     pub fn new_for_class(class: CharacterClass, empire: Empire) -> Self {
-        let spawn = empire.spawn_position();
+        // Get default zone and spawn position for empire
+        let zone_id = match empire {
+            Empire::Red => 1,     // Shinsoo Village
+            Empire::Yellow => 100, // Chunjo Village
+            Empire::Blue => 200,   // Jinno Village
+        };
+        let spawn = [0.0, 1.0, 0.0]; // Default spawn within zone
+        
         let (health, max_health, mana, max_mana, attack, defense) = match class {
             CharacterClass::Ninja => (80, 80, 40, 40, 12, 4),
             CharacterClass::Warrior => (120, 120, 20, 20, 10, 8),
@@ -58,6 +66,7 @@ impl PlayerStateData {
         };
         
         Self {
+            zone_id,
             position_x: spawn[0],
             position_y: spawn[1],
             position_z: spawn[2],
@@ -77,6 +86,7 @@ impl PlayerStateData {
 impl Default for PlayerStateData {
     fn default() -> Self {
         Self {
+            zone_id: 1, // Default to Shinsoo Village
             position_x: 0.0,
             position_y: 1.0,
             position_z: 0.0,
@@ -466,7 +476,7 @@ impl Database {
     /// Load character state from database
     pub async fn load_character_state(&self, character_id: i64) -> Result<Option<PlayerStateData>, sqlx::Error> {
         let row = sqlx::query(
-            "SELECT position_x, position_y, position_z, rotation, 
+            "SELECT zone_id, position_x, position_y, position_z, rotation, 
                     health, max_health, mana, max_mana, 
                     level, experience, attack, defense
              FROM player_state WHERE character_id = $1"
@@ -476,6 +486,7 @@ impl Database {
             .await?;
         
         Ok(row.map(|r| PlayerStateData {
+            zone_id: r.get::<Option<i32>, _>("zone_id").unwrap_or(1),
             position_x: r.get("position_x"),
             position_y: r.get("position_y"),
             position_z: r.get("position_z"),
@@ -494,10 +505,11 @@ impl Database {
     /// Save character state to database
     pub async fn save_character_state(&self, character_id: i64, state: &PlayerStateData) -> Result<(), sqlx::Error> {
         sqlx::query(
-            "INSERT INTO player_state (character_id, position_x, position_y, position_z, rotation,
+            "INSERT INTO player_state (character_id, zone_id, position_x, position_y, position_z, rotation,
                                        health, max_health, mana, max_mana, level, experience, attack, defense)
-             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
+             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
              ON CONFLICT (character_id) DO UPDATE SET
+                zone_id = EXCLUDED.zone_id,
                 position_x = EXCLUDED.position_x,
                 position_y = EXCLUDED.position_y,
                 position_z = EXCLUDED.position_z,
@@ -512,6 +524,7 @@ impl Database {
                 defense = EXCLUDED.defense"
         )
             .bind(character_id)
+            .bind(state.zone_id)
             .bind(state.position_x)
             .bind(state.position_y)
             .bind(state.position_z)
@@ -714,6 +727,70 @@ impl Database {
             .await?;
         
         Ok(())
+    }
+    
+    // =========================================================================
+    // Zone Operations
+    // =========================================================================
+    
+    /// Load all zones from database
+    /// Returns: Vec<(id, name, empire, scene_path, is_default_spawn)>
+    pub async fn load_zones(&self) -> Result<Vec<(i32, String, Option<i16>, String, bool)>, sqlx::Error> {
+        let rows = sqlx::query(
+            "SELECT id, name, empire, scene_path, is_default_spawn FROM zones ORDER BY id"
+        )
+            .fetch_all(&self.pool)
+            .await?;
+        
+        Ok(rows.iter().map(|r| (
+            r.get("id"),
+            r.get("name"),
+            r.get("empire"),
+            r.get("scene_path"),
+            r.get("is_default_spawn"),
+        )).collect())
+    }
+    
+    /// Load all zone spawn points from database
+    /// Returns: Vec<(id, zone_id, name, x, y, z, is_default)>
+    pub async fn load_zone_spawn_points(&self) -> Result<Vec<(i32, i32, String, f32, f32, f32, bool)>, sqlx::Error> {
+        let rows = sqlx::query(
+            "SELECT id, zone_id, name, position_x, position_y, position_z, is_default 
+             FROM zone_spawn_points ORDER BY zone_id, id"
+        )
+            .fetch_all(&self.pool)
+            .await?;
+        
+        Ok(rows.iter().map(|r| (
+            r.get("id"),
+            r.get("zone_id"),
+            r.get("name"),
+            r.get("position_x"),
+            r.get("position_y"),
+            r.get("position_z"),
+            r.get("is_default"),
+        )).collect())
+    }
+    
+    /// Load all zone enemy spawns from database
+    /// Returns: Vec<(id, zone_id, enemy_type, x, y, z, respawn_time_secs)>
+    pub async fn load_zone_enemy_spawns(&self) -> Result<Vec<(i32, i32, i16, f32, f32, f32, i32)>, sqlx::Error> {
+        let rows = sqlx::query(
+            "SELECT id, zone_id, enemy_type, position_x, position_y, position_z, respawn_time_secs
+             FROM zone_enemy_spawns ORDER BY zone_id, id"
+        )
+            .fetch_all(&self.pool)
+            .await?;
+        
+        Ok(rows.iter().map(|r| (
+            r.get("id"),
+            r.get("zone_id"),
+            r.get("enemy_type"),
+            r.get("position_x"),
+            r.get("position_y"),
+            r.get("position_z"),
+            r.get("respawn_time_secs"),
+        )).collect())
     }
 }
 

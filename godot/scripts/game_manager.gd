@@ -79,6 +79,11 @@ func _ready() -> void:
 	login_screen = get_node_or_null("../UI/LoginScreen")
 	game_ui = get_node_or_null("../UI/GameUI")
 	
+	if not ui_container:
+		push_error("GameManager: Could not find UI container at ../UI")
+	else:
+		print("GameManager: UI container found at ", ui_container.get_path())
+	
 	# Connect login screen to player
 	if login_screen and local_player:
 		login_screen.set_player(local_player)
@@ -117,6 +122,10 @@ func _ready() -> void:
 		# Connect time sync signal for day/night cycle
 		if local_player.has_signal("time_sync"):
 			local_player.connect("time_sync", _on_time_sync)
+		
+		# Connect zone change signal to clear entities
+		if local_player.has_signal("zone_change"):
+			local_player.connect("zone_change", _on_zone_change)
 		
 		print("GameManager: Connected to local player signals")
 	else:
@@ -250,7 +259,9 @@ func _ensure_character_select_screen() -> void:
 	character_select_screen = CharacterSelectScene.instantiate()
 	if ui_container:
 		ui_container.add_child(character_select_screen)
+		print("GameManager: CharacterSelect3D added to UI container")
 	else:
+		push_error("GameManager: UI container not found! Adding CharacterSelect3D to GameManager instead.")
 		add_child(character_select_screen)
 	
 	# Connect signals
@@ -658,6 +669,38 @@ func _on_enemy_state_updated(id: int, position: Vector3, rotation: float, health
 ## Handle remote player state update from WorldState
 func _on_player_state_updated(id: int, position: Vector3, rotation: float, health: int, animation_state: int = 0) -> void:
 	update_remote_player(id, position, rotation, health, animation_state)
+
+
+# =============================================================================
+# Zone Change Support
+# =============================================================================
+
+## Handle zone change - clear all remote entities since they're in a different zone now
+func _on_zone_change(_zone_id: int, _zone_name: String, _scene_path: String, _spawn_x: float, _spawn_y: float, _spawn_z: float) -> void:
+	print("GameManager: Zone change detected, clearing remote entities")
+	
+	# Clear all remote players - they were in the old zone
+	for id in remote_players.keys():
+		_remove_remote_player(id)
+	remote_players.clear()
+	
+	# Clear all enemies - they were in the old zone
+	for id in enemies.keys():
+		_remove_enemy(id)
+	enemies.clear()
+	
+	# Clear world items
+	for id in world_items.keys():
+		if world_items[id].has("node"):
+			world_items[id]["node"].queue_free()
+	world_items.clear()
+	
+	# Clear targeting if any
+	var targeting_system = get_tree().get_first_node_in_group("targeting_system")
+	if targeting_system and targeting_system.has_method("clear_target"):
+		targeting_system.clear_target()
+	
+	print("GameManager: Cleared ", remote_players.size(), " players, ", enemies.size(), " enemies")
 
 
 # =============================================================================

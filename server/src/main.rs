@@ -12,11 +12,49 @@ use log::{info, error};
 use mmo_shared::{DEFAULT_PORT, SERVER_TICK_RATE};
 
 use crate::network::Server;
-use crate::world::GameWorld;
+use crate::world::{GameWorld, ZoneManager};
 use crate::persistence::{PersistenceHandle, Database};
 
 /// Database URL (matches docker-compose.yml)
 const DATABASE_URL: &str = "postgres://mmo:mmo_dev_password@localhost:5433/mmo";
+
+/// Load zones from database
+async fn load_zones_from_db(db: &Database) -> ZoneManager {
+    let mut zone_manager = ZoneManager::new();
+    
+    // Load zones
+    match db.load_zones().await {
+        Ok(zones) => {
+            zone_manager.load_zones(zones);
+        }
+        Err(e) => {
+            error!("Failed to load zones: {}", e);
+            return ZoneManager::with_defaults();
+        }
+    }
+    
+    // Load spawn points
+    match db.load_zone_spawn_points().await {
+        Ok(spawn_points) => {
+            zone_manager.load_spawn_points(spawn_points);
+        }
+        Err(e) => {
+            error!("Failed to load zone spawn points: {}", e);
+        }
+    }
+    
+    // Load enemy spawns
+    match db.load_zone_enemy_spawns().await {
+        Ok(enemy_spawns) => {
+            zone_manager.load_enemy_spawns(enemy_spawns);
+        }
+        Err(e) => {
+            error!("Failed to load zone enemy spawns: {}", e);
+        }
+    }
+    
+    zone_manager
+}
 
 /// Redis URL (matches docker-compose.yml)
 const REDIS_URL: &str = "redis://localhost:6380";
@@ -46,10 +84,11 @@ async fn main() {
         }
     };
     
-    // Load items from database
-    let items = match Database::connect(DATABASE_URL).await {
+    // Load items and zones from database
+    let (items, zone_manager) = match Database::connect(DATABASE_URL).await {
         Ok(db) => {
-            match db.load_all_items().await {
+            // Load items
+            let items = match db.load_all_items().await {
                 Ok(items) => {
                     info!("Loaded {} items from database", items.len());
                     items
@@ -57,26 +96,32 @@ async fn main() {
                 Err(e) => {
                     error!("Failed to load items from database: {}", e);
                     error!("Using fallback hardcoded items");
-                    // Fallback to hardcoded items
                     mmo_shared::get_item_definitions()
                         .into_iter()
                         .map(|i| (i.id, i))
                         .collect()
                 }
-            }
+            };
+            
+            // Load zones
+            let zone_manager = load_zones_from_db(&db).await;
+            
+            (items, zone_manager)
         }
         Err(e) => {
-            error!("Failed to connect to database for items: {}", e);
-            error!("Using fallback hardcoded items");
-            mmo_shared::get_item_definitions()
+            error!("Failed to connect to database: {}", e);
+            error!("Using fallback hardcoded items and zones");
+            let items = mmo_shared::get_item_definitions()
                 .into_iter()
                 .map(|i| (i.id, i))
-                .collect()
+                .collect();
+            let zone_manager = ZoneManager::with_defaults();
+            (items, zone_manager)
         }
     };
     
-    // Create the game world with loaded items
-    let mut world = GameWorld::new(items);
+    // Create the game world with loaded items and zones
+    let mut world = GameWorld::new(items, zone_manager);
     
     // Create the network server
     let mut server = match Server::new(DEFAULT_PORT, persistence.clone()).await {

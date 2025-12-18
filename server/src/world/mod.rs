@@ -1,5 +1,9 @@
 //! Game world management.
 
+mod zone_manager;
+
+pub use zone_manager::{ZoneManager, ZoneDefinition, ZoneSpawnPoint, ZoneEnemySpawn};
+
 use std::collections::HashMap;
 use log::{info, debug};
 use rand::Rng;
@@ -22,10 +26,12 @@ pub struct GameWorld {
     next_item_id: u64,
     /// Item definitions loaded from database
     pub items: HashMap<u32, ItemDef>,
+    /// Zone manager
+    pub zone_manager: ZoneManager,
 }
 
 impl GameWorld {
-    pub fn new(items: HashMap<u32, ItemDef>) -> Self {
+    pub fn new(items: HashMap<u32, ItemDef>, zone_manager: ZoneManager) -> Self {
         let mut world = Self {
             players: HashMap::new(),
             enemies: HashMap::new(),
@@ -33,37 +39,73 @@ impl GameWorld {
             next_enemy_id: 10000, // Start enemy IDs high to avoid confusion with player IDs
             next_item_id: 20000,
             items,
+            zone_manager,
         };
         
-        // Spawn some initial enemies
-        world.spawn_initial_enemies();
+        // Spawn enemies for all zones
+        world.spawn_all_zone_enemies();
         
         world
     }
     
-    /// Spawn initial enemies for the zone
-    fn spawn_initial_enemies(&mut self) {
-        let spawn_points = [
-            ([10.0, 0.0, 10.0], EnemyType::Goblin),
-            ([-10.0, 0.0, 5.0], EnemyType::Goblin),
-            ([15.0, 0.0, -10.0], EnemyType::Goblin),
-            ([0.0, 0.0, 20.0], EnemyType::Wolf),
-            ([-15.0, 0.0, -15.0], EnemyType::Skeleton),
-        ];
+    /// Spawn enemies for all zones using zone_manager data
+    fn spawn_all_zone_enemies(&mut self) {
+        let zone_ids = self.zone_manager.get_zone_ids();
+        let mut total_spawned = 0;
         
-        for (pos, enemy_type) in spawn_points {
-            self.spawn_enemy(pos, enemy_type);
+        // Collect spawn data first to avoid borrow issues
+        let mut spawn_data: Vec<(u32, [f32; 3], EnemyType)> = Vec::new();
+        for zone_id in zone_ids {
+            let spawns = self.zone_manager.get_enemy_spawns(zone_id);
+            for spawn in spawns {
+                spawn_data.push((zone_id, spawn.position, spawn.enemy_type));
+            }
         }
         
-        info!("Spawned {} initial enemies", self.enemies.len());
+        // Now spawn enemies
+        for (zone_id, position, enemy_type) in spawn_data {
+            self.spawn_enemy(zone_id, position, enemy_type);
+            total_spawned += 1;
+        }
+        
+        info!("Spawned {} enemies across all zones", total_spawned);
     }
     
-    /// Spawn a new enemy
-    pub fn spawn_enemy(&mut self, position: [f32; 3], enemy_type: EnemyType) -> u64 {
+    /// Spawn enemies for a specific zone
+    pub fn spawn_enemies_for_zone(&mut self, zone_id: u32) -> Vec<ServerMessage> {
+        let mut messages = Vec::new();
+        
+        // Collect spawn data first to avoid borrow issues
+        let spawn_data: Vec<([f32; 3], EnemyType)> = self.zone_manager
+            .get_enemy_spawns(zone_id)
+            .iter()
+            .map(|spawn| (spawn.position, spawn.enemy_type))
+            .collect();
+        
+        for (position, enemy_type) in spawn_data {
+            let enemy_id = self.spawn_enemy(zone_id, position, enemy_type);
+            if let Some(enemy) = self.enemies.get(&enemy_id) {
+                messages.push(ServerMessage::EnemySpawn {
+                    id: enemy_id,
+                    zone_id,
+                    enemy_type: enemy.enemy_type,
+                    position: enemy.position,
+                    health: enemy.health,
+                    max_health: enemy.max_health,
+                    level: enemy.level,
+                });
+            }
+        }
+        
+        messages
+    }
+    
+    /// Spawn a new enemy in a zone
+    pub fn spawn_enemy(&mut self, zone_id: u32, position: [f32; 3], enemy_type: EnemyType) -> u64 {
         let id = self.next_enemy_id;
         self.next_enemy_id += 1;
         
-        let enemy = ServerEnemy::new(id, enemy_type, position);
+        let enemy = ServerEnemy::new(id, zone_id, enemy_type, position);
         self.enemies.insert(id, enemy);
         
         id
@@ -78,6 +120,7 @@ impl GameWorld {
         class: CharacterClass,
         gender: Gender,
         empire: Empire,
+        zone_id: u32,
         position: [f32; 3],
         rotation: f32,
         health: u32,
@@ -106,6 +149,7 @@ impl GameWorld {
             class,
             gender,
             empire,
+            zone_id,
             position,
             rotation,
             health,
@@ -145,9 +189,23 @@ impl GameWorld {
         self.players.values().collect()
     }
     
+    /// Get all players in a specific zone
+    pub fn get_players_in_zone(&self, zone_id: u32) -> Vec<&ServerPlayer> {
+        self.players.values()
+            .filter(|p| p.zone_id == zone_id)
+            .collect()
+    }
+    
     /// Get all enemies
     pub fn get_enemies(&self) -> Vec<&ServerEnemy> {
         self.enemies.values().collect()
+    }
+    
+    /// Get all enemies in a specific zone
+    pub fn get_enemies_in_zone(&self, zone_id: u32) -> Vec<&ServerEnemy> {
+        self.enemies.values()
+            .filter(|e| e.zone_id == zone_id)
+            .collect()
     }
     
     /// Update player state from client input
@@ -313,17 +371,28 @@ impl GameWorld {
     fn update_enemies(&mut self, delta: f32) -> Vec<ServerMessage> {
         let mut damage_events = Vec::new();
         
-        let player_positions: Vec<(u64, [f32; 3])> = self.players
-            .values()
-            .filter(|p| !p.is_dead())  // Don't let enemies see/target dead players
-            .map(|p| (p.id, p.position))
-            .collect();
+        // Build a map of zone_id -> player positions for that zone
+        let mut zone_player_positions: HashMap<u32, Vec<(u64, [f32; 3])>> = HashMap::new();
+        for player in self.players.values() {
+            if !player.is_dead() {
+                zone_player_positions
+                    .entry(player.zone_id)
+                    .or_insert_with(Vec::new)
+                    .push((player.id, player.position));
+            }
+        }
         
         // Collect attacks from enemies
         let mut attacks: Vec<(u64, u64, u32)> = Vec::new(); // (enemy_id, player_id, damage)
         
         for enemy in self.enemies.values_mut() {
-            if let Some((target_player_id, damage)) = enemy.update(delta, &player_positions) {
+            // Get players in the same zone as this enemy
+            let player_positions = zone_player_positions
+                .get(&enemy.zone_id)
+                .map(|v| v.as_slice())
+                .unwrap_or(&[]);
+            
+            if let Some((target_player_id, damage)) = enemy.update(delta, player_positions) {
                 attacks.push((enemy.id, target_player_id, damage));
             }
         }
@@ -435,12 +504,15 @@ impl GameWorld {
                     enemy.spawn_position[1],
                     enemy.spawn_position[2] + rng.gen_range(-5.0..5.0),
                 ];
-                let new_enemy_id = self.spawn_enemy(new_pos, enemy.enemy_type);
+                // Preserve zone_id when respawning
+                let zone_id = enemy.zone_id;
+                let new_enemy_id = self.spawn_enemy(zone_id, new_pos, enemy.enemy_type);
                 
                 // Broadcast new enemy spawn
                 if let Some(new_enemy) = self.enemies.get(&new_enemy_id) {
                     messages.push(ServerMessage::EnemySpawn {
                         id: new_enemy_id,
+                        zone_id,
                         enemy_type: new_enemy.enemy_type,
                         position: new_enemy.position,
                         health: new_enemy.health,

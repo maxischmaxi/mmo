@@ -57,6 +57,9 @@ pub struct Player {
     /// Character empire
     character_empire: Option<Empire>,
     
+    /// Current zone ID
+    current_zone_id: u32,
+    
     /// Current health
     current_health: u32,
     
@@ -131,6 +134,7 @@ impl ICharacterBody3D for Player {
             character_class: None,
             character_gender: None,
             character_empire: None,
+            current_zone_id: 0,
             current_health: 100,
             max_health: 100,
             current_mana: 50,
@@ -320,6 +324,14 @@ impl Player {
     /// longitude: server location longitude for solar calculations
     #[signal]
     fn time_sync(unix_timestamp: i64, latitude: f64, longitude: f64);
+    
+    /// Signal emitted when zone changes (on character select or zone transition)
+    /// zone_id: zone ID (1-99: Shinsoo, 100-199: Chunjo, 200-299: Jinno, 300+: Neutral)
+    /// zone_name: display name of the zone
+    /// scene_path: Godot scene path to load
+    /// spawn_x, spawn_y, spawn_z: spawn position in the zone
+    #[signal]
+    fn zone_change(zone_id: i64, zone_name: GString, scene_path: GString, spawn_x: f64, spawn_y: f64, spawn_z: f64);
 
     // ==========================================================================
     // Auth methods
@@ -470,6 +482,12 @@ impl Player {
     #[func]
     fn get_character_empire(&self) -> i64 {
         self.character_empire.map(|e| e.as_u8() as i64).unwrap_or(-1)
+    }
+    
+    /// Get current zone ID
+    #[func]
+    fn get_current_zone_id(&self) -> i64 {
+        self.current_zone_id as i64
     }
     
     // ==========================================================================
@@ -956,6 +974,7 @@ impl Player {
                 class,
                 gender,
                 empire,
+                zone_id,
                 position,
                 rotation,
                 health,
@@ -976,6 +995,7 @@ impl Player {
                 self.character_class = Some(class);
                 self.character_gender = Some(gender);
                 self.character_empire = Some(empire);
+                self.current_zone_id = zone_id;
                 
                 // Use character_id as player_id for game world
                 self.player_id = Some(character_id);
@@ -1117,7 +1137,7 @@ impl Player {
                 }
             }
             
-            ServerMessage::EnemySpawn { id, enemy_type, position, health, max_health, level } => {
+            ServerMessage::EnemySpawn { id, zone_id: _, enemy_type, position, health, max_health, level } => {
                 let pos = Vector3::new(position[0], position[1], position[2]);
                 let enemy_type_int = match enemy_type {
                     mmo_shared::EnemyType::Goblin => 0,
@@ -1206,6 +1226,21 @@ impl Player {
                     unix_timestamp.to_variant(),
                     (latitude as f64).to_variant(),
                     (longitude as f64).to_variant(),
+                ]);
+            }
+            
+            ServerMessage::ZoneChange { zone_id, zone_name, scene_path, spawn_position } => {
+                // Update current zone
+                self.current_zone_id = zone_id;
+                
+                // Emit zone change signal for ZoneManager to handle scene loading
+                self.base_mut().emit_signal("zone_change", &[
+                    (zone_id as i64).to_variant(),
+                    GString::from(&zone_name).to_variant(),
+                    GString::from(&scene_path).to_variant(),
+                    (spawn_position[0] as f64).to_variant(),
+                    (spawn_position[1] as f64).to_variant(),
+                    (spawn_position[2] as f64).to_variant(),
                 ]);
             }
             

@@ -522,12 +522,19 @@ impl Server {
             };
         }
         
-        // If player has 0 health (died and logged out), respawn them at empire spawn with 20% HP
+        // Determine zone_id - use saved zone or fallback to empire default
+        let zone_id = if player_state.zone_id > 0 && world.zone_manager.zone_exists(player_state.zone_id as u32) {
+            player_state.zone_id as u32
+        } else {
+            world.zone_manager.get_default_zone_for_empire(character.empire)
+        };
+        
+        // If player has 0 health (died and logged out), respawn them at zone spawn with 20% HP
         let (spawn_position, spawn_health) = if player_state.health <= 0 {
-            let empire_spawn = character.empire.spawn_position();
+            let zone_spawn = world.zone_manager.get_default_spawn_point(zone_id);
             let respawn_health = (player_state.max_health as f32 * 0.2).max(1.0) as i32;
-            info!("Character '{}' was dead, respawning at empire spawn with {} HP", character.name, respawn_health);
-            (empire_spawn, respawn_health)
+            info!("Character '{}' was dead, respawning at zone {} spawn with {} HP", character.name, zone_id, respawn_health);
+            (zone_spawn, respawn_health)
         } else {
             ([player_state.position_x, player_state.position_y, player_state.position_z], player_state.health)
         };
@@ -539,6 +546,7 @@ impl Server {
             character.class,
             character.gender,
             character.empire,
+            zone_id,
             spawn_position,
             player_state.rotation,
             spawn_health as u32,
@@ -571,6 +579,7 @@ impl Server {
             class: character.class,
             gender: character.gender,
             empire: character.empire,
+            zone_id,
             position: spawn_position,
             rotation: player_state.rotation,
             health: spawn_health as u32,
@@ -587,6 +596,17 @@ impl Server {
         };
         self.send_to(addr, &msg).await;
         
+        // Send ZoneChange message with zone info
+        if let Some(zone) = world.zone_manager.get_zone(zone_id) {
+            let zone_change_msg = ServerMessage::ZoneChange {
+                zone_id,
+                zone_name: zone.name.clone(),
+                scene_path: zone.scene_path.clone(),
+                spawn_position,
+            };
+            self.send_to(addr, &zone_change_msg).await;
+        }
+        
         // Send time sync for day/night cycle (Berlin, Germany coordinates)
         let time_sync_msg = ServerMessage::TimeSync {
             unix_timestamp: std::time::SystemTime::now()
@@ -598,42 +618,49 @@ impl Server {
         };
         self.send_to(addr, &time_sync_msg).await;
         
-        // Notify other players (only those in game)
+        // Notify other players in the SAME ZONE (only those in game)
         let spawn_msg = ServerMessage::PlayerSpawn {
             id: player_id,
             name: character.name.clone(),
             class: character.class,
             gender: character.gender,
             empire: character.empire,
+            zone_id,
             position: spawn_position,
             rotation: player_state.rotation,
         };
-        self.broadcast_to_ingame_except(addr, spawn_msg);
+        self.broadcast_to_zone_except(addr, zone_id, spawn_msg, world);
         
-        // Send existing players and enemies to new client
+        // Send existing players and enemies IN THE SAME ZONE to new client
         let mut messages_for_new_client: Vec<ServerMessage> = Vec::new();
         
         for (other_addr, other_client) in &self.clients {
             if *other_addr != addr {
                 if let ConnectionState::InGame { character_name, class, gender, empire, .. } = &other_client.state {
                     if let Some(player) = world.get_player(other_client.player_id) {
-                        messages_for_new_client.push(ServerMessage::PlayerSpawn {
-                            id: other_client.player_id,
-                            name: character_name.clone(),
-                            class: *class,
-                            gender: *gender,
-                            empire: *empire,
-                            position: player.position,
-                            rotation: player.rotation,
-                        });
+                        // Only send players in the same zone
+                        if player.zone_id == zone_id {
+                            messages_for_new_client.push(ServerMessage::PlayerSpawn {
+                                id: other_client.player_id,
+                                name: character_name.clone(),
+                                class: *class,
+                                gender: *gender,
+                                empire: *empire,
+                                zone_id: player.zone_id,
+                                position: player.position,
+                                rotation: player.rotation,
+                            });
+                        }
                     }
                 }
             }
         }
         
-        for enemy in world.get_enemies() {
+        // Only send enemies in the same zone
+        for enemy in world.get_enemies_in_zone(zone_id) {
             messages_for_new_client.push(ServerMessage::EnemySpawn {
                 id: enemy.id,
+                zone_id: enemy.zone_id,
                 enemy_type: enemy.enemy_type,
                 position: enemy.position,
                 health: enemy.health,
@@ -1083,45 +1110,62 @@ impl Server {
         }
     }
     
-    /// Broadcast world state to all connected clients
+    /// Broadcast world state to all connected clients (zone-filtered)
+    /// Each client only receives players and enemies in their current zone
     pub async fn broadcast_world_state(&self, world: &GameWorld, tick: u64) {
-        let players: Vec<PlayerState> = world.get_players()
-            .iter()
-            .map(|p| PlayerState {
-                id: p.id,
-                position: p.position,
-                rotation: p.rotation,
-                velocity: p.velocity,
-                health: p.health,
-                max_health: p.max_health,
-                animation_state: p.animation_state,
-            })
-            .collect();
-        
-        let enemies: Vec<EnemyState> = world.get_enemies()
-            .iter()
-            .map(|e| EnemyState {
-                id: e.id,
-                enemy_type: e.enemy_type,
-                position: e.position,
-                rotation: e.rotation,
-                health: e.health,
-                max_health: e.max_health,
-                level: e.level,
-                animation_state: e.animation_state,
-                target_id: e.target_id,
-            })
-            .collect();
-        
-        let msg = ServerMessage::WorldState {
-            tick,
-            players,
-            enemies,
-        };
-        
-        let data = msg.serialize();
-        
-        for (addr, _) in &self.clients {
+        // For each in-game client, send zone-filtered world state
+        for (addr, client) in &self.clients {
+            // Only send to in-game clients
+            if !client.is_in_game() {
+                continue;
+            }
+            
+            // Get the player's current zone
+            let player_zone_id = match world.get_player(client.player_id) {
+                Some(p) => p.zone_id,
+                None => continue, // Player not in world, skip
+            };
+            
+            // Get players in the same zone
+            let players: Vec<PlayerState> = world.get_players_in_zone(player_zone_id)
+                .iter()
+                .map(|p| PlayerState {
+                    id: p.id,
+                    zone_id: p.zone_id,
+                    position: p.position,
+                    rotation: p.rotation,
+                    velocity: p.velocity,
+                    health: p.health,
+                    max_health: p.max_health,
+                    animation_state: p.animation_state,
+                })
+                .collect();
+            
+            // Get enemies in the same zone
+            let enemies: Vec<EnemyState> = world.get_enemies_in_zone(player_zone_id)
+                .iter()
+                .map(|e| EnemyState {
+                    id: e.id,
+                    zone_id: e.zone_id,
+                    enemy_type: e.enemy_type,
+                    position: e.position,
+                    rotation: e.rotation,
+                    health: e.health,
+                    max_health: e.max_health,
+                    level: e.level,
+                    animation_state: e.animation_state,
+                    target_id: e.target_id,
+                })
+                .collect();
+            
+            let msg = ServerMessage::WorldState {
+                tick,
+                players,
+                enemies,
+            };
+            
+            let data = msg.serialize();
+            
             if let Err(e) = self.socket.send_to(&data, addr).await {
                 error!("Failed to send world state to {}: {}", addr, e);
             }
@@ -1168,6 +1212,33 @@ impl Server {
         }
     }
     
+    /// Queue a message to broadcast to all in-game clients in a specific zone, except one
+    fn broadcast_to_zone_except(&mut self, except: SocketAddr, zone_id: u32, msg: ServerMessage, world: &GameWorld) {
+        for (addr, client) in &mut self.clients {
+            if *addr != except && client.is_in_game() {
+                // Check if this client is in the same zone
+                if let Some(player) = world.get_player(client.player_id) {
+                    if player.zone_id == zone_id {
+                        client.outgoing_queue.push(msg.clone());
+                    }
+                }
+            }
+        }
+    }
+    
+    /// Queue a message to broadcast to all in-game clients in a specific zone
+    fn broadcast_to_zone(&mut self, zone_id: u32, msg: ServerMessage, world: &GameWorld) {
+        for client in self.clients.values_mut() {
+            if client.is_in_game() {
+                if let Some(player) = world.get_player(client.player_id) {
+                    if player.zone_id == zone_id {
+                        client.outgoing_queue.push(msg.clone());
+                    }
+                }
+            }
+        }
+    }
+    
     /// Queue a message to broadcast to all in-game clients
     fn broadcast_to_ingame(&mut self, msg: ServerMessage) {
         for client in self.clients.values_mut() {
@@ -1206,6 +1277,7 @@ use crate::entities::ServerPlayer;
 
 fn player_to_state_data(player: &ServerPlayer) -> PlayerStateData {
     PlayerStateData {
+        zone_id: player.zone_id as i32,
         position_x: player.position[0],
         position_y: player.position[1],
         position_z: player.position[2],

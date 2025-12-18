@@ -1,8 +1,5 @@
-[gd_scene load_steps=17 format=3 uid="uid://dmwxm4pqywvpr"]
+[gd_scene load_steps=18 format=3 uid="uid://dmwxm4pqywvpr"]
 
-[ext_resource type="PackedScene" uid="uid://c7xqymt1kcmjk" path="res://scenes/world/zone_1.tscn" id="1_zone"]
-[ext_resource type="PackedScene" uid="uid://czone2chunjo" path="res://scenes/world/zone_2.tscn" id="1_zone2"]
-[ext_resource type="PackedScene" uid="uid://czone3jinno" path="res://scenes/world/zone_3.tscn" id="1_zone3"]
 [ext_resource type="PackedScene" uid="uid://bk3qj8l2xp5yw" path="res://scenes/player/player.tscn" id="2_player"]
 [ext_resource type="Script" path="res://scripts/game_manager.gd" id="3_game_manager"]
 [ext_resource type="PackedScene" uid="uid://bfkqj2mw6xypr" path="res://scenes/ui/chat.tscn" id="4_chat"]
@@ -16,6 +13,8 @@
 [ext_resource type="PackedScene" uid="uid://cmdevmenu123" path="res://scenes/ui/dev_menu.tscn" id="12_devmenu"]
 [ext_resource type="Script" path="res://scripts/day_night_controller.gd" id="13_daynight"]
 [ext_resource type="Shader" path="res://shaders/sky.gdshader" id="14_sky_shader"]
+[ext_resource type="Script" path="res://scripts/zone_manager.gd" id="15_zone_manager"]
+[ext_resource type="PackedScene" uid="uid://c1yb2ldvqxwfx" path="res://scenes/ui/loading_screen.tscn" id="16_loading"]
 
 [sub_resource type="ShaderMaterial" id="ShaderMaterial_sky"]
 shader = ExtResource("14_sky_shader")
@@ -41,11 +40,10 @@ ambient_light_energy = 0.8
 
 [node name="Main" type="Node3D"]
 
-[node name="Zone1" parent="." instance=ExtResource("1_zone")]
+[node name="ZoneManager" type="Node" parent="."]
+script = ExtResource("15_zone_manager")
 
-[node name="Zone2" parent="." instance=ExtResource("1_zone2")]
-
-[node name="Zone3" parent="." instance=ExtResource("1_zone3")]
+[node name="ZoneContainer" type="Node3D" parent="ZoneManager"]
 
 [node name="Player" parent="." groups=["local_player"] instance=ExtResource("2_player")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1, 0)
@@ -70,6 +68,9 @@ script = ExtResource("10_cursor")
 [node name="UI" type="CanvasLayer" parent="."]
 
 [node name="LoginScreen" parent="UI" instance=ExtResource("11_login")]
+
+[node name="LoadingScreen" parent="UI" instance=ExtResource("16_loading")]
+visible = false
 
 [node name="GameUI" type="Control" parent="UI"]
 visible = false

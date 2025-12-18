@@ -91,6 +91,7 @@ func _on_visibility_changed() -> void:
 	
 	var container = get_node_or_null("SubViewportContainer")
 	var viewport = get_node_or_null("SubViewportContainer/SubViewport")
+	var floor_mesh = get_node_or_null("SubViewportContainer/SubViewport/Floor")
 	
 	if visible:
 		# Show and enable rendering when visible
@@ -98,12 +99,30 @@ func _on_visibility_changed() -> void:
 			container.visible = true
 		if viewport:
 			viewport.render_target_update_mode = SubViewport.UPDATE_ALWAYS
+		if floor_mesh:
+			floor_mesh.visible = true
 	else:
 		# Hide and disable rendering when hidden
 		if container:
 			container.visible = false
 		if viewport:
 			viewport.render_target_update_mode = SubViewport.UPDATE_DISABLED
+		if floor_mesh:
+			floor_mesh.visible = false
+		
+		# Clean up character models to prevent any rendering issues
+		_cleanup_character_models()
+
+
+func _cleanup_character_models() -> void:
+	"""Remove all character models from the scene."""
+	for i in range(MAX_SLOTS):
+		if character_models[i] != null:
+			character_models[i].queue_free()
+			character_models[i] = null
+		if i < slot_nodes.size():
+			for child in slot_nodes[i].get_children():
+				child.queue_free()
 
 
 func _setup_slot_nodes() -> void:
