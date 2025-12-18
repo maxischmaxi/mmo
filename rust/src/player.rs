@@ -685,10 +685,10 @@ impl Player {
     fn process_input(&mut self, delta: f64) {
         // Skip input processing if UI is capturing input (e.g., chat is focused)
         if self.is_ui_capturing_input() {
-            // Still apply deceleration when not controlling
+            // Stop immediately when UI is capturing input
             let mut velocity = self.base().get_velocity();
-            velocity.x = velocity.x.lerp(0.0, 0.1);
-            velocity.z = velocity.z.lerp(0.0, 0.1);
+            velocity.x = 0.0;
+            velocity.z = 0.0;
             self.base_mut().set_velocity(velocity);
             self.base_mut().move_and_slide();
             self.animation_state = AnimationState::Idle;
@@ -753,9 +753,9 @@ impl Player {
             let new_yaw = Self::lerp_angle(current_rot.y, target_yaw, 10.0 * delta as f32);
             self.base_mut().set_rotation(Vector3::new(current_rot.x, new_yaw, current_rot.z));
         } else {
-            // Decelerate when no input
-            velocity.x = velocity.x.lerp(0.0, 0.1);
-            velocity.z = velocity.z.lerp(0.0, 0.1);
+            // Stop immediately when no input
+            velocity.x = 0.0;
+            velocity.z = 0.0;
             self.animation_state = AnimationState::Idle;
         }
 

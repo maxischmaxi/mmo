@@ -205,9 +205,9 @@ func _handle_mouse_motion(motion: InputEventMouseMotion) -> void:
 
 
 func _process(delta: float) -> void:
-	# Follow target
-	if target:
-		global_position = target.global_position
+	# Note: Camera follows player automatically via parent-child relationship.
+	# The CameraController is a child of Player with a local Y offset of 1.5.
+	# We only need to handle rotation and zoom here.
 	
 	# Smooth zoom
 	current_distance = lerp(current_distance, target_distance, smooth_speed * delta)

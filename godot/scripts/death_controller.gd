@@ -8,6 +8,12 @@ var player: CharacterBody3D
 ## Reference to the animation controller
 var animation_controller: Node
 
+## Reference to the combat controller
+var combat_controller: Node
+
+## Reference to the click movement controller
+var click_movement_controller: Node
+
 ## The death dialog instance
 var death_dialog: CanvasLayer
 
@@ -24,6 +30,10 @@ func _ready() -> void:
 	
 	# Find animation controller
 	animation_controller = _find_animation_controller()
+	
+	# Find combat and movement controllers
+	combat_controller = player.get_node_or_null("CombatController")
+	click_movement_controller = player.get_node_or_null("ClickMovementController")
 	
 	# Connect to player signals
 	if player.has_signal("player_died"):
@@ -69,6 +79,14 @@ func _find_animation_controller() -> Node:
 func _on_player_died() -> void:
 	print("DeathController: Player died!")
 	
+	# Stop all combat immediately
+	if combat_controller and combat_controller.has_method("stop_auto_attack"):
+		combat_controller.stop_auto_attack()
+	
+	# Stop all movement immediately
+	if click_movement_controller and click_movement_controller.has_method("cancel_movement"):
+		click_movement_controller.cancel_movement()
+	
 	# Play death animation
 	if animation_controller and animation_controller.has_method("play_death_animation"):
 		animation_controller.play_death_animation()
@@ -103,6 +121,14 @@ func _on_revive_here() -> void:
 func _on_player_respawned(position: Vector3, health: int, max_health: int) -> void:
 	print("DeathController: Player respawned at %s with %d/%d HP" % [position, health, max_health])
 	
+	# Ensure combat is stopped (clean state after respawn)
+	if combat_controller and combat_controller.has_method("stop_auto_attack"):
+		combat_controller.stop_auto_attack()
+	
+	# Ensure movement is stopped (clean state after respawn)
+	if click_movement_controller and click_movement_controller.has_method("cancel_movement"):
+		click_movement_controller.cancel_movement()
+	
 	# Reset animation state
 	if animation_controller and animation_controller.has_method("reset_from_death"):
 		animation_controller.reset_from_death()
@@ -110,9 +136,6 @@ func _on_player_respawned(position: Vector3, health: int, max_health: int) -> vo
 	# Hide death dialog if still visible
 	if death_dialog:
 		death_dialog.hide_dialog()
-	
-	# Restore mouse mode for gameplay
-	Input.set_mouse_mode(Input.MOUSE_MODE_CAPTURED)
 
 
 func _exit_tree() -> void:

@@ -5,6 +5,9 @@ extends Node3D
 ## Signal emitted when attack animation finishes
 signal attack_finished
 
+## Signal emitted when attack animation reaches the hit point (damage should be applied)
+signal attack_hit
+
 ## Signal emitted when death animation finishes
 signal death_animation_finished
 
@@ -30,8 +33,15 @@ var is_attacking: bool = false
 ## Whether the character is dead (blocks all other animations)
 var is_dead: bool = false
 
+## Timer for attack hit point
+var attack_hit_timer: SceneTreeTimer = null
+
 ## Base attack animation duration (Sword_Attack is 1.53 seconds)
 const BASE_ATTACK_DURATION: float = 1.53
+
+## Attack hit point (percentage through animation when damage should be dealt)
+## 0.5 = 50% through animation, when sword typically connects
+const ATTACK_HIT_POINT: float = 0.5
 
 # Speed thresholds
 const RUN_SPEED := 0.5  # Any movement above this plays run animation
@@ -221,8 +231,23 @@ func play_attack_animation(attack_speed: float = 1.0) -> float:
 		animation_player.speed_scale = 1.0
 		return 0.0
 	
+	# Calculate actual animation duration
+	var actual_duration := BASE_ATTACK_DURATION / attack_speed
+	
+	# Create timer for hit point (when damage should be dealt)
+	var hit_delay := actual_duration * ATTACK_HIT_POINT
+	attack_hit_timer = get_tree().create_timer(hit_delay)
+	attack_hit_timer.timeout.connect(_on_attack_hit_timer)
+	
 	# Return actual animation duration
-	return BASE_ATTACK_DURATION / attack_speed
+	return actual_duration
+
+
+## Called when attack hit timer fires (at the hit point in animation)
+func _on_attack_hit_timer() -> void:
+	if is_attacking:
+		attack_hit.emit()
+	attack_hit_timer = null
 
 
 ## Cancel the current attack animation (if allowed)
@@ -232,6 +257,13 @@ func cancel_attack() -> void:
 	
 	is_attacking = false
 	animation_player.speed_scale = 1.0
+	
+	# Cancel hit timer to prevent damage from cancelled attack
+	if attack_hit_timer and attack_hit_timer.time_left > 0:
+		# Disconnect the timer signal to prevent it from firing
+		if attack_hit_timer.timeout.is_connected(_on_attack_hit_timer):
+			attack_hit_timer.timeout.disconnect(_on_attack_hit_timer)
+	attack_hit_timer = null
 	
 	# Return to idle immediately
 	play_animation(ANIM_IDLE, 0.1)

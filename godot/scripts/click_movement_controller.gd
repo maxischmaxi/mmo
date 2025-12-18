@@ -42,6 +42,11 @@ func _physics_process(delta: float) -> void:
 	if not is_moving_to_target or not player:
 		return
 	
+	# Don't process movement if player is dead
+	if player.has_method("is_player_dead") and player.is_player_dead():
+		cancel_movement()
+		return
+	
 	# Check if WASD is being pressed - cancel click-to-move
 	if _is_wasd_pressed():
 		cancel_movement()

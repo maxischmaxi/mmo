@@ -38,6 +38,9 @@ var attack_cooldown: float = 0.0
 ## Whether we're moving to attack (out of range, moving closer)
 var is_moving_to_attack: bool = false
 
+## Pending attack target ID (attack in progress, waiting for hit point)
+var pending_attack_target_id: int = -1
+
 ## Attack range
 const ATTACK_RANGE: float = 3.0
 
@@ -72,8 +75,11 @@ func _find_animation_controller() -> void:
 	var char_model = player.get_node_or_null("CharacterModel")
 	if char_model:
 		animation_controller = char_model.get_node_or_null("AnimationController")
-		if animation_controller and animation_controller.has_signal("attack_finished"):
-			animation_controller.attack_finished.connect(_on_attack_animation_finished)
+		if animation_controller:
+			if animation_controller.has_signal("attack_finished"):
+				animation_controller.attack_finished.connect(_on_attack_animation_finished)
+			if animation_controller.has_signal("attack_hit"):
+				animation_controller.attack_hit.connect(_on_attack_hit)
 
 
 func _find_click_movement_controller() -> void:
@@ -83,6 +89,10 @@ func _find_click_movement_controller() -> void:
 
 
 func _process(delta: float) -> void:
+	# Don't process combat if player is dead
+	if player and player.has_method("is_player_dead") and player.is_player_dead():
+		return
+	
 	# Update cooldown
 	if attack_cooldown > 0:
 		attack_cooldown -= delta
@@ -138,6 +148,7 @@ func stop_auto_attack() -> void:
 	is_moving_to_attack = false
 	attack_target_id = -1
 	attack_target_node = null
+	pending_attack_target_id = -1  # Clear pending attack
 	
 	# Cancel attack animation if playing
 	if animation_controller and animation_controller.has_method("cancel_attack"):
@@ -248,17 +259,16 @@ func _perform_attack() -> void:
 	# Get attack speed
 	var attack_speed := _get_attack_speed()
 	
-	# Play attack animation
+	# Store pending attack target (damage will be dealt when animation hits)
+	pending_attack_target_id = attack_target_id
+	
+	# Play attack animation (this will trigger attack_hit signal at hit point)
 	if animation_controller and animation_controller.has_method("play_attack_animation"):
 		animation_controller.play_attack_animation(attack_speed)
 	
 	# Set animation state on player (for network sync)
 	if player.has_method("set_animation_state"):
 		player.set_animation_state(4)  # 4 = Attacking
-	
-	# Send attack to server
-	if player.has_method("attack_target"):
-		player.attack_target(attack_target_id)
 	
 	# Start cooldown
 	attack_cooldown = BASE_ATTACK_DURATION / attack_speed
@@ -297,8 +307,34 @@ func _get_attack_speed() -> float:
 	return 1.0
 
 
+## Called when attack animation reaches hit point (damage should be dealt now)
+func _on_attack_hit() -> void:
+	# Verify we have a pending attack
+	if pending_attack_target_id == -1:
+		return
+	
+	# Verify target is still valid
+	if attack_target_node == null or not is_instance_valid(attack_target_node):
+		pending_attack_target_id = -1
+		return
+	
+	# Verify still in range (target might have moved)
+	if not _is_in_attack_range():
+		pending_attack_target_id = -1
+		return
+	
+	# Send attack to server NOW (at the hit point of the animation)
+	if player.has_method("attack_target"):
+		player.attack_target(pending_attack_target_id)
+	
+	pending_attack_target_id = -1
+
+
 ## Called when attack animation finishes
 func _on_attack_animation_finished() -> void:
+	# Clear any pending attack that didn't fire
+	pending_attack_target_id = -1
+	
 	# Reset animation state to idle (will be overridden by movement if moving)
 	if player.has_method("set_animation_state"):
 		player.set_animation_state(0)  # 0 = Idle

@@ -285,6 +285,7 @@ impl GameWorld {
         
         let player_positions: Vec<(u64, [f32; 3])> = self.players
             .values()
+            .filter(|p| !p.is_dead())  // Don't let enemies see/target dead players
             .map(|p| (p.id, p.position))
             .collect();
         
@@ -300,6 +301,11 @@ impl GameWorld {
         // Process attacks and apply damage to players
         for (attacker_id, target_id, base_damage) in attacks {
             if let Some(player) = self.players.get_mut(&target_id) {
+                // Skip if player is already dead
+                if player.is_dead() {
+                    continue;
+                }
+                
                 // Apply damage (defense reduces damage by ~50%)
                 let actual_damage = player.take_damage(base_damage);
                 
