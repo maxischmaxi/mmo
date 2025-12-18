@@ -1,4 +1,4 @@
-[gd_scene load_steps=15 format=3 uid="uid://dmwxm4pqywvpr"]
+[gd_scene load_steps=17 format=3 uid="uid://dmwxm4pqywvpr"]
 
 [ext_resource type="PackedScene" uid="uid://c7xqymt1kcmjk" path="res://scenes/world/zone_1.tscn" id="1_zone"]
 [ext_resource type="PackedScene" uid="uid://czone2chunjo" path="res://scenes/world/zone_2.tscn" id="1_zone2"]
@@ -14,6 +14,30 @@
 [ext_resource type="Script" path="res://scripts/cursor_manager.gd" id="10_cursor"]
 [ext_resource type="PackedScene" uid="uid://cloginscreen" path="res://scenes/ui/login_screen.tscn" id="11_login"]
 [ext_resource type="PackedScene" uid="uid://cmdevmenu123" path="res://scenes/ui/dev_menu.tscn" id="12_devmenu"]
+[ext_resource type="Script" path="res://scripts/day_night_controller.gd" id="13_daynight"]
+[ext_resource type="Shader" path="res://shaders/sky.gdshader" id="14_sky_shader"]
+
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_sky"]
+shader = ExtResource("14_sky_shader")
+shader_parameter/sky_top_color = Vector3(0.4, 0.6, 0.9)
+shader_parameter/sky_horizon_color = Vector3(0.7, 0.8, 0.95)
+shader_parameter/ground_bottom_color = Vector3(0.12, 0.18, 0.27)
+shader_parameter/ground_horizon_color = Vector3(0.35, 0.4, 0.475)
+shader_parameter/star_density = 0.4
+shader_parameter/star_brightness = 1.5
+shader_parameter/star_visibility = 1.0
+
+[sub_resource type="Sky" id="Sky_1"]
+sky_material = SubResource("ShaderMaterial_sky")
+process_mode = 3
+radiance_size = 3
+
+[sub_resource type="Environment" id="Environment_1"]
+background_mode = 2
+sky = SubResource("Sky_1")
+ambient_light_source = 2
+ambient_light_color = Color(0.6, 0.65, 0.7, 1)
+ambient_light_energy = 0.8
 
 [node name="Main" type="Node3D"]
 
@@ -68,3 +92,31 @@ mouse_filter = 2
 [node name="CombatText" parent="UI/GameUI" instance=ExtResource("9_combat_text")]
 
 [node name="DevMenu" parent="UI/GameUI" instance=ExtResource("12_devmenu")]
+
+[node name="DayNightController" type="Node3D" parent="."]
+script = ExtResource("13_daynight")
+
+[node name="WorldEnvironment" type="WorldEnvironment" parent="DayNightController"]
+environment = SubResource("Environment_1")
+
+[node name="Sun" type="DirectionalLight3D" parent="DayNightController"]
+transform = Transform3D(1, 0, 0, 0, 0.707107, 0.707107, 0, -0.707107, 0.707107, 0, 50, 0)
+light_color = Color(1, 0.98, 0.94, 1)
+light_energy = 1.0
+shadow_enabled = true
+shadow_bias = 0.03
+shadow_normal_bias = 1.0
+sky_mode = 0
+directional_shadow_mode = 2
+directional_shadow_max_distance = 200.0
+
+[node name="Moon" type="DirectionalLight3D" parent="DayNightController"]
+transform = Transform3D(1, 0, 0, 0, 0.707107, -0.707107, 0, 0.707107, 0.707107, 0, 50, 0)
+light_color = Color(0.7, 0.8, 1, 1)
+light_energy = 0.0
+shadow_enabled = true
+shadow_bias = 0.03
+shadow_normal_bias = 1.0
+sky_mode = 0
+directional_shadow_mode = 2
+directional_shadow_max_distance = 200.0

@@ -313,6 +313,13 @@ impl Player {
     /// Signal emitted when equipment changes
     #[signal]
     fn equipment_changed(weapon_id: i64);
+    
+    /// Signal emitted when time sync is received from server (for day/night cycle)
+    /// unix_timestamp: seconds since Unix epoch (UTC)
+    /// latitude: server location latitude for solar calculations
+    /// longitude: server location longitude for solar calculations
+    #[signal]
+    fn time_sync(unix_timestamp: i64, latitude: f64, longitude: f64);
 
     // ==========================================================================
     // Auth methods
@@ -1190,6 +1197,15 @@ impl Player {
                 self.equipped_weapon_id = equipped_weapon_id;
                 self.base_mut().emit_signal("equipment_changed", &[
                     equipped_weapon_id.map(|id| id as i64).unwrap_or(-1).to_variant(),
+                ]);
+            }
+            
+            ServerMessage::TimeSync { unix_timestamp, latitude, longitude } => {
+                // Emit signal for day/night controller
+                self.base_mut().emit_signal("time_sync", &[
+                    unix_timestamp.to_variant(),
+                    (latitude as f64).to_variant(),
+                    (longitude as f64).to_variant(),
                 ]);
             }
             

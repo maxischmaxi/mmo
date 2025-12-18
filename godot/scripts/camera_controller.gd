@@ -67,7 +67,7 @@ var right_mouse_down: bool = false
 var rotation_start_pos: Vector2 = Vector2.ZERO
 var rotation_indicator: TextureRect = null
 var rotation_indicator_layer: CanvasLayer = null
-const ROTATION_INDICATOR_TEXTURE = preload("res://assets/magic_cursors/36x36px/Cursor Target Move A.png")
+var ROTATION_INDICATOR_TEXTURE: Texture2D = null
 
 ## Click indicator (Metin2-style ground click effect)
 const ClickIndicatorScene = preload("res://scenes/effects/click_indicator.tscn")
@@ -132,6 +132,12 @@ func _find_references() -> void:
 
 func _create_rotation_indicator() -> void:
 	"""Create a visual indicator shown at the rotation pivot point."""
+	# Try to load the rotation indicator texture
+	ROTATION_INDICATOR_TEXTURE = load("res://assets/magic_cursors/36x36px/Cursor Target Move A.png") as Texture2D
+	if ROTATION_INDICATOR_TEXTURE == null:
+		push_warning("CameraController: Could not load rotation indicator texture")
+		return
+	
 	# Create CanvasLayer to ensure it renders on top of everything
 	rotation_indicator_layer = CanvasLayer.new()
 	rotation_indicator_layer.layer = 100  # High layer to be on top
@@ -220,14 +226,8 @@ func _handle_mouse_button(event: InputEventMouseButton) -> void:
 			# Only reject if the click duration is too long (held down too long)
 			var click_duration = Time.get_ticks_msec() / 1000.0 - left_click_start_time
 			
-			# DEBUG: Log click detection details (remove after debugging)
-			print("[CLICK DEBUG] duration=%.3f (threshold=%.2f)" % [click_duration, click_threshold_time])
-			
 			if click_duration < click_threshold_time:
-				print("[CLICK DEBUG] >>> CLICK ACCEPTED")
 				_handle_left_click(event.position)
-			else:
-				print("[CLICK DEBUG] >>> CLICK REJECTED (held too long)")
 	
 	# RIGHT MOUSE BUTTON
 	if event.button_index == MOUSE_BUTTON_RIGHT:

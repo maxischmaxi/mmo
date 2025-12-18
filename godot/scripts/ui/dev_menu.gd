@@ -6,12 +6,19 @@ class_name DevMenu
 ## Reference to local player
 var local_player: Node = null
 
+## Reference to day/night controller
+var day_night_controller: Node3D = null
+
 ## UI References
 @onready var panel: Panel = $Panel
 @onready var item_id_input: SpinBox = $Panel/VBox/ItemIDContainer/ItemIDInput
 @onready var quantity_input: SpinBox = $Panel/VBox/QuantityContainer/QuantityInput
 @onready var add_button: Button = $Panel/VBox/AddButton
 @onready var status_label: Label = $Panel/VBox/StatusLabel
+
+## Time controls
+@onready var time_accel_checkbox: CheckBox = $Panel/VBox/TimeAccelContainer/TimeAccelCheckbox
+@onready var time_label: Label = $Panel/VBox/TimeContainer/TimeLabel
 
 
 func _ready() -> void:
@@ -37,6 +44,10 @@ func _ready() -> void:
 	if add_button:
 		add_button.pressed.connect(_on_add_button_pressed)
 	
+	# Setup time acceleration checkbox
+	if time_accel_checkbox:
+		time_accel_checkbox.toggled.connect(_on_time_accel_toggled)
+	
 	# Find local player
 	await get_tree().process_frame
 	local_player = get_tree().get_first_node_in_group("local_player")
@@ -44,6 +55,20 @@ func _ready() -> void:
 		var main = get_tree().current_scene
 		if main:
 			local_player = main.get_node_or_null("Player")
+	
+	# Find day/night controller
+	var game_manager = get_tree().get_first_node_in_group("game_manager")
+	if game_manager and game_manager.has_method("get_day_night_controller"):
+		day_night_controller = game_manager.get_day_night_controller()
+
+
+func _process(_delta: float) -> void:
+	# Update time display if visible and we have day/night controller
+	if visible and day_night_controller and time_label:
+		var time_str = day_night_controller.get_time_string()
+		var time_name = day_night_controller.current_time_name
+		var accel_str = " (60x)" if day_night_controller.time_acceleration_enabled else ""
+		time_label.text = "%s - %s%s" % [time_str, time_name, accel_str]
 
 
 func _input(event: InputEvent) -> void:
@@ -93,3 +118,14 @@ func _on_add_button_pressed() -> void:
 	if status_label:
 		status_label.text = "Added %dx item #%d" % [quantity, item_id]
 		status_label.add_theme_color_override("font_color", Color(0.3, 1, 0.3))
+
+
+func _on_time_accel_toggled(enabled: bool) -> void:
+	if day_night_controller:
+		day_night_controller.set_time_acceleration(enabled)
+		if status_label:
+			if enabled:
+				status_label.text = "Time acceleration: 60x"
+			else:
+				status_label.text = "Time acceleration: OFF"
+			status_label.add_theme_color_override("font_color", Color(0.7, 0.7, 1.0))

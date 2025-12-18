@@ -6,7 +6,7 @@ extends Node
 const RemotePlayerScene = preload("res://scenes/player/remote_player.tscn")
 const WorldHealthBarScene = preload("res://scenes/ui/world_health_bar.tscn")
 const DamageNumberScene = preload("res://scenes/effects/damage_number.tscn")
-const CharacterSelectScene = preload("res://scenes/ui/character_select.tscn")
+const CharacterSelectScene = preload("res://scenes/ui/character_select_3d.tscn")
 const CharacterCreateScene = preload("res://scenes/ui/character_create.tscn")
 
 ## Game state enum
@@ -51,6 +51,9 @@ const DAMAGE_NUMBER_POOL_SIZE: int = 20
 @onready var enemies_container: Node3D = $EnemiesContainer
 @onready var items_container: Node3D = $ItemsContainer
 @onready var effects_container: Node3D = $EffectsContainer
+
+## Reference to day/night controller
+var day_night_controller: Node3D = null
 
 
 func _ready() -> void:
@@ -111,9 +114,18 @@ func _ready() -> void:
 		if local_player.has_signal("player_state_updated"):
 			local_player.connect("player_state_updated", _on_player_state_updated)
 		
+		# Connect time sync signal for day/night cycle
+		if local_player.has_signal("time_sync"):
+			local_player.connect("time_sync", _on_time_sync)
+		
 		print("GameManager: Connected to local player signals")
 	else:
 		push_error("GameManager: Could not find local player!")
+	
+	# Find day/night controller
+	day_night_controller = get_node_or_null("../DayNightController")
+	if day_night_controller:
+		print("GameManager: Found DayNightController")
 	
 	# Start with login screen visible, game UI hidden
 	_change_state(GameState.LOGIN)
@@ -646,3 +658,22 @@ func _on_enemy_state_updated(id: int, position: Vector3, rotation: float, health
 ## Handle remote player state update from WorldState
 func _on_player_state_updated(id: int, position: Vector3, rotation: float, health: int, animation_state: int = 0) -> void:
 	update_remote_player(id, position, rotation, health, animation_state)
+
+
+# =============================================================================
+# Day/Night Cycle Support
+# =============================================================================
+
+## Handle time sync from server
+func _on_time_sync(unix_timestamp: int, latitude: float, longitude: float) -> void:
+	print("GameManager: Received time sync - timestamp: ", unix_timestamp, ", lat: ", latitude, ", lon: ", longitude)
+	if day_night_controller:
+		day_night_controller.on_time_sync(unix_timestamp, latitude, longitude)
+
+
+## Get the day/night controller reference (for dev menu)
+func get_day_night_controller() -> Node3D:
+	return day_night_controller
+
+
+

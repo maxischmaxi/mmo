@@ -416,6 +416,17 @@ pub enum ServerMessage {
         /// Currently equipped weapon item ID (None = unarmed)
         equipped_weapon_id: Option<u32>,
     },
+    
+    /// Time synchronization for day/night cycle
+    /// Sent on character select and every 60 seconds
+    TimeSync {
+        /// Unix timestamp in seconds (server's current UTC time)
+        unix_timestamp: i64,
+        /// Server latitude for solar calculations (e.g., 52.5 for Berlin)
+        latitude: f32,
+        /// Server longitude for solar calculations (e.g., 13.4 for Berlin)
+        longitude: f32,
+    },
 }
 
 // =============================================================================
