@@ -70,6 +70,15 @@ var target_ambient_energy: float = 0.8
 ## Time of day name
 var current_time_name: String = "Day"
 
+## Cached camera reference (set once in _setup_sky_environment)
+var _cached_camera: Camera3D = null
+
+## Created environment (for cleanup)
+var _created_environment: Environment = null
+
+## Created sky (for cleanup)
+var _created_sky: Sky = null
+
 
 func _ready() -> void:
 	# Find child nodes
@@ -96,13 +105,23 @@ func _ready() -> void:
 
 func _setup_sky_environment() -> void:
 	"""Set up the custom sky shader environment on the main camera."""
+	# Safety check - don't set up if we're being destroyed
+	if not is_inside_tree():
+		return
+	
 	# Get the main camera
 	var main_viewport = get_viewport()
-	var main_camera = main_viewport.get_camera_3d() if main_viewport else null
+	if not main_viewport:
+		push_warning("DayNightController: No viewport found!")
+		return
 	
-	if not main_camera:
+	var main_camera = main_viewport.get_camera_3d()
+	if not main_camera or not is_instance_valid(main_camera):
 		push_warning("DayNightController: No main camera found for sky environment!")
 		return
+	
+	# Cache the camera reference
+	_cached_camera = main_camera
 	
 	# Load the sky shader
 	var sky_shader = load("res://shaders/sky.gdshader") as Shader
@@ -121,20 +140,20 @@ func _setup_sky_environment() -> void:
 	_update_sky_shader_colors()
 	
 	# Create Sky resource with our shader material
-	var sky = Sky.new()
-	sky.sky_material = sky_material
-	sky.process_mode = Sky.PROCESS_MODE_REALTIME
-	sky.radiance_size = Sky.RADIANCE_SIZE_256
+	_created_sky = Sky.new()
+	_created_sky.sky_material = sky_material
+	_created_sky.process_mode = Sky.PROCESS_MODE_REALTIME
+	_created_sky.radiance_size = Sky.RADIANCE_SIZE_256
 	
 	# Create Environment with our sky
-	var env = Environment.new()
-	env.background_mode = Environment.BG_SKY
-	env.sky = sky
-	env.ambient_light_source = Environment.AMBIENT_SOURCE_SKY
-	env.ambient_light_energy = current_ambient_energy
+	_created_environment = Environment.new()
+	_created_environment.background_mode = Environment.BG_SKY
+	_created_environment.sky = _created_sky
+	_created_environment.ambient_light_source = Environment.AMBIENT_SOURCE_SKY
+	_created_environment.ambient_light_energy = current_ambient_energy
 	
 	# Apply environment directly to the camera (WorldEnvironment wasn't working)
-	main_camera.environment = env
+	main_camera.environment = _created_environment
 	
 	print("DayNightController: Sky environment applied")
 
@@ -159,6 +178,10 @@ func _update_sky_shader_colors() -> void:
 
 
 func _process(delta: float) -> void:
+	# Safety check - don't process if we're being destroyed
+	if not is_inside_tree():
+		return
+	
 	# Update local time offset (accounts for time acceleration)
 	if time_acceleration_enabled:
 		local_time_offset += delta * (time_multiplier - 1.0)
@@ -171,6 +194,31 @@ func _process(delta: float) -> void:
 	
 	# Apply to scene
 	_apply_visuals()
+
+
+func _exit_tree() -> void:
+	"""Clean up resources to prevent memory leaks on exit."""
+	# Remove environment from camera to break circular references
+	if _cached_camera and is_instance_valid(_cached_camera):
+		_cached_camera.environment = null
+	
+	# Clear our references
+	_cached_camera = null
+	
+	# Clear shader material reference (it's owned by the sky)
+	if sky_material:
+		sky_material.shader = null
+	sky_material = null
+	
+	# Clear sky reference (it's owned by the environment)
+	if _created_sky:
+		_created_sky.sky_material = null
+	_created_sky = null
+	
+	# Clear environment reference
+	if _created_environment:
+		_created_environment.sky = null
+	_created_environment = null
 
 
 ## Called when server sends time sync
@@ -419,17 +467,20 @@ func _apply_visuals() -> void:
 		sky_material.set_shader_parameter("star_visibility", star_alpha)
 	
 	# Update ambient light on camera environment
-	var main_viewport = get_viewport()
-	if not main_viewport:
-		return
-	var main_camera = main_viewport.get_camera_3d()
-	if main_camera and is_instance_valid(main_camera) and main_camera.environment:
-		main_camera.environment.ambient_light_energy = current_ambient_energy
+	# Use cached camera reference for better performance and safety
+	if not _cached_camera or not is_instance_valid(_cached_camera):
+		# Try to re-acquire camera if lost
+		var main_viewport = get_viewport()
+		if main_viewport:
+			_cached_camera = main_viewport.get_camera_3d()
+	
+	if _cached_camera and is_instance_valid(_cached_camera) and _cached_camera.environment:
+		_cached_camera.environment.ambient_light_energy = current_ambient_energy
 		# Tint ambient light based on time - bluer at night, warmer during day
 		var night_factor = clamp(-current_sun_elevation / 12.0, 0.0, 1.0)
 		var day_ambient = Color(0.6, 0.65, 0.7)
 		var night_ambient = Color(0.3, 0.35, 0.5)
-		main_camera.environment.ambient_light_color = day_ambient.lerp(night_ambient, night_factor)
+		_cached_camera.environment.ambient_light_color = day_ambient.lerp(night_ambient, night_factor)
 
 
 ## Apply visuals immediately without interpolation

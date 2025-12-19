@@ -60,7 +60,7 @@ mmo/
   - Floating damage numbers
 
 - **Enemy AI**
-  - Three enemy types: Goblin, Skeleton, Wolf
+  - Three enemy types: Goblin, Skeleton, Mutant
   - Enemy levels (scaled by type, affects HP and damage)
   - Aggro range detection (10 units)
   - Chase behavior

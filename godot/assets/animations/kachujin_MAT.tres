@@ -1,0 +1,12 @@
+[gd_resource type="StandardMaterial3D" load_steps=3 format=3 uid="uid://csgbes3doat3m"]
+
+[ext_resource type="Texture2D" uid="uid://bycd7tyti6v3u" path="res://assets/animations/Neutral Idle_0.png" id="1_oapjv"]
+[ext_resource type="Texture2D" uid="uid://c7rfrb7gkqukt" path="res://assets/animations/Neutral Idle_3.png" id="2_0qu44"]
+
+[resource]
+resource_name = "kachujin_MAT"
+albedo_color = Color(1.0, 1.0, 1.0, 1.0)
+albedo_texture = ExtResource("1_oapjv")
+normal_enabled = true
+normal_scale = 1.0
+normal_texture = ExtResource("2_0qu44")

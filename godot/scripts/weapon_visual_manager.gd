@@ -132,11 +132,36 @@ func _find_bone_attachments() -> void:
 	# Check if bone attachments already exist, otherwise create them
 	right_hand_attachment = skeleton.get_node_or_null("RightHandAttachment")
 	if not right_hand_attachment:
-		right_hand_attachment = _create_bone_attachment(skeleton, "DEF-hand.R", "RightHandAttachment")
+		# Try various naming conventions for right hand
+		right_hand_attachment = _try_create_hand_attachment(skeleton, "Right", "RightHandAttachment")
 	
 	left_hand_attachment = skeleton.get_node_or_null("LeftHandAttachment")
 	if not left_hand_attachment:
-		left_hand_attachment = _create_bone_attachment(skeleton, "DEF-hand.L", "LeftHandAttachment")
+		# Try various naming conventions for left hand
+		left_hand_attachment = _try_create_hand_attachment(skeleton, "Left", "LeftHandAttachment")
+
+
+## Try to create a hand attachment using various bone naming conventions
+func _try_create_hand_attachment(skeleton: Skeleton3D, side: String, attachment_name: String) -> BoneAttachment3D:
+	# List of possible bone names to try (Mixamo, Quaternius, generic)
+	var possible_names := [
+		"mixamorig:%sHand" % side,           # Mixamo with colon
+		"mixamorig_%sHand" % side,           # Mixamo with underscore (Godot may convert)
+		"%sHand" % side,                      # Simple name
+		"%s_Hand" % side,                     # With underscore
+		"%s Hand" % side,                     # With space
+		"DEF-hand.%s" % ("R" if side == "Right" else "L"),  # Quaternius
+		"hand.%s" % ("R" if side == "Right" else "L"),      # Quaternius without DEF
+		"Hand_%s" % side,                     # Alternative format
+	]
+	
+	for bone_name in possible_names:
+		var attachment = _create_bone_attachment(skeleton, bone_name, attachment_name)
+		if attachment:
+			return attachment
+	
+	push_warning("WeaponVisualManager: Could not find %s hand bone in skeleton" % side.to_lower())
+	return null
 
 
 ## Find the Skeleton3D node in the hierarchy
@@ -151,11 +176,11 @@ func _find_skeleton(node: Node) -> Skeleton3D:
 
 
 ## Create a BoneAttachment3D for the specified bone
+## Returns null silently if bone not found (caller handles warning)
 func _create_bone_attachment(skeleton: Skeleton3D, bone_name: String, attachment_name: String) -> BoneAttachment3D:
 	# Check if the bone exists
 	var bone_idx = skeleton.find_bone(bone_name)
 	if bone_idx == -1:
-		push_warning("WeaponVisualManager: Bone '%s' not found in skeleton" % bone_name)
 		return null
 	
 	# Create the bone attachment

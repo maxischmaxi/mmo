@@ -40,7 +40,7 @@ impl ServerEnemy {
         let (health, attack_power, min_level, max_level) = match enemy_type {
             EnemyType::Goblin => (50, 8, 1, 3),
             EnemyType::Skeleton => (70, 12, 3, 5),
-            EnemyType::Wolf => (40, 10, 2, 4),
+            EnemyType::Mutant => (90, 15, 4, 6),  // Mutants are tougher than wolves
         };
         
         // Random level within range
@@ -111,6 +111,9 @@ impl ServerEnemy {
             
             // Get target position
             if let Some((_, target_pos)) = player_positions.iter().find(|(id, _)| *id == player_id) {
+                // Always face the target when we have one
+                self.face_towards(*target_pos);
+                
                 if dist <= ATTACK_RANGE {
                     // In attack range - try to attack
                     self.animation_state = AnimationState::Attacking;
@@ -156,7 +159,8 @@ impl ServerEnemy {
             self.position[2] += dz * ratio;
             
             // Update rotation to face movement direction
-            self.rotation = dz.atan2(dx);
+            // atan2(x, z) gives the angle where 0 = facing +Z, matching Godot's convention
+            self.rotation = dx.atan2(dz);
         }
     }
     
@@ -165,6 +169,16 @@ impl ServerEnemy {
         let dx = target[0] - self.position[0];
         let dz = target[2] - self.position[2];
         (dx * dx + dz * dz).sqrt()
+    }
+    
+    /// Update rotation to face a target position
+    fn face_towards(&mut self, target: [f32; 3]) {
+        let dx = target[0] - self.position[0];
+        let dz = target[2] - self.position[2];
+        if dx.abs() > 0.01 || dz.abs() > 0.01 {
+            // atan2(x, z) gives the angle where 0 = facing +Z, matching Godot's convention
+            self.rotation = dx.atan2(dz);
+        }
     }
     
     /// Take damage

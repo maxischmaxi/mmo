@@ -395,3 +395,17 @@ impl Default for NetworkClient {
         Self::new()
     }
 }
+
+impl Drop for NetworkClient {
+    fn drop(&mut self) {
+        // Ensure we send a disconnect message if connected
+        if self.is_connected() {
+            let _ = self.send_message(&ClientMessage::Disconnect);
+        }
+        
+        // The socket will be dropped automatically, but we can be explicit
+        self.socket = None;
+        self.server_addr = None;
+        self.incoming_messages.clear();
+    }
+}

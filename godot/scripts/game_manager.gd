@@ -9,6 +9,14 @@ const DamageNumberScene = preload("res://scenes/effects/damage_number.tscn")
 const CharacterSelectScene = preload("res://scenes/ui/character_select_3d.tscn")
 const CharacterCreateScene = preload("res://scenes/ui/character_create.tscn")
 
+## Enemy model scenes - loaded dynamically based on type
+## Key: enemy_type (int), Value: PackedScene path
+const ENEMY_SCENES := {
+	# 0: "res://scenes/enemies/goblin.tscn",  # TODO: Add goblin model
+	# 1: "res://scenes/enemies/skeleton.tscn",  # TODO: Add skeleton model
+	2: "res://scenes/enemies/mutant.tscn",  # Mutant (formerly Wolf)
+}
+
 ## Game state enum
 enum GameState { LOGIN, CHARACTER_SELECT, CHARACTER_CREATE, IN_GAME }
 
@@ -520,7 +528,7 @@ func _on_enemy_spawned(id: int, enemy_type: int, position: Vector3, health: int,
 	var enemy_name = _get_enemy_name(enemy_type)
 	print("GameManager: Spawning ", enemy_name, " Lv.", level, " (ID: ", id, ") at ", position)
 	
-	var enemy = _create_enemy_placeholder(enemy_type)
+	var enemy = _create_enemy(enemy_type)
 	
 	# Add health bar above enemy
 	var health_bar = WorldHealthBarScene.instantiate() as WorldHealthBar
@@ -566,8 +574,44 @@ func _get_enemy_name(enemy_type: int) -> String:
 	match enemy_type:
 		0: return "Goblin"
 		1: return "Skeleton"
-		2: return "Wolf"
+		2: return "Mutant"
 		_: return "Enemy"
+
+
+## Create an enemy with the appropriate model (or placeholder if model not available)
+func _create_enemy(enemy_type: int) -> Node3D:
+	# Check if we have a model scene for this enemy type
+	if ENEMY_SCENES.has(enemy_type):
+		var scene_path: String = ENEMY_SCENES[enemy_type]
+		if ResourceLoader.exists(scene_path):
+			var scene = load(scene_path) as PackedScene
+			if scene:
+				var enemy_model = scene.instantiate()
+				
+				# Wrap in CharacterBody3D for physics/collision
+				var enemy = CharacterBody3D.new()
+				enemy.add_child(enemy_model)
+				
+				# Initialize the enemy model with its type
+				if enemy_model.has_method("initialize_enemy"):
+					enemy_model.initialize_enemy(enemy_type)
+				
+				# Add collision shape
+				var collision = CollisionShape3D.new()
+				var shape = CapsuleShape3D.new()
+				shape.radius = 0.5
+				shape.height = 2.0
+				collision.shape = shape
+				collision.position.y = 1.0
+				enemy.add_child(collision)
+				
+				# Store reference to model for animation updates
+				enemy.set_meta("enemy_model", enemy_model)
+				
+				return enemy
+	
+	# Fallback to placeholder
+	return _create_enemy_placeholder(enemy_type)
 
 
 func _create_enemy_placeholder(enemy_type: int) -> Node3D:
@@ -588,8 +632,8 @@ func _create_enemy_placeholder(enemy_type: int) -> Node3D:
 			material.albedo_color = Color(0.2, 0.8, 0.2)
 		1:  # Skeleton
 			material.albedo_color = Color(0.9, 0.9, 0.8)
-		2:  # Wolf
-			material.albedo_color = Color(0.5, 0.4, 0.3)
+		2:  # Mutant
+			material.albedo_color = Color(0.6, 0.3, 0.5)
 		_:
 			material.albedo_color = Color(1, 0, 1)
 	mesh_instance.material_override = material
@@ -686,7 +730,7 @@ func update_remote_player(id: int, position: Vector3, rotation: float, health: i
 
 
 ## Update enemy position from world state (with interpolation)
-func update_enemy(id: int, position: Vector3, rotation: float, health: int) -> void:
+func update_enemy(id: int, position: Vector3, rotation: float, health: int, animation_state: int = 0) -> void:
 	if enemies.has(id):
 		var enemy_data = enemies[id]
 		
@@ -698,6 +742,13 @@ func update_enemy(id: int, position: Vector3, rotation: float, health: int) -> v
 		# Update health bar
 		if enemy_data.has("health_bar"):
 			enemy_data["health_bar"].set_health(health, enemy_data["max_health"])
+		
+		# Update animation state on the enemy model (if it has one)
+		var enemy_node = enemy_data["node"]
+		if enemy_node and enemy_node.has_meta("enemy_model"):
+			var enemy_model = enemy_node.get_meta("enemy_model")
+			if enemy_model and enemy_model.has_method("set_animation_state"):
+				enemy_model.set_animation_state(animation_state)
 
 
 # =============================================================================
@@ -768,8 +819,8 @@ func get_all_players() -> Dictionary:
 # =============================================================================
 
 ## Handle enemy state update from WorldState
-func _on_enemy_state_updated(id: int, position: Vector3, rotation: float, health: int) -> void:
-	update_enemy(id, position, rotation, health)
+func _on_enemy_state_updated(id: int, position: Vector3, rotation: float, health: int, animation_state: int = 0) -> void:
+	update_enemy(id, position, rotation, health, animation_state)
 
 
 ## Handle remote player state update from WorldState
@@ -825,4 +876,22 @@ func get_day_night_controller() -> Node3D:
 	return day_night_controller
 
 
+func _exit_tree() -> void:
+	"""Clean up resources to prevent memory leaks on exit."""
+	# If we have a stored character model that was removed from tree, re-add it 
+	# so it gets properly freed with its parent
+	if _stored_character_model and is_instance_valid(_stored_character_model):
+		if local_player and is_instance_valid(local_player) and not _stored_character_model.get_parent():
+			local_player.add_child(_stored_character_model)
+		_stored_character_model = null
+	
+	# Clear references to prevent keeping nodes alive
+	local_player = null
+	login_screen = null
+	character_select_screen = null
+	character_create_screen = null
+	game_ui = null
+	ui_container = null
+	loading_screen = null
+	day_night_controller = null
 

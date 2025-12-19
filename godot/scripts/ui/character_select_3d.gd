@@ -329,25 +329,29 @@ func _create_model_for_current_slot() -> void:
 	# Set the model to render layer 2 (character select layer) for isolation
 	_set_node_layer_recursive(model, 2)
 	
-	# Configure animation controller for idle animation only
+	# Configure animation controller for character select animation
 	var anim_ctrl = model.get_node_or_null("AnimationController")
 	if anim_ctrl:
 		anim_ctrl.auto_detect = false
-		# Start idle animation after a short delay (use call_deferred to avoid await issues)
-		_setup_idle_animation.call_deferred(anim_ctrl, model)
+		# Start rallying animation after a short delay (use call_deferred to avoid await issues)
+		_setup_select_animation.call_deferred(anim_ctrl, model)
 	
 	_is_creating_model = false
 	print("[CharSelect3D] Model created and assigned")
 
 
-func _setup_idle_animation(anim_ctrl: Node, model: Node3D) -> void:
-	"""Setup idle animation for the character model (deferred to avoid await issues)."""
+func _setup_select_animation(anim_ctrl: Node, model: Node3D) -> void:
+	"""Setup rallying animation for the character model (deferred to avoid await issues).
+	Plays rallying animation once, then transitions to idle."""
 	# Check if the model is still valid and is our current model
 	if not is_instance_valid(model) or model != current_character_model:
 		return
 	
-	if anim_ctrl and anim_ctrl.has_method("play_animation"):
-		anim_ctrl.play_animation("Idle")
+	if anim_ctrl and anim_ctrl.has_method("play_rallying_animation"):
+		anim_ctrl.play_rallying_animation()
+	elif anim_ctrl and anim_ctrl.has_method("play_animation"):
+		# Fallback to idle if rallying not available
+		anim_ctrl.play_animation("Neutral Idle")
 
 
 func _set_node_layer_recursive(node: Node, layer: int) -> void:

@@ -107,9 +107,8 @@ func _ready() -> void:
 	# Create rotation indicator
 	_create_rotation_indicator()
 	
-	# Find controllers and managers after a frame
-	await get_tree().process_frame
-	_find_references()
+	# Find controllers and managers after a frame (using call_deferred for safety)
+	call_deferred("_find_references")
 
 
 func _find_references() -> void:
@@ -490,7 +489,29 @@ func reset_mouse_state() -> void:
 
 
 func _exit_tree() -> void:
-	# Clean up texture references to prevent RID leaks on exit
+	# Ensure mouse is released if we were rotating
+	if is_rotating:
+		Input.set_mouse_mode(Input.MOUSE_MODE_VISIBLE)
+		is_rotating = false
+	
+	# Clean up click indicator
+	if current_click_indicator and is_instance_valid(current_click_indicator):
+		current_click_indicator.queue_free()
+		current_click_indicator = null
+	
+	# Clean up rotation indicator layer and its children
 	if rotation_indicator:
 		rotation_indicator.texture = null
+		rotation_indicator = null
+	
+	if rotation_indicator_layer:
+		rotation_indicator_layer.queue_free()
+		rotation_indicator_layer = null
+	
+	# Clear texture reference
 	ROTATION_INDICATOR_TEXTURE = null
+	
+	# Clear other references
+	combat_controller = null
+	click_movement_controller = null
+	game_manager = null

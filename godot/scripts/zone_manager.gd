@@ -81,14 +81,26 @@ func _load_zone(zone_id: int, zone_name: String, scene_path: String, spawn_posit
 	if loading_screen and loading_screen.has_method("fade_in"):
 		if not loading_screen.visible or loading_screen.modulate.a < 1.0:
 			loading_screen.fade_in()
-			await loading_screen.fade_finished
+			# Safety check before await
+			if is_inside_tree() and loading_screen.has_signal("fade_finished"):
+				await loading_screen.fade_finished
 		# If already fully visible, no need to fade in again
+	
+	# Safety check - abort if tree is being destroyed
+	if not is_inside_tree():
+		return
 	
 	# Unload current zone
 	if current_zone_instance:
 		current_zone_instance.queue_free()
 		current_zone_instance = null
-		await get_tree().process_frame  # Wait for cleanup
+		# Safety check before await
+		if is_inside_tree():
+			await get_tree().process_frame  # Wait for cleanup
+	
+	# Safety check - abort if tree is being destroyed
+	if not is_inside_tree():
+		return
 	
 	# Load new zone scene
 	if ResourceLoader.exists(scene_path):
@@ -117,7 +129,13 @@ func _load_zone(zone_id: int, zone_name: String, scene_path: String, spawn_posit
 		print("ZoneManager: Moved player to spawn position: ", spawn_position)
 	
 	# Wait one frame for physics to process the new collision shapes
-	await get_tree().physics_frame
+	# Safety check before await
+	if is_inside_tree():
+		await get_tree().physics_frame
+	
+	# Safety check - abort if tree is being destroyed
+	if not is_inside_tree():
+		return
 	
 	# Enable player physics now that zone is loaded
 	if local_player and local_player.has_method("set_zone_ready"):

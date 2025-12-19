@@ -43,11 +43,15 @@ func _ready() -> void:
 	# Force apply default cursor immediately (current_cursor is -1, so it will apply)
 	set_cursor(CursorType.DEFAULT)
 	
-	# Wait a frame for other nodes to be ready
-	await get_tree().process_frame
+	# Find references after tree is ready (using call_deferred for safety)
+	call_deferred("_deferred_init")
+
+
+func _deferred_init() -> void:
+	"""Called after a frame to find references and re-apply cursor."""
+	if not is_inside_tree():
+		return
 	_find_references()
-	
-	# Re-apply cursor after everything is loaded
 	_force_apply_cursor()
 
 

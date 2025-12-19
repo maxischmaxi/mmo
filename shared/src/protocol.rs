@@ -626,7 +626,7 @@ pub enum AnimationState {
 pub enum EnemyType {
     Goblin,
     Skeleton,
-    Wolf,
+    Mutant,
 }
 
 /// Inventory slot

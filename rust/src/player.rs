@@ -309,7 +309,7 @@ impl Player {
     
     /// Signal emitted when an enemy's state is updated (from WorldState)
     #[signal]
-    fn enemy_state_updated(id: i64, position: Vector3, rotation: f64, health: i64);
+    fn enemy_state_updated(id: i64, position: Vector3, rotation: f64, health: i64, animation_state: i64);
     
     /// Signal emitted when a remote player's state is updated (from WorldState)
     #[signal]
@@ -1251,11 +1251,22 @@ impl Player {
                 // Emit updates for each enemy
                 for enemy in enemies {
                     let pos = Vector3::new(enemy.position[0], enemy.position[1], enemy.position[2]);
+                    let anim_state = match enemy.animation_state {
+                        mmo_shared::AnimationState::Idle => 0i64,
+                        mmo_shared::AnimationState::Walking => 1i64,
+                        mmo_shared::AnimationState::Running => 2i64,
+                        mmo_shared::AnimationState::Jumping => 3i64,
+                        mmo_shared::AnimationState::Attacking => 4i64,
+                        mmo_shared::AnimationState::TakingDamage => 5i64,
+                        mmo_shared::AnimationState::Dying => 6i64,
+                        mmo_shared::AnimationState::Dead => 7i64,
+                    };
                     self.base_mut().emit_signal("enemy_state_updated", &[
                         (enemy.id as i64).to_variant(),
                         pos.to_variant(),
                         (enemy.rotation as f64).to_variant(),
                         (enemy.health as i64).to_variant(),
+                        anim_state.to_variant(),
                     ]);
                 }
             }
@@ -1293,7 +1304,7 @@ impl Player {
                 let enemy_type_int = match enemy_type {
                     mmo_shared::EnemyType::Goblin => 0,
                     mmo_shared::EnemyType::Skeleton => 1,
-                    mmo_shared::EnemyType::Wolf => 2,
+                    mmo_shared::EnemyType::Mutant => 2,
                 };
                 self.base_mut().emit_signal("enemy_spawned", &[
                     (id as i64).to_variant(),
