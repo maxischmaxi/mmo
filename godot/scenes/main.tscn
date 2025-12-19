@@ -1,4 +1,4 @@
-[gd_scene load_steps=21 format=3 uid="uid://dmwxm4pqywvpr"]
+[gd_scene load_steps=22 format=3 uid="uid://dmwxm4pqywvpr"]
 
 [ext_resource type="PackedScene" uid="uid://bk3qj8l2xp5yw" path="res://scenes/player/player.tscn" id="2_player"]
 [ext_resource type="Script" path="res://scripts/game_manager.gd" id="3_game_manager"]
@@ -18,6 +18,7 @@
 [ext_resource type="PackedScene" uid="uid://cteleportdialog" path="res://scenes/ui/teleport_dialog.tscn" id="17_teleport"]
 [ext_resource type="PackedScene" uid="uid://cescapemenu001" path="res://scenes/ui/escape_menu.tscn" id="18_escape"]
 [ext_resource type="PackedScene" uid="uid://csettingsdialog" path="res://scenes/ui/settings_dialog.tscn" id="19_settings"]
+[ext_resource type="PackedScene" uid="uid://cmapwindow001" path="res://scenes/ui/map_window.tscn" id="20_map"]
 
 [sub_resource type="ShaderMaterial" id="ShaderMaterial_sky"]
 shader = ExtResource("14_sky_shader")
@@ -102,6 +103,8 @@ mouse_filter = 2
 [node name="EscapeMenu" parent="UI/GameUI" instance=ExtResource("18_escape")]
 
 [node name="SettingsDialog" parent="UI/GameUI" instance=ExtResource("19_settings")]
+
+[node name="MapWindow" parent="UI/GameUI" instance=ExtResource("20_map")]
 
 [node name="DayNightController" type="Node3D" parent="." groups=["day_night_controller"]]
 script = ExtResource("13_daynight")
