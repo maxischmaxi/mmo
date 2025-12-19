@@ -60,7 +60,14 @@ var dot_labels: Array[Label] = []
 var is_rotating_character: bool = false
 var rotation_start_pos: Vector2 = Vector2.ZERO
 var character_rotation: float = 0.0
-const ROTATION_SENSITIVITY: float = 0.01
+const ROTATION_SENSITIVITY: float = 0.003
+
+## Guard flag to prevent concurrent model creation
+var _is_creating_model: bool = false
+
+## Timestamp of last character list received (for debouncing)
+var _last_character_list_time: float = 0.0
+const CHARACTER_LIST_DEBOUNCE_MS: float = 100.0
 
 # UI References - 3D Viewport
 @onready var subviewport: SubViewport = $SubViewportContainer/SubViewport
@@ -231,6 +238,18 @@ func request_character_list() -> void:
 
 func _on_character_list_received(char_list: Array) -> void:
 	"""Handle received character list from server."""
+	# Ignore duplicate character list responses if we're already processing one
+	if _is_creating_model:
+		print("[CharSelect3D] Ignoring duplicate character list (model creation in progress)")
+		return
+	
+	# Debounce rapid duplicate character list responses
+	var current_time = Time.get_ticks_msec()
+	if current_time - _last_character_list_time < CHARACTER_LIST_DEBOUNCE_MS:
+		print("[CharSelect3D] Ignoring duplicate character list (debounced)")
+		return
+	_last_character_list_time = current_time
+	
 	characters = char_list
 	print("[CharSelect3D] Received %d characters" % characters.size())
 	
@@ -240,7 +259,8 @@ func _on_character_list_received(char_list: Array) -> void:
 	
 	# Clear any existing model and create one for the first slot
 	_clear_current_model()
-	await get_tree().process_frame
+	
+	# No need to await since we now use synchronous removal
 	_create_model_for_current_slot()
 	
 	# Position slider without recreating the model
@@ -250,54 +270,108 @@ func _on_character_list_received(char_list: Array) -> void:
 
 
 func _clear_current_model() -> void:
-	"""Remove the current character model if it exists."""
-	if current_character_model != null:
+	"""Remove the current character model if it exists.
+	Uses synchronous removal to prevent race conditions with model creation."""
+	if current_character_model != null and is_instance_valid(current_character_model):
+		# Synchronously remove from tree first, then queue for deletion
+		if current_character_model.get_parent():
+			current_character_model.get_parent().remove_child(current_character_model)
 		current_character_model.queue_free()
-		current_character_model = null
+	current_character_model = null
 	
 	# Also clear any children from all slot nodes (safety cleanup)
+	# This catches any orphaned models that might exist
 	for slot_node in slot_nodes:
-		for child in slot_node.get_children():
-			child.queue_free()
+		# Get children as array first to avoid modifying while iterating
+		var children = slot_node.get_children()
+		for child in children:
+			if is_instance_valid(child):
+				# Synchronously remove from tree first
+				slot_node.remove_child(child)
+				child.queue_free()
 
 
 func _create_model_for_current_slot() -> void:
-	"""Create a character model for the currently selected slot (if it has a character)."""
+	"""Create a character model for the currently selected slot (if it has a character).
+	Uses a guard flag to prevent concurrent model creation race conditions."""
+	# Prevent concurrent model creation
+	if _is_creating_model:
+		print("[CharSelect3D] Model creation already in progress, skipping")
+		return
+	
 	# Only create a model if the current slot has a character
 	if current_index >= characters.size():
 		print("[CharSelect3D] Slot %d is empty, no model to show" % current_index)
 		return
 	
-	print("[CharSelect3D] Creating model for slot %d" % current_index)
+	_is_creating_model = true
+	
+	# Double-check the slot is empty before creating (safety)
 	var slot_node = slot_nodes[current_index]
+	if slot_node.get_child_count() > 0:
+		print("[CharSelect3D] WARNING: Slot %d already has children, clearing first" % current_index)
+		for child in slot_node.get_children():
+			slot_node.remove_child(child)
+			child.queue_free()
+	
+	print("[CharSelect3D] Creating model for slot %d" % current_index)
 	
 	# Create character model
 	var model = CharacterModelScene.instantiate()
 	slot_node.add_child(model)
 	
+	# Assign to current_character_model IMMEDIATELY so it can be properly cleaned up
+	current_character_model = model
+	
 	# Apply any stored rotation
 	model.rotation.y = character_rotation
+	
+	# Set the model to render layer 2 (character select layer) for isolation
+	_set_node_layer_recursive(model, 2)
 	
 	# Configure animation controller for idle animation only
 	var anim_ctrl = model.get_node_or_null("AnimationController")
 	if anim_ctrl:
 		anim_ctrl.auto_detect = false
-		# Wait a frame for the animation player to be ready
-		await get_tree().process_frame
-		anim_ctrl.play_animation("Idle")
+		# Start idle animation after a short delay (use call_deferred to avoid await issues)
+		_setup_idle_animation.call_deferred(anim_ctrl, model)
 	
-	current_character_model = model
+	_is_creating_model = false
 	print("[CharSelect3D] Model created and assigned")
+
+
+func _setup_idle_animation(anim_ctrl: Node, model: Node3D) -> void:
+	"""Setup idle animation for the character model (deferred to avoid await issues)."""
+	# Check if the model is still valid and is our current model
+	if not is_instance_valid(model) or model != current_character_model:
+		return
+	
+	if anim_ctrl and anim_ctrl.has_method("play_animation"):
+		anim_ctrl.play_animation("Idle")
+
+
+func _set_node_layer_recursive(node: Node, layer: int) -> void:
+	"""Recursively set the visual layer for all VisualInstance3D nodes."""
+	if node is VisualInstance3D:
+		# Clear all layers and set only the specified one
+		node.layers = 1 << (layer - 1)
+	
+	for child in node.get_children():
+		_set_node_layer_recursive(child, layer)
 
 
 func _position_slider_for_index(index: int, animate: bool = true) -> void:
 	"""Position the slider so the given index is centered at x=0 and show the character."""
 	var target_x = -index * SLOT_SPACING
 	
+	# If model creation is in progress, wait for it to complete
+	if _is_creating_model:
+		print("[CharSelect3D] Waiting for model creation to complete before navigating")
+		return
+	
 	# Clear old model and create new one for the current slot
+	# No need to await since we now use synchronous removal
 	_clear_current_model()
-	# Wait a frame then create new model
-	await get_tree().process_frame
 	_create_model_for_current_slot()
 	
 	if animate and not is_transitioning:
@@ -345,7 +419,7 @@ func _input(event: InputEvent) -> void:
 	elif event is InputEventMouseMotion and is_rotating_character:
 		var motion_event := event as InputEventMouseMotion
 		var delta_x := motion_event.relative.x
-		character_rotation -= delta_x * ROTATION_SENSITIVITY
+		character_rotation += delta_x * ROTATION_SENSITIVITY
 		_apply_character_rotation()
 		get_viewport().set_input_as_handled()
 	

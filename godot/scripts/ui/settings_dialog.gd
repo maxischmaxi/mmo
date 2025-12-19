@@ -95,6 +95,7 @@ func _setup_graphics_controls() -> void:
 		vsync_option.add_item("Disabled", 0)
 		vsync_option.add_item("Enabled", 1)
 		vsync_option.add_item("Adaptive", 2)
+		vsync_option.add_item("Mailbox", 3)
 		vsync_option.item_selected.connect(_on_vsync_changed)
 	
 	# FPS Limit

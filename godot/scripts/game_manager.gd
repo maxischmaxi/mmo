@@ -269,12 +269,18 @@ func _reset_player_input_state() -> void:
 ## Stored player position when hidden (to restore later)
 var _stored_player_position: Vector3 = Vector3.ZERO
 
+## Stored reference to CharacterModel when removed from tree
+var _stored_character_model: Node3D = null
+
 func _set_game_world_visible(vis: bool, keep_sky: bool = false) -> void:
 	"""Show or hide the game world (player, camera, entities).
 	
-	This ensures separation between character select/create screens
+	This ensures COMPLETE separation between character select/create screens
 	and the actual game world. The character select screen has its own
 	SubViewport with its own camera for character preview.
+	
+	When hiding, the player's CharacterModel is actually REMOVED from the scene
+	tree (not just made invisible) to guarantee it cannot be rendered by any camera.
 	
 	Args:
 		vis: Whether to show the game world
@@ -282,31 +288,43 @@ func _set_game_world_visible(vis: bool, keep_sky: bool = false) -> void:
 	"""
 	# Hide/show the local player (and its camera)
 	if local_player:
+		var char_model = local_player.get_node_or_null("CharacterModel")
+		
 		if vis:
-			# Restore player position and show
+			# Restore player visibility
 			local_player.visible = true
 			local_player.process_mode = Node.PROCESS_MODE_INHERIT
 			# Position will be set by zone loading, no need to restore here
+			
+			# Re-add CharacterModel to player if it was removed
+			if _stored_character_model and not _stored_character_model.get_parent():
+				local_player.add_child(_stored_character_model)
+				# Move it to be the first child (after CollisionShape3D) for proper ordering
+				local_player.move_child(_stored_character_model, 1)
+				print("[GameManager] CharacterModel re-added to player")
+			_stored_character_model = null
+			
+			# Ensure CharacterModel is visible
+			char_model = local_player.get_node_or_null("CharacterModel")
+			if char_model:
+				char_model.visible = true
+				var rig = char_model.get_node_or_null("Rig")
+				if rig:
+					rig.visible = true
 		else:
-			# Store position and move player far away to ensure it's not visible
+			# Store position and move player far away
 			_stored_player_position = local_player.global_position
 			local_player.visible = false
-			# Move player far away as extra insurance
 			local_player.global_position = Vector3(0, -1000, 0)
 			# NOTE: We do NOT disable processing here because the player needs to
 			# continue polling the network for login/character list responses.
-			# The Rust player.rs physics_process() handles network polling before
-			# checking zone_ready, so network messages are processed even when hidden.
-		
-		# Also hide the CharacterModel specifically to ensure it's not rendered
-		var char_model = local_player.get_node_or_null("CharacterModel")
-		if char_model:
-			char_model.visible = vis
-		
-		# Also hide the Rig inside CharacterModel (the actual mesh)
-		var rig = local_player.get_node_or_null("CharacterModel/Rig")
-		if rig:
-			rig.visible = vis
+			
+			# COMPLETELY REMOVE the CharacterModel from the scene tree
+			# This guarantees it cannot be rendered by ANY camera
+			if char_model and char_model.get_parent():
+				_stored_character_model = char_model
+				local_player.remove_child(char_model)
+				print("[GameManager] CharacterModel removed from player tree")
 		
 		# Also disable/enable the player's camera
 		var camera = local_player.get_node_or_null("CameraController/SpringArm3D/Camera3D")

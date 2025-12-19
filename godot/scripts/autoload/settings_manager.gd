@@ -13,7 +13,8 @@ signal settings_applied
 enum WindowMode { WINDOWED, FULLSCREEN, BORDERLESS }
 
 ## VSync modes
-enum VSyncMode { DISABLED, ENABLED, ADAPTIVE }
+## MAILBOX is recommended for Linux to avoid compositor sync issues
+enum VSyncMode { DISABLED, ENABLED, ADAPTIVE, MAILBOX }
 
 ## Anti-aliasing modes
 enum AAMode { DISABLED, FXAA, MSAA_2X, MSAA_4X, MSAA_8X, TAA }
@@ -32,7 +33,7 @@ const DEFAULTS := {
 	"graphics": {
 		"window_mode": WindowMode.WINDOWED,
 		"resolution": "1920x1080",
-		"vsync": VSyncMode.ENABLED,
+		"vsync": -1,  # -1 = use platform default (MAILBOX on Linux, ENABLED elsewhere)
 		"fps_limit": 0,  # 0 = unlimited
 		"render_scale": 1.0,
 		"antialiasing": AAMode.DISABLED,
@@ -41,6 +42,13 @@ const DEFAULTS := {
 		"bloom": true,
 	}
 }
+
+
+## Get the platform-appropriate default VSync mode
+static func get_platform_default_vsync() -> int:
+	if OS.get_name() == "Linux":
+		return VSyncMode.MAILBOX
+	return VSyncMode.ENABLED
 
 # Quality presets configuration
 const PRESETS := {
@@ -180,7 +188,10 @@ func get_resolution() -> String:
 	return get_setting("graphics", "resolution", "1920x1080")
 
 func get_vsync() -> int:
-	return get_setting("graphics", "vsync", VSyncMode.ENABLED)
+	var vsync = get_setting("graphics", "vsync", -1)
+	if vsync == -1:
+		return get_platform_default_vsync()
+	return vsync
 
 func get_fps_limit() -> int:
 	return get_setting("graphics", "fps_limit", 0)
@@ -299,7 +310,10 @@ func apply_settings() -> void:
 	_cache_references()
 	
 	_apply_window_mode()
-	_apply_vsync()
+	
+	# VSync is async to allow frame delays for GPU/compositor sync
+	await _apply_vsync()
+	
 	_apply_fps_limit()
 	_apply_render_scale()
 	_apply_antialiasing()
@@ -340,8 +354,14 @@ func _apply_window_mode() -> void:
 
 
 func _apply_vsync() -> void:
-	"""Apply VSync setting."""
+	"""Apply VSync setting with proper sync handling.
+	
+	Includes frame delay and window refresh to prevent GPU/compositor
+	sync issues, especially on Linux with Vulkan and desktop compositors.
+	"""
 	var vsync = get_vsync()
+	
+	# Apply the VSync mode
 	match vsync:
 		VSyncMode.DISABLED:
 			DisplayServer.window_set_vsync_mode(DisplayServer.VSYNC_DISABLED)
@@ -349,6 +369,18 @@ func _apply_vsync() -> void:
 			DisplayServer.window_set_vsync_mode(DisplayServer.VSYNC_ENABLED)
 		VSyncMode.ADAPTIVE:
 			DisplayServer.window_set_vsync_mode(DisplayServer.VSYNC_ADAPTIVE)
+		VSyncMode.MAILBOX:
+			DisplayServer.window_set_vsync_mode(DisplayServer.VSYNC_MAILBOX)
+	
+	# Wait a couple frames to let GPU/compositor sync properly
+	# This helps prevent the 1 FPS issue when switching VSync modes at runtime
+	if is_inside_tree():
+		await get_tree().process_frame
+		await get_tree().process_frame
+		
+		# Force window refresh to help with sync state
+		var current_mode = DisplayServer.window_get_mode()
+		DisplayServer.window_set_mode(current_mode)
 
 
 func _apply_fps_limit() -> void:

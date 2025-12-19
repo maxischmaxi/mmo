@@ -37,50 +37,54 @@ const WEAPON_DATA := {
 
 ## Grip presets: visual_type -> { offset: Vector3, rotation: Vector3 (degrees) }
 ## These define how the weapon is held in the hand
+## Rotation is applied to orient the weapon properly relative to the hand bone.
+## Weapons are typically modeled with blade along +Y (up), handle at origin.
+## The hand bone has fingers pointing forward, palm facing inward.
+## We rotate to make the blade extend perpendicular to the arm (natural sword grip).
 const GRIP_PRESETS := {
 	WeaponVisualType.ONE_HANDED_SWORD: { 
 		"offset": Vector3(0.0, 0.0, 0.0), 
-		"rotation": Vector3(-90, 0, 0),
+		"rotation": Vector3(-90, 0, 90),  # Blade extends upward from grip, perpendicular to arm
 		"scale": Vector3(1.0, 1.0, 1.0)
 	},
 	WeaponVisualType.DAGGER: { 
 		"offset": Vector3(0.0, 0.0, 0.0), 
-		"rotation": Vector3(-90, 0, 0),
+		"rotation": Vector3(-90, 0, 90),  # Same grip as sword
 		"scale": Vector3(1.0, 1.0, 1.0)
 	},
 	WeaponVisualType.TWO_HANDED_SWORD: { 
 		"offset": Vector3(0.0, 0.0, 0.0), 
-		"rotation": Vector3(-90, 0, 0),
+		"rotation": Vector3(-90, 0, 90),  # Same grip as one-handed sword
 		"scale": Vector3(1.2, 1.2, 1.2)
 	},
 	WeaponVisualType.ONE_HANDED_AXE: { 
 		"offset": Vector3(0.0, 0.0, 0.0), 
-		"rotation": Vector3(-90, 0, 0),
+		"rotation": Vector3(-90, 0, 90),  # Axe head extends upward from grip
 		"scale": Vector3(1.0, 1.0, 1.0)
 	},
 	WeaponVisualType.TWO_HANDED_AXE: { 
 		"offset": Vector3(0.0, 0.0, 0.0), 
-		"rotation": Vector3(-90, 0, 0),
+		"rotation": Vector3(-90, 0, 90),  # Same grip as one-handed axe
 		"scale": Vector3(1.2, 1.2, 1.2)
 	},
 	WeaponVisualType.HAMMER: { 
 		"offset": Vector3(0.0, 0.0, 0.0), 
-		"rotation": Vector3(-90, 0, 0),
+		"rotation": Vector3(-90, 0, 90),  # Hammer head extends upward from grip
 		"scale": Vector3(1.0, 1.0, 1.0)
 	},
 	WeaponVisualType.STAFF: { 
 		"offset": Vector3(0.0, 0.1, 0.0), 
-		"rotation": Vector3(-90, 0, 0),
+		"rotation": Vector3(-90, 0, 45),  # Staff held at diagonal angle
 		"scale": Vector3(1.0, 1.0, 1.0)
 	},
 	WeaponVisualType.BOW: { 
 		"offset": Vector3(0.0, 0.0, 0.0), 
-		"rotation": Vector3(0, -90, 0),
+		"rotation": Vector3(0, -90, 0),  # Bow held vertically, string toward body
 		"scale": Vector3(1.0, 1.0, 1.0)
 	},
 	WeaponVisualType.SPEAR: { 
 		"offset": Vector3(0.0, 0.0, 0.0), 
-		"rotation": Vector3(-90, 0, 0),
+		"rotation": Vector3(-90, 0, 45),  # Spear held at angle, point forward-up
 		"scale": Vector3(1.0, 1.0, 1.0)
 	},
 }
