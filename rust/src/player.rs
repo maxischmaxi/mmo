@@ -1305,6 +1305,7 @@ impl Player {
                     mmo_shared::EnemyType::Goblin => 0,
                     mmo_shared::EnemyType::Skeleton => 1,
                     mmo_shared::EnemyType::Mutant => 2,
+                    mmo_shared::EnemyType::Wolf => 3,
                 };
                 self.base_mut().emit_signal("enemy_spawned", &[
                     (id as i64).to_variant(),

@@ -159,10 +159,13 @@ func _ready() -> void:
 			local_player.connect("gold_updated", _on_gold_updated)
 		if local_player.has_signal("stats_updated"):
 			local_player.connect("stats_updated", _on_stats_updated)
+		# Connect to character_selected to get initial gold value when entering game
+		if local_player.has_signal("character_selected"):
+			local_player.connect("character_selected", _on_character_selected)
 		# Close inventory when teleporting to another zone
 		if local_player.has_signal("zone_change"):
 			local_player.connect("zone_change", _on_zone_change)
-		# Load initial gold value
+		# Load initial gold value (in case character is already selected)
 		if local_player.has_method("get_gold"):
 			current_gold = local_player.get_gold()
 			_refresh_gold_display()
@@ -442,10 +445,21 @@ func _on_stats_updated(_level: int, _max_health: int, _max_mana: int, _attack: i
 	_refresh_gold_display()
 
 
+func _on_character_selected(_character_id: int) -> void:
+	# Refresh gold when character is selected (entering game)
+	if local_player and local_player.has_method("get_gold"):
+		current_gold = local_player.get_gold()
+		_refresh_gold_display()
+
+
 func toggle_visibility() -> void:
 	visible = not visible
 	if visible:
+		# Refresh gold from player when opening (in case it wasn't updated via signals)
+		if local_player and local_player.has_method("get_gold"):
+			current_gold = local_player.get_gold()
 		refresh_display()
+		_refresh_gold_display()
 		# Release mouse when opening inventory
 		Input.set_mouse_mode(Input.MOUSE_MODE_VISIBLE)
 

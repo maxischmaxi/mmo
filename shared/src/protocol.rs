@@ -627,6 +627,7 @@ pub enum EnemyType {
     Goblin,
     Skeleton,
     Mutant,
+    Wolf,
 }
 
 /// Inventory slot

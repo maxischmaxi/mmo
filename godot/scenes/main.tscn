@@ -19,6 +19,7 @@
 [ext_resource type="PackedScene" uid="uid://cescapemenu001" path="res://scenes/ui/escape_menu.tscn" id="18_escape"]
 [ext_resource type="PackedScene" uid="uid://csettingsdialog" path="res://scenes/ui/settings_dialog.tscn" id="19_settings"]
 [ext_resource type="PackedScene" uid="uid://cmapwindow001" path="res://scenes/ui/map_window.tscn" id="20_map"]
+[ext_resource type="PackedScene" uid="uid://characterpanel001" path="res://scenes/ui/character_panel.tscn" id="21_charpanel"]
 
 [sub_resource type="ShaderMaterial" id="ShaderMaterial_sky"]
 shader = ExtResource("14_sky_shader")
@@ -105,6 +106,8 @@ mouse_filter = 2
 [node name="SettingsDialog" parent="UI/GameUI" instance=ExtResource("19_settings")]
 
 [node name="MapWindow" parent="UI/GameUI" instance=ExtResource("20_map")]
+
+[node name="CharacterPanel" parent="UI/GameUI" instance=ExtResource("21_charpanel")]
 
 [node name="DayNightController" type="Node3D" parent="." groups=["day_night_controller"]]
 script = ExtResource("13_daynight")

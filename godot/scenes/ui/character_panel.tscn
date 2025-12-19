@@ -1,0 +1,265 @@
+[gd_scene load_steps=6 format=3 uid="uid://bdj4tjseqbtum"]
+
+[ext_resource type="Script" path="res://scripts/ui/character_panel.gd" id="1_script"]
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_panel"]
+bg_color = Color(0.12, 0.12, 0.12, 0.95)
+border_width_left = 2
+border_width_top = 2
+border_width_right = 2
+border_width_bottom = 2
+border_color = Color(0.4, 0.35, 0.25, 1)
+corner_radius_top_left = 8
+corner_radius_top_right = 8
+corner_radius_bottom_right = 8
+corner_radius_bottom_left = 8
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_section"]
+bg_color = Color(0.08, 0.08, 0.08, 0.8)
+border_width_left = 1
+border_width_top = 1
+border_width_right = 1
+border_width_bottom = 1
+border_color = Color(0.3, 0.28, 0.22, 1)
+corner_radius_top_left = 4
+corner_radius_top_right = 4
+corner_radius_bottom_right = 4
+corner_radius_bottom_left = 4
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_exp_bg"]
+bg_color = Color(0.1, 0.08, 0.02, 1)
+corner_radius_top_left = 3
+corner_radius_top_right = 3
+corner_radius_bottom_right = 3
+corner_radius_bottom_left = 3
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_exp_fill"]
+bg_color = Color(0.85, 0.7, 0.15, 1)
+corner_radius_top_left = 3
+corner_radius_top_right = 3
+corner_radius_bottom_right = 3
+corner_radius_bottom_left = 3
+
+[node name="CharacterPanel" type="Control"]
+layout_mode = 3
+anchors_preset = 0
+offset_left = 50.0
+offset_top = 100.0
+offset_right = 330.0
+offset_bottom = 520.0
+script = ExtResource("1_script")
+
+[node name="Panel" type="Panel" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_styles/panel = SubResource("StyleBoxFlat_panel")
+
+[node name="MarginContainer" type="MarginContainer" parent="Panel"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_constants/margin_left = 12
+theme_override_constants/margin_top = 10
+theme_override_constants/margin_right = 12
+theme_override_constants/margin_bottom = 12
+
+[node name="VBoxContainer" type="VBoxContainer" parent="Panel/MarginContainer"]
+layout_mode = 2
+theme_override_constants/separation = 12
+
+[node name="Header" type="HBoxContainer" parent="Panel/MarginContainer/VBoxContainer"]
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="Title" type="Label" parent="Panel/MarginContainer/VBoxContainer/Header"]
+layout_mode = 2
+size_flags_horizontal = 3
+text = "Character"
+horizontal_alignment = 1
+theme_override_colors/font_color = Color(0.9, 0.8, 0.6, 1)
+theme_override_font_sizes/font_size = 16
+
+[node name="CloseButton" type="Button" parent="Panel/MarginContainer/VBoxContainer/Header"]
+custom_minimum_size = Vector2(24, 24)
+layout_mode = 2
+text = "X"
+flat = true
+
+[node name="CharacterSection" type="PanelContainer" parent="Panel/MarginContainer/VBoxContainer"]
+layout_mode = 2
+theme_override_styles/panel = SubResource("StyleBoxFlat_section")
+
+[node name="CharacterVBox" type="VBoxContainer" parent="Panel/MarginContainer/VBoxContainer/CharacterSection"]
+layout_mode = 2
+theme_override_constants/separation = 6
+
+[node name="CharacterName" type="Label" parent="Panel/MarginContainer/VBoxContainer/CharacterSection/CharacterVBox"]
+layout_mode = 2
+text = "Character Name"
+horizontal_alignment = 1
+theme_override_colors/font_color = Color(1, 0.95, 0.85, 1)
+theme_override_font_sizes/font_size = 18
+
+[node name="InfoGrid" type="GridContainer" parent="Panel/MarginContainer/VBoxContainer/CharacterSection/CharacterVBox"]
+layout_mode = 2
+theme_override_constants/h_separation = 12
+theme_override_constants/v_separation = 4
+columns = 2
+
+[node name="ClassLabel" type="Label" parent="Panel/MarginContainer/VBoxContainer/CharacterSection/CharacterVBox/InfoGrid"]
+layout_mode = 2
+text = "Class:"
+theme_override_colors/font_color = Color(0.6, 0.6, 0.6, 1)
+theme_override_font_sizes/font_size = 12
+
+[node name="ClassValue" type="Label" parent="Panel/MarginContainer/VBoxContainer/CharacterSection/CharacterVBox/InfoGrid"]
+layout_mode = 2
+text = "Warrior"
+theme_override_colors/font_color = Color(0.9, 0.85, 0.7, 1)
+theme_override_font_sizes/font_size = 12
+
+[node name="EmpireLabel" type="Label" parent="Panel/MarginContainer/VBoxContainer/CharacterSection/CharacterVBox/InfoGrid"]
+layout_mode = 2
+text = "Empire:"
+theme_override_colors/font_color = Color(0.6, 0.6, 0.6, 1)
+theme_override_font_sizes/font_size = 12
+
+[node name="EmpireValue" type="Label" parent="Panel/MarginContainer/VBoxContainer/CharacterSection/CharacterVBox/InfoGrid"]
+layout_mode = 2
+text = "Shinsoo"
+theme_override_colors/font_color = Color(0.9, 0.3, 0.3, 1)
+theme_override_font_sizes/font_size = 12
+
+[node name="StatsSection" type="PanelContainer" parent="Panel/MarginContainer/VBoxContainer"]
+layout_mode = 2
+theme_override_styles/panel = SubResource("StyleBoxFlat_section")
+
+[node name="StatsVBox" type="VBoxContainer" parent="Panel/MarginContainer/VBoxContainer/StatsSection"]
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="StatsHeader" type="Label" parent="Panel/MarginContainer/VBoxContainer/StatsSection/StatsVBox"]
+layout_mode = 2
+text = "STATS"
+theme_override_colors/font_color = Color(0.7, 0.65, 0.55, 1)
+theme_override_font_sizes/font_size = 11
+
+[node name="StatsGrid" type="GridContainer" parent="Panel/MarginContainer/VBoxContainer/StatsSection/StatsVBox"]
+layout_mode = 2
+theme_override_constants/h_separation = 16
+theme_override_constants/v_separation = 6
+columns = 2
+
+[node name="LevelLabel" type="Label" parent="Panel/MarginContainer/VBoxContainer/StatsSection/StatsVBox/StatsGrid"]
+layout_mode = 2
+text = "Level"
+theme_override_colors/font_color = Color(0.7, 0.7, 0.7, 1)
+
+[node name="LevelValue" type="Label" parent="Panel/MarginContainer/VBoxContainer/StatsSection/StatsVBox/StatsGrid"]
+layout_mode = 2
+text = "1"
+theme_override_colors/font_color = Color(1, 0.95, 0.7, 1)
+theme_override_font_sizes/font_size = 14
+
+[node name="HealthLabel" type="Label" parent="Panel/MarginContainer/VBoxContainer/StatsSection/StatsVBox/StatsGrid"]
+layout_mode = 2
+text = "Health"
+theme_override_colors/font_color = Color(0.7, 0.7, 0.7, 1)
+
+[node name="HealthValue" type="Label" parent="Panel/MarginContainer/VBoxContainer/StatsSection/StatsVBox/StatsGrid"]
+layout_mode = 2
+text = "100 / 100"
+theme_override_colors/font_color = Color(0.9, 0.4, 0.4, 1)
+
+[node name="ManaLabel" type="Label" parent="Panel/MarginContainer/VBoxContainer/StatsSection/StatsVBox/StatsGrid"]
+layout_mode = 2
+text = "Mana"
+theme_override_colors/font_color = Color(0.7, 0.7, 0.7, 1)
+
+[node name="ManaValue" type="Label" parent="Panel/MarginContainer/VBoxContainer/StatsSection/StatsVBox/StatsGrid"]
+layout_mode = 2
+text = "50 / 50"
+theme_override_colors/font_color = Color(0.4, 0.6, 0.9, 1)
+
+[node name="AttackLabel" type="Label" parent="Panel/MarginContainer/VBoxContainer/StatsSection/StatsVBox/StatsGrid"]
+layout_mode = 2
+text = "Attack"
+theme_override_colors/font_color = Color(0.7, 0.7, 0.7, 1)
+
+[node name="AttackValue" type="Label" parent="Panel/MarginContainer/VBoxContainer/StatsSection/StatsVBox/StatsGrid"]
+layout_mode = 2
+text = "10"
+theme_override_colors/font_color = Color(0.9, 0.7, 0.5, 1)
+
+[node name="DefenseLabel" type="Label" parent="Panel/MarginContainer/VBoxContainer/StatsSection/StatsVBox/StatsGrid"]
+layout_mode = 2
+text = "Defense"
+theme_override_colors/font_color = Color(0.7, 0.7, 0.7, 1)
+
+[node name="DefenseValue" type="Label" parent="Panel/MarginContainer/VBoxContainer/StatsSection/StatsVBox/StatsGrid"]
+layout_mode = 2
+text = "5"
+theme_override_colors/font_color = Color(0.5, 0.8, 0.6, 1)
+
+[node name="AttackSpeedLabel" type="Label" parent="Panel/MarginContainer/VBoxContainer/StatsSection/StatsVBox/StatsGrid"]
+layout_mode = 2
+text = "Attack Speed"
+theme_override_colors/font_color = Color(0.7, 0.7, 0.7, 1)
+
+[node name="AttackSpeedValue" type="Label" parent="Panel/MarginContainer/VBoxContainer/StatsSection/StatsVBox/StatsGrid"]
+layout_mode = 2
+text = "1.00x"
+theme_override_colors/font_color = Color(0.8, 0.7, 0.9, 1)
+
+[node name="GoldLabel" type="Label" parent="Panel/MarginContainer/VBoxContainer/StatsSection/StatsVBox/StatsGrid"]
+layout_mode = 2
+text = "Gold"
+theme_override_colors/font_color = Color(0.7, 0.7, 0.7, 1)
+
+[node name="GoldValue" type="Label" parent="Panel/MarginContainer/VBoxContainer/StatsSection/StatsVBox/StatsGrid"]
+layout_mode = 2
+text = "0"
+theme_override_colors/font_color = Color(1.0, 0.85, 0.2, 1)
+
+[node name="ExpSection" type="PanelContainer" parent="Panel/MarginContainer/VBoxContainer"]
+layout_mode = 2
+theme_override_styles/panel = SubResource("StyleBoxFlat_section")
+
+[node name="ExpVBox" type="VBoxContainer" parent="Panel/MarginContainer/VBoxContainer/ExpSection"]
+layout_mode = 2
+theme_override_constants/separation = 6
+
+[node name="ExpHeader" type="Label" parent="Panel/MarginContainer/VBoxContainer/ExpSection/ExpVBox"]
+layout_mode = 2
+text = "EXPERIENCE"
+theme_override_colors/font_color = Color(0.7, 0.65, 0.55, 1)
+theme_override_font_sizes/font_size = 11
+
+[node name="ExpBar" type="ProgressBar" parent="Panel/MarginContainer/VBoxContainer/ExpSection/ExpVBox"]
+custom_minimum_size = Vector2(0, 22)
+layout_mode = 2
+theme_override_styles/background = SubResource("StyleBoxFlat_exp_bg")
+theme_override_styles/fill = SubResource("StyleBoxFlat_exp_fill")
+max_value = 100.0
+value = 0.0
+show_percentage = false
+
+[node name="ExpLabel" type="Label" parent="Panel/MarginContainer/VBoxContainer/ExpSection/ExpVBox/ExpBar"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+text = "0 / 100 (0.0%)"
+horizontal_alignment = 1
+vertical_alignment = 1
+theme_override_colors/font_color = Color(1, 1, 1, 0.9)
+theme_override_font_sizes/font_size = 11

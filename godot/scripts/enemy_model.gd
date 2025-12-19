@@ -13,6 +13,8 @@ var _init_pending: bool = false
 
 ## Animation mappings per enemy type
 ## Maps enemy type ID to folder name and animation file mappings
+## For single_fbx mode, mappings map standard names to source animation names in the FBX
+## For separate FBX mode (no single_fbx), mappings map standard names to FBX file names
 const ENEMY_CONFIGS := {
 	# Type 0: Goblin (placeholder - will need its own character later)
 	0: {
@@ -38,7 +40,7 @@ const ENEMY_CONFIGS := {
 			"Death": "Death",
 		}
 	},
-	# Type 2: Mutant (formerly Wolf)
+	# Type 2: Mutant - elite dangerous enemy
 	2: {
 		"folder": "mutant",
 		"mappings": {
@@ -49,6 +51,21 @@ const ENEMY_CONFIGS := {
 			"Hit": "Mutant Idle",  # No hit animation, use idle
 			"Death": "Mutant Dying",
 		}
+	},
+	# Type 3: Wolf - pack predator with all animations in one Blender file
+	# Uses substitute animations: Creep for Attack, Sit for Death
+	3: {
+		"folder": "wolf",
+		"single_fbx": "Wolf_With_Baked_Action_Animations_For_Export_One_Mesh.blend",  # Use Blender file directly
+		"mappings": {
+			"Idle": "idle",       # Maps to "idle" animation 
+			"Walk": "walk",       # Maps to "walk" animation
+			"Run": "run",         # Maps to "run" animation
+			"Attack": "creep",    # Substitute: creep (stalking) for attack
+			"Hit": "idle",        # Fallback to idle for hit reaction
+			"Death": "sit",       # Substitute: sit (lies down) for death
+		},
+		"pingpong": ["Idle"],     # Idle animation ping-pongs for smooth tail movement
 	},
 }
 
@@ -91,7 +108,9 @@ func _do_initialize() -> void:
 		return
 	
 	var config: Dictionary = ENEMY_CONFIGS[enemy_type]
-	animation_controller.initialize(config["folder"], config["mappings"])
+	var single_fbx: String = config.get("single_fbx", "")
+	var pingpong: Array = config.get("pingpong", [])
+	animation_controller.initialize(config["folder"], config["mappings"], single_fbx, pingpong)
 	print("EnemyModel: Initialized enemy type %d (%s)" % [enemy_type, config["folder"]])
 
 

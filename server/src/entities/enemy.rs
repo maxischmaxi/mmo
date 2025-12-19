@@ -38,9 +38,10 @@ impl ServerEnemy {
     pub fn new(id: u64, zone_id: u32, enemy_type: EnemyType, position: [f32; 3]) -> Self {
         // Stats and level range based on enemy type
         let (health, attack_power, min_level, max_level) = match enemy_type {
-            EnemyType::Goblin => (50, 8, 1, 3),
-            EnemyType::Skeleton => (70, 12, 3, 5),
-            EnemyType::Mutant => (90, 15, 4, 6),  // Mutants are tougher than wolves
+            EnemyType::Goblin => (50, 8, 1, 3),       // Weakest enemy
+            EnemyType::Wolf => (65, 10, 2, 4),        // Pack predator, early-mid enemy
+            EnemyType::Skeleton => (80, 14, 3, 5),    // Undead warrior
+            EnemyType::Mutant => (150, 25, 5, 8),     // Elite enemy, very dangerous
         };
         
         // Random level within range

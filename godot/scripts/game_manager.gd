@@ -14,7 +14,8 @@ const CharacterCreateScene = preload("res://scenes/ui/character_create.tscn")
 const ENEMY_SCENES := {
 	# 0: "res://scenes/enemies/goblin.tscn",  # TODO: Add goblin model
 	# 1: "res://scenes/enemies/skeleton.tscn",  # TODO: Add skeleton model
-	2: "res://scenes/enemies/mutant.tscn",  # Mutant (formerly Wolf)
+	2: "res://scenes/enemies/mutant.tscn",  # Mutant - elite dangerous enemy
+	3: "res://scenes/enemies/wolf.tscn",    # Wolf - pack predator
 }
 
 ## Game state enum
@@ -575,6 +576,7 @@ func _get_enemy_name(enemy_type: int) -> String:
 		0: return "Goblin"
 		1: return "Skeleton"
 		2: return "Mutant"
+		3: return "Wolf"
 		_: return "Enemy"
 
 
@@ -634,6 +636,8 @@ func _create_enemy_placeholder(enemy_type: int) -> Node3D:
 			material.albedo_color = Color(0.9, 0.9, 0.8)
 		2:  # Mutant
 			material.albedo_color = Color(0.6, 0.3, 0.5)
+		3:  # Wolf
+			material.albedo_color = Color(0.5, 0.4, 0.3)  # Brown/gray
 		_:
 			material.albedo_color = Color(1, 0, 1)
 	mesh_instance.material_override = material

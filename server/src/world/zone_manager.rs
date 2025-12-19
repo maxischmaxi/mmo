@@ -127,18 +127,22 @@ impl ZoneManager {
             ZoneEnemySpawn { id: 3, zone_id: 1, enemy_type: EnemyType::Goblin, position: [15.0, 0.0, -10.0], respawn_time_secs: 60 },
             ZoneEnemySpawn { id: 4, zone_id: 1, enemy_type: EnemyType::Mutant, position: [0.0, 0.0, 20.0], respawn_time_secs: 90 },
             ZoneEnemySpawn { id: 5, zone_id: 1, enemy_type: EnemyType::Skeleton, position: [-15.0, 0.0, -15.0], respawn_time_secs: 120 },
+            ZoneEnemySpawn { id: 14, zone_id: 1, enemy_type: EnemyType::Wolf, position: [5.0, 0.0, -5.0], respawn_time_secs: 60 },
+            ZoneEnemySpawn { id: 15, zone_id: 1, enemy_type: EnemyType::Wolf, position: [8.0, 0.0, -8.0], respawn_time_secs: 60 },
         ]);
         manager.enemy_spawns.insert(100, vec![
             ZoneEnemySpawn { id: 6, zone_id: 100, enemy_type: EnemyType::Goblin, position: [8.0, 0.0, 12.0], respawn_time_secs: 60 },
             ZoneEnemySpawn { id: 7, zone_id: 100, enemy_type: EnemyType::Goblin, position: [-12.0, 0.0, 8.0], respawn_time_secs: 60 },
             ZoneEnemySpawn { id: 8, zone_id: 100, enemy_type: EnemyType::Skeleton, position: [20.0, 0.0, 5.0], respawn_time_secs: 120 },
             ZoneEnemySpawn { id: 9, zone_id: 100, enemy_type: EnemyType::Mutant, position: [-5.0, 0.0, 18.0], respawn_time_secs: 90 },
+            ZoneEnemySpawn { id: 16, zone_id: 100, enemy_type: EnemyType::Wolf, position: [15.0, 0.0, -10.0], respawn_time_secs: 60 },
         ]);
         manager.enemy_spawns.insert(200, vec![
             ZoneEnemySpawn { id: 10, zone_id: 200, enemy_type: EnemyType::Mutant, position: [5.0, 0.0, 15.0], respawn_time_secs: 90 },
             ZoneEnemySpawn { id: 11, zone_id: 200, enemy_type: EnemyType::Mutant, position: [-8.0, 0.0, 10.0], respawn_time_secs: 90 },
             ZoneEnemySpawn { id: 12, zone_id: 200, enemy_type: EnemyType::Goblin, position: [18.0, 0.0, -5.0], respawn_time_secs: 60 },
             ZoneEnemySpawn { id: 13, zone_id: 200, enemy_type: EnemyType::Skeleton, position: [-20.0, 0.0, 0.0], respawn_time_secs: 120 },
+            ZoneEnemySpawn { id: 17, zone_id: 200, enemy_type: EnemyType::Wolf, position: [-12.0, 0.0, -8.0], respawn_time_secs: 60 },
         ]);
         
         info!("ZoneManager initialized with {} zones (hardcoded defaults)", manager.zones.len());
@@ -208,6 +212,7 @@ impl ZoneManager {
                 0 => EnemyType::Goblin,
                 1 => EnemyType::Skeleton,
                 2 => EnemyType::Mutant,
+                3 => EnemyType::Wolf,
                 _ => {
                     warn!("Unknown enemy type {} in spawn {}, defaulting to Goblin", enemy_type, id);
                     EnemyType::Goblin

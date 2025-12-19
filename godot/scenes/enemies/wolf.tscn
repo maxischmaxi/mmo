@@ -1,0 +1,15 @@
+[gd_scene load_steps=4 format=3 uid="uid://b4xr2qmvkw7oj"]
+
+[ext_resource type="PackedScene" uid="uid://m58cuweickl8" path="res://assets/animations/enemies/wolf/Wolf_With_Baked_Action_Animations_For_Export_One_Mesh.blend" id="1_character"]
+[ext_resource type="Script" uid="uid://bgjacbsgexlxy" path="res://scripts/enemy_model.gd" id="2_enemy_model"]
+[ext_resource type="Script" uid="uid://lpp3x0nk4e5h" path="res://scripts/enemy_animation_controller.gd" id="3_anim_controller"]
+
+[node name="WolfModel" type="Node3D"]
+script = ExtResource("2_enemy_model")
+
+[node name="AnimationController" type="Node3D" parent="."]
+script = ExtResource("3_anim_controller")
+animation_player_path = NodePath("")
+
+[node name="Rig" parent="." instance=ExtResource("1_character")]
+transform = Transform3D(1.5, 0, 0, 0, 1.5, 0, 0, 0, 1.5, 0, 0, 0)

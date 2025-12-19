@@ -46,7 +46,7 @@ CREATE INDEX IF NOT EXISTS idx_zone_spawn_points_zone ON zone_spawn_points(zone_
 CREATE TABLE IF NOT EXISTS zone_enemy_spawns (
     id SERIAL PRIMARY KEY,
     zone_id INTEGER NOT NULL REFERENCES zones(id) ON DELETE CASCADE,
-    enemy_type SMALLINT NOT NULL,  -- 0=Goblin, 1=Skeleton, 2=Wolf
+    enemy_type SMALLINT NOT NULL,  -- 0=Goblin, 1=Skeleton, 2=Mutant, 3=Wolf
     position_x REAL NOT NULL,
     position_y REAL NOT NULL,
     position_z REAL NOT NULL,
@@ -97,8 +97,10 @@ INSERT INTO zone_enemy_spawns (zone_id, enemy_type, position_x, position_y, posi
 (1, 0, 10.0, 0.0, 10.0, 60),    -- Goblin
 (1, 0, -10.0, 0.0, 5.0, 60),    -- Goblin
 (1, 0, 15.0, 0.0, -10.0, 60),   -- Goblin
-(1, 2, 0.0, 0.0, 20.0, 90),     -- Wolf
-(1, 1, -15.0, 0.0, -15.0, 120)  -- Skeleton
+(1, 2, 0.0, 0.0, 20.0, 90),     -- Mutant
+(1, 1, -15.0, 0.0, -15.0, 120), -- Skeleton
+(1, 3, 5.0, 0.0, -5.0, 60),     -- Wolf
+(1, 3, 8.0, 0.0, -8.0, 60)      -- Wolf
 ON CONFLICT DO NOTHING;
 
 -- Chunjo Village enemies
@@ -106,15 +108,17 @@ INSERT INTO zone_enemy_spawns (zone_id, enemy_type, position_x, position_y, posi
 (100, 0, 8.0, 0.0, 12.0, 60),   -- Goblin
 (100, 0, -12.0, 0.0, 8.0, 60),  -- Goblin
 (100, 1, 20.0, 0.0, 5.0, 120),  -- Skeleton
-(100, 2, -5.0, 0.0, 18.0, 90)   -- Wolf
+(100, 2, -5.0, 0.0, 18.0, 90),  -- Mutant
+(100, 3, 15.0, 0.0, -10.0, 60)  -- Wolf
 ON CONFLICT DO NOTHING;
 
 -- Jinno Village enemies
 INSERT INTO zone_enemy_spawns (zone_id, enemy_type, position_x, position_y, position_z, respawn_time_secs) VALUES
-(200, 2, 5.0, 0.0, 15.0, 90),   -- Wolf
-(200, 2, -8.0, 0.0, 10.0, 90),  -- Wolf
+(200, 2, 5.0, 0.0, 15.0, 90),   -- Mutant
+(200, 2, -8.0, 0.0, 10.0, 90),  -- Mutant
 (200, 0, 18.0, 0.0, -5.0, 60),  -- Goblin
-(200, 1, -20.0, 0.0, 0.0, 120)  -- Skeleton
+(200, 1, -20.0, 0.0, 0.0, 120), -- Skeleton
+(200, 3, -12.0, 0.0, -8.0, 60)  -- Wolf
 ON CONFLICT DO NOTHING;
 
 -- =============================================================================
