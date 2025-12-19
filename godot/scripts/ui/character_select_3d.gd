@@ -69,6 +69,12 @@ var _is_creating_model: bool = false
 var _last_character_list_time: float = 0.0
 const CHARACTER_LIST_DEBOUNCE_MS: float = 100.0
 
+## Pending character ID to enter game with after rallying animation finishes
+var _pending_character_id: int = -1
+
+## Whether we're currently playing the entering animation sequence
+var _is_entering_game: bool = false
+
 # UI References - 3D Viewport
 @onready var subviewport: SubViewport = $SubViewportContainer/SubViewport
 @onready var character_slider: Node3D = $SubViewportContainer/SubViewport/CharacterSlider
@@ -341,16 +347,13 @@ func _create_model_for_current_slot() -> void:
 
 
 func _setup_select_animation(anim_ctrl: Node, model: Node3D) -> void:
-	"""Setup rallying animation for the character model (deferred to avoid await issues).
-	Plays rallying animation once, then transitions to idle."""
+	"""Setup idle animation for the character model (deferred to avoid await issues).
+	Character idles until player confirms selection, then plays rallying animation."""
 	# Check if the model is still valid and is our current model
 	if not is_instance_valid(model) or model != current_character_model:
 		return
 	
-	if anim_ctrl and anim_ctrl.has_method("play_rallying_animation"):
-		anim_ctrl.play_rallying_animation()
-	elif anim_ctrl and anim_ctrl.has_method("play_animation"):
-		# Fallback to idle if rallying not available
+	if anim_ctrl and anim_ctrl.has_method("play_animation"):
 		anim_ctrl.play_animation("Neutral Idle")
 
 
@@ -404,6 +407,10 @@ func _input(event: InputEvent) -> void:
 	
 	# Don't process if delete dialog is open
 	if delete_dialog.visible:
+		return
+	
+	# Don't process navigation/actions while entering game (rallying animation playing)
+	if _is_entering_game:
 		return
 	
 	# Handle mouse input for character rotation
@@ -476,18 +483,69 @@ func _apply_character_rotation() -> void:
 
 
 func _confirm_selection() -> void:
-	"""Confirm current selection - play character or create new."""
+	"""Confirm current selection - play rallying animation then enter game, or create new."""
 	if current_index < characters.size():
-		# Select existing character
+		# Select existing character - play rallying animation first
 		var char_data = characters[current_index]
 		var char_id = char_data.get("id", 0)
-		if player_node:
-			enter_button.text = "ENTERING..."
-			enter_button.disabled = true
-			player_node.select_character(char_id)
+		
+		# Store pending character ID and mark as entering game
+		_pending_character_id = char_id
+		_is_entering_game = true
+		
+		# Update button state
+		enter_button.text = "ENTERING..."
+		enter_button.disabled = true
+		
+		# Try to play rallying animation on the current character model
+		var anim_started := _start_rallying_animation()
+		
+		if not anim_started:
+			# Fallback: immediately select character if animation failed
+			print("[CharSelect3D] Rallying animation failed, selecting character immediately")
+			_select_pending_character()
 	else:
 		# Empty slot - go to character creation
 		create_new_character.emit()
+
+
+func _start_rallying_animation() -> bool:
+	"""Start the rallying animation on the current character model.
+	Returns true if animation started successfully, false otherwise."""
+	if current_character_model == null or not is_instance_valid(current_character_model):
+		return false
+	
+	var anim_ctrl = current_character_model.get_node_or_null("AnimationController")
+	if anim_ctrl == null:
+		return false
+	
+	# Connect to rallying_finished signal if available
+	if anim_ctrl.has_signal("rallying_finished"):
+		# Disconnect if already connected (safety)
+		if anim_ctrl.rallying_finished.is_connected(_on_rallying_animation_finished):
+			anim_ctrl.rallying_finished.disconnect(_on_rallying_animation_finished)
+		anim_ctrl.rallying_finished.connect(_on_rallying_animation_finished, CONNECT_ONE_SHOT)
+	else:
+		# No signal available, can't wait for animation
+		return false
+	
+	# Play the rallying animation
+	if anim_ctrl.has_method("play_rallying_animation"):
+		anim_ctrl.play_rallying_animation()
+		return true
+	
+	return false
+
+
+func _on_rallying_animation_finished() -> void:
+	"""Called when rallying animation completes - now actually select the character."""
+	_select_pending_character()
+
+
+func _select_pending_character() -> void:
+	"""Actually send the character selection to the server."""
+	if _pending_character_id >= 0 and player_node:
+		player_node.select_character(_pending_character_id)
 
 
 func _update_ui() -> void:
@@ -595,6 +653,11 @@ func _on_character_selected_success(character_id: int) -> void:
 func _on_character_select_failed(reason: String) -> void:
 	"""Handle failed character selection."""
 	push_warning("Character select failed: %s" % reason)
+	
+	# Reset entering game state
+	_is_entering_game = false
+	_pending_character_id = -1
+	
 	enter_button.text = "ENTER WORLD"
 	enter_button.disabled = false
 
