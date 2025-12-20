@@ -96,6 +96,11 @@ func _setup_graphics_controls() -> void:
 		vsync_option.add_item("Enabled", 1)
 		vsync_option.add_item("Adaptive", 2)
 		vsync_option.add_item("Mailbox", 3)
+		# Add Compositor Safe option with recommendation for Wayland users
+		var compositor_label = "Compositor Safe"
+		if SettingsManager.is_wayland():
+			compositor_label = "Compositor Safe (Recommended)"
+		vsync_option.add_item(compositor_label, 4)
 		vsync_option.item_selected.connect(_on_vsync_changed)
 	
 	# FPS Limit

@@ -13,8 +13,9 @@ signal settings_applied
 enum WindowMode { WINDOWED, FULLSCREEN, BORDERLESS }
 
 ## VSync modes
-## MAILBOX is recommended for Linux to avoid compositor sync issues
-enum VSyncMode { DISABLED, ENABLED, ADAPTIVE, MAILBOX }
+## COMPOSITOR_SAFE is recommended for Wayland to avoid compositor sync issues
+## It disables hardware VSync and uses FPS limiting instead
+enum VSyncMode { DISABLED, ENABLED, ADAPTIVE, MAILBOX, COMPOSITOR_SAFE }
 
 ## Anti-aliasing modes
 enum AAMode { DISABLED, FXAA, MSAA_2X, MSAA_4X, MSAA_8X, TAA }
@@ -47,6 +48,10 @@ const DEFAULTS := {
 ## Get the platform-appropriate default VSync mode
 static func get_platform_default_vsync() -> int:
 	if OS.get_name() == "Linux":
+		# On Wayland, use COMPOSITOR_SAFE to avoid VSync desync issues
+		if is_wayland():
+			return VSyncMode.COMPOSITOR_SAFE
+		# On X11, MAILBOX works well
 		return VSyncMode.MAILBOX
 	return VSyncMode.ENABLED
 
@@ -95,16 +100,77 @@ var _environment: Environment = null
 var _sun: DirectionalLight3D = null
 var _moon: DirectionalLight3D = null
 
+# =============================================================================
+# VSync Recovery System (for Wayland/compositor issues)
+# =============================================================================
+
+## Number of consecutive frames with bad frame time
+var _bad_frame_count: int = 0
+## Cooldown timer to prevent rapid VSync resets
+var _vsync_reset_cooldown: float = 0.0
+## Whether a VSync reset is currently in progress
+var _vsync_reset_in_progress: bool = false
+
+## Frame time threshold - frames taking longer than this are "bad" (100ms = <10 FPS)
+const BAD_FRAME_THRESHOLD: float = 0.1
+## Number of consecutive bad frames before triggering VSync reset (aggressive)
+const BAD_FRAME_COUNT_TRIGGER: int = 3
+## Cooldown time between VSync resets to prevent rapid toggling
+const VSYNC_RESET_COOLDOWN_TIME: float = 2.0
+
 
 func _ready() -> void:
 	# Load settings on startup
 	load_settings()
 	
-	# Apply settings after a short delay to ensure scene is ready
+	# Migrate Wayland users to COMPOSITOR_SAFE if they have other VSync modes
+	_migrate_wayland_settings()
+	
+	# Apply window settings IMMEDIATELY to prevent resolution mismatch
+	# This must happen before any frames render to avoid black bars
+	# _apply_window_mode() only uses DisplayServer calls, no scene dependencies
+	_apply_window_mode()
+	
+	# Apply remaining settings after scene is ready (needs node references)
 	await get_tree().process_frame
 	await get_tree().process_frame
 	_cache_references()
-	apply_settings()
+	_apply_remaining_settings()
+
+
+func _process(delta: float) -> void:
+	"""Monitor frame time and trigger VSync recovery if needed."""
+	# Update cooldown timer
+	if _vsync_reset_cooldown > 0.0:
+		_vsync_reset_cooldown -= delta
+	
+	# Skip monitoring if reset is in progress or on cooldown
+	if _vsync_reset_in_progress or _vsync_reset_cooldown > 0.0:
+		return
+	
+	# Skip if using COMPOSITOR_SAFE mode (no VSync to desync)
+	if get_vsync() == VSyncMode.COMPOSITOR_SAFE:
+		_bad_frame_count = 0
+		return
+	
+	# Check for bad frame time
+	if delta > BAD_FRAME_THRESHOLD:
+		_bad_frame_count += 1
+		if _bad_frame_count >= BAD_FRAME_COUNT_TRIGGER:
+			print("SettingsManager: Detected %d consecutive slow frames (%.1f ms avg), triggering VSync recovery..." % [
+				_bad_frame_count, delta * 1000.0
+			])
+			_trigger_vsync_recovery()
+	else:
+		# Reset counter on good frame
+		_bad_frame_count = 0
+
+
+func _input(event: InputEvent) -> void:
+	"""Handle manual VSync reset keybind."""
+	if event.is_action_pressed("vsync_reset"):
+		print("SettingsManager: Manual VSync reset triggered (F11)")
+		_trigger_vsync_recovery()
 
 
 func _cache_references() -> void:
@@ -122,6 +188,81 @@ func _cache_references() -> void:
 	if day_night:
 		_sun = day_night.get_node_or_null("Sun")
 		_moon = day_night.get_node_or_null("Moon")
+
+
+# =============================================================================
+# Wayland/Compositor Detection and Migration
+# =============================================================================
+
+static func is_wayland() -> bool:
+	"""Check if running on Wayland display server."""
+	if OS.get_name() != "Linux":
+		return false
+	var session_type = OS.get_environment("XDG_SESSION_TYPE")
+	return session_type.to_lower() == "wayland"
+
+
+func _migrate_wayland_settings() -> void:
+	"""Migrate Wayland users to COMPOSITOR_SAFE mode if using problematic VSync modes."""
+	if not is_wayland():
+		return
+	
+	var current_vsync = get_setting("graphics", "vsync", -1)
+	
+	# If using default (-1) or any hardware VSync mode, migrate to COMPOSITOR_SAFE
+	if current_vsync == -1 or (current_vsync >= VSyncMode.DISABLED and current_vsync <= VSyncMode.MAILBOX):
+		# Only migrate if not already on COMPOSITOR_SAFE
+		if current_vsync != VSyncMode.COMPOSITOR_SAFE:
+			print("SettingsManager: Wayland detected - migrating VSync to COMPOSITOR_SAFE mode")
+			print("SettingsManager: This prevents frame timing issues when moving windows")
+			set_setting("graphics", "vsync", VSyncMode.COMPOSITOR_SAFE)
+			save_settings()
+
+
+static func get_monitor_refresh_rate() -> int:
+	"""Get the current monitor's refresh rate, with fallback to 60Hz."""
+	var refresh_rate = DisplayServer.screen_get_refresh_rate()
+	if refresh_rate <= 0:
+		return 60  # Fallback
+	return int(refresh_rate)
+
+
+# =============================================================================
+# VSync Recovery System
+# =============================================================================
+
+func _trigger_vsync_recovery() -> void:
+	"""Trigger an async VSync recovery by toggling VSync off and back on."""
+	if _vsync_reset_in_progress:
+		return
+	
+	_vsync_reset_in_progress = true
+	_vsync_reset_cooldown = VSYNC_RESET_COOLDOWN_TIME
+	_bad_frame_count = 0
+	
+	# Run the async recovery
+	_perform_vsync_recovery()
+
+
+func _perform_vsync_recovery() -> void:
+	"""Perform the actual VSync reset (async)."""
+	var original_vsync = get_vsync()
+	
+	# Step 1: Disable VSync
+	DisplayServer.window_set_vsync_mode(DisplayServer.VSYNC_DISABLED)
+	print("SettingsManager: VSync disabled for recovery...")
+	
+	# Step 2: Wait a few frames for GPU to stabilize
+	if is_inside_tree():
+		await get_tree().process_frame
+		await get_tree().process_frame
+		await get_tree().process_frame
+	
+	# Step 3: Re-apply original VSync setting
+	await _apply_vsync()
+	
+	print("SettingsManager: VSync recovery complete, restored to mode %d" % original_vsync)
+	_vsync_reset_in_progress = false
 
 
 # =============================================================================
@@ -311,6 +452,11 @@ func apply_settings() -> void:
 	
 	_apply_window_mode()
 	
+	await _apply_remaining_settings()
+
+
+func _apply_remaining_settings() -> void:
+	"""Apply settings that depend on scene nodes being ready."""
 	# VSync is async to allow frame delays for GPU/compositor sync
 	await _apply_vsync()
 	
@@ -365,12 +511,24 @@ func _apply_vsync() -> void:
 	match vsync:
 		VSyncMode.DISABLED:
 			DisplayServer.window_set_vsync_mode(DisplayServer.VSYNC_DISABLED)
+			# Restore default FPS limit when not using COMPOSITOR_SAFE
+			Engine.max_fps = get_fps_limit()
 		VSyncMode.ENABLED:
 			DisplayServer.window_set_vsync_mode(DisplayServer.VSYNC_ENABLED)
+			Engine.max_fps = get_fps_limit()
 		VSyncMode.ADAPTIVE:
 			DisplayServer.window_set_vsync_mode(DisplayServer.VSYNC_ADAPTIVE)
+			Engine.max_fps = get_fps_limit()
 		VSyncMode.MAILBOX:
 			DisplayServer.window_set_vsync_mode(DisplayServer.VSYNC_MAILBOX)
+			Engine.max_fps = get_fps_limit()
+		VSyncMode.COMPOSITOR_SAFE:
+			# Disable hardware VSync and use FPS limiting instead
+			# This avoids VSync desync issues on Wayland/compositors
+			DisplayServer.window_set_vsync_mode(DisplayServer.VSYNC_DISABLED)
+			var target_fps = get_monitor_refresh_rate()
+			Engine.max_fps = target_fps
+			print("SettingsManager: COMPOSITOR_SAFE mode - VSync disabled, FPS capped to %d" % target_fps)
 	
 	# Wait a couple frames to let GPU/compositor sync properly
 	# This helps prevent the 1 FPS issue when switching VSync modes at runtime

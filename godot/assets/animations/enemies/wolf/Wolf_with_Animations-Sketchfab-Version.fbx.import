@@ -4,12 +4,11 @@ importer="scene"
 importer_version=1
 type="PackedScene"
 uid="uid://csw3mdp8jkp7i"
-path="res://.godot/imported/Wolf_with_Animations-Sketchfab-Version.fbx-7be6f166773f2b3300f966a5249e730a.scn"
+valid=false
 
 [deps]
 
 source_file="res://assets/animations/enemies/wolf/Wolf_with_Animations-Sketchfab-Version.fbx"
-dest_files=["res://.godot/imported/Wolf_with_Animations-Sketchfab-Version.fbx-7be6f166773f2b3300f966a5249e730a.scn"]
 
 [params]
 

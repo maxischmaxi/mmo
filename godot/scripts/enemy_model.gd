@@ -53,7 +53,7 @@ const ENEMY_CONFIGS := {
 		}
 	},
 	# Type 3: Wolf - pack predator with all animations in one Blender file
-	# Uses substitute animations: Creep for Attack, Sit for Death
+	# Uses substitute animations: Creep for Attack, Idle for Death (no death anim in blend file)
 	3: {
 		"folder": "wolf",
 		"single_fbx": "Wolf_With_Baked_Action_Animations_For_Export_One_Mesh.blend",  # Use Blender file directly
@@ -63,7 +63,7 @@ const ENEMY_CONFIGS := {
 			"Run": "run",         # Maps to "run" animation
 			"Attack": "creep",    # Substitute: creep (stalking) for attack
 			"Hit": "idle",        # Fallback to idle for hit reaction
-			"Death": "sit",       # Substitute: sit (lies down) for death
+			"Death": "idle",      # Fallback to idle (no death animation in blend file)
 		},
 		"pingpong": ["Idle"],     # Idle animation ping-pongs for smooth tail movement
 	},
