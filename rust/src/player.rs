@@ -1632,6 +1632,20 @@ impl Player {
                 self.base_mut().emit_signal("action_bar_received", &[arr.to_variant()]);
             }
             
+            ServerMessage::Teleport { position } => {
+                // Server is forcing our position (e.g., /reset or /tp command)
+                let pos = Vector3::new(position[0], position[1], position[2]);
+                self.base_mut().set_position(pos);
+                
+                // Reset velocity to prevent momentum carrying over
+                self.base_mut().set_velocity(Vector3::ZERO);
+                
+                // Cancel any click-to-move in progress
+                self.is_click_moving = false;
+                
+                godot_print!("Teleported to ({}, {}, {})", position[0], position[1], position[2]);
+            }
+            
             // Handle other messages as needed
             _ => {}
         }

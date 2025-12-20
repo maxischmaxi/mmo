@@ -16,6 +16,8 @@ pub struct CommandResult {
     pub gold_update: Option<ServerMessage>,
     /// Optional InventoryUpdate if inventory changed
     pub inventory_update: Option<ServerMessage>,
+    /// Optional Teleport message if position changed
+    pub teleport: Option<ServerMessage>,
 }
 
 impl CommandResult {
@@ -26,6 +28,7 @@ impl CommandResult {
             stats_update: None,
             gold_update: None,
             inventory_update: None,
+            teleport: None,
         }
     }
     
@@ -36,6 +39,7 @@ impl CommandResult {
             stats_update: None,
             gold_update: None,
             inventory_update: None,
+            teleport: None,
         }
     }
     
@@ -64,6 +68,11 @@ impl CommandResult {
         self.inventory_update = Some(ServerMessage::InventoryUpdate {
             slots: player.get_inventory_slots(),
         });
+        self
+    }
+    
+    pub fn with_teleport(mut self, position: [f32; 3]) -> Self {
+        self.teleport = Some(ServerMessage::Teleport { position });
         self
     }
 }
@@ -161,6 +170,13 @@ pub fn parse_and_execute(
                 cmd_xp(player_id, args, world)
             }
         }
+        "reset" => {
+            if !is_admin {
+                CommandResult::error("This command requires admin privileges")
+            } else {
+                cmd_reset(player_id, world)
+            }
+        }
         
         _ => CommandResult::error(format!("Unknown command: /{}", command)),
     })
@@ -188,6 +204,7 @@ fn cmd_help(is_admin: bool) -> CommandResult {
         help.push_str("  /kill <target_id> - Kill a target\n");
         help.push_str("  /item get <id> [qty] - Add item to inventory\n");
         help.push_str("  /tp <x> <y> <z> - Teleport to coordinates\n");
+        help.push_str("  /reset - Reset position to zone spawn point\n");
     }
     
     CommandResult::success(help)
@@ -442,9 +459,12 @@ fn cmd_teleport(player_id: u64, args: &[&str], world: &mut GameWorld) -> Command
         Err(_) => return CommandResult::error("Invalid Z coordinate"),
     };
     
+    let new_pos = [x, y, z];
+    
     if let Some(player) = world.get_player_mut(player_id) {
-        player.position = [x, y, z];
+        player.position = new_pos;
         CommandResult::success(format!("Teleported to ({:.2}, {:.2}, {:.2})", x, y, z))
+            .with_teleport(new_pos)
     } else {
         CommandResult::error("Player not found")
     }
@@ -479,6 +499,31 @@ fn cmd_xp(player_id: u64, args: &[&str], world: &mut GameWorld) -> CommandResult
         };
         
         CommandResult::success(msg).with_stats_update(player)
+    } else {
+        CommandResult::error("Player not found")
+    }
+}
+
+fn cmd_reset(player_id: u64, world: &mut GameWorld) -> CommandResult {
+    // Get player's current zone first
+    let zone_id = if let Some(player) = world.get_player(player_id) {
+        player.zone_id
+    } else {
+        return CommandResult::error("Player not found");
+    };
+    
+    // Get spawn point for that zone
+    let spawn_pos = world.zone_manager.get_default_spawn_point(zone_id);
+    
+    // Update player position
+    if let Some(player) = world.get_player_mut(player_id) {
+        let old_pos = player.position;
+        player.position = spawn_pos;
+        CommandResult::success(format!(
+            "Reset to spawn point ({:.1}, {:.1}, {:.1}) from ({:.1}, {:.1}, {:.1})",
+            spawn_pos[0], spawn_pos[1], spawn_pos[2],
+            old_pos[0], old_pos[1], old_pos[2]
+        )).with_teleport(spawn_pos)
     } else {
         CommandResult::error("Player not found")
     }

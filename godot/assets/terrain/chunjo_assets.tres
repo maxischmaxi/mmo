@@ -1,0 +1,63 @@
+[gd_resource type="Terrain3DAssets" load_steps=15 format=3 uid="uid://e0jdwdr7uoe4"]
+
+[ext_resource type="Texture2D" uid="uid://cgfbfvgk7d1p3" path="res://assets/textures/playground_sand/textures/playground_sand_diff_2k.jpg" id="1_cnic2"]
+[ext_resource type="Texture2D" uid="uid://d17k8w1g2gn7b" path="res://assets/textures/playground_sand/textures/playground_sand_nor_gl_2k.jpg" id="2_fv8se"]
+[ext_resource type="Texture2D" uid="uid://b2steu50dm6hl" path="res://assets/textures/rocks_ground_06/textures/rocks_ground_06_diff_2k.jpg" id="3_q6j5a"]
+[ext_resource type="Texture2D" uid="uid://ykwl4c0wxttq" path="res://assets/textures/rocks_ground_06/textures/rocks_ground_06_nor_gl_2k.jpg" id="4_ntb7c"]
+[ext_resource type="Texture2D" uid="uid://b33a7jl40kvd0" path="res://assets/textures/brown_mud/textures/brown_mud_03_diff_2k.jpg" id="5_lxgeg"]
+[ext_resource type="Texture2D" uid="uid://rri4n7gm0btd" path="res://assets/textures/brown_mud/textures/brown_mud_03_nor_gl_2k.jpg" id="6_fjp7t"]
+[ext_resource type="Texture2D" uid="uid://dg1x85c75ihc8" path="res://assets/textures/monastery_stone_floor/textures/monastery_stone_floor_diff_2k.jpg" id="7_x2ucp"]
+[ext_resource type="Texture2D" uid="uid://bq572vo85svg0" path="res://assets/textures/monastery_stone_floor/textures/monastery_stone_floor_nor_gl_2k.jpg" id="8_qf287"]
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_cnic2"]
+transparency = 4
+cull_mode = 2
+vertex_color_use_as_albedo = true
+backlight_enabled = true
+backlight = Color(0.5, 0.5, 0.5, 1)
+distance_fade_mode = 1
+distance_fade_min_distance = 128.0
+distance_fade_max_distance = 96.0
+
+[sub_resource type="Terrain3DMeshAsset" id="Terrain3DMeshAsset_fv8se"]
+generated_type = 1
+height_offset = 0.5
+material_override = SubResource("StandardMaterial3D_cnic2")
+last_lod = 0
+last_shadow_lod = 0
+lod0_range = 128.0
+
+[sub_resource type="Terrain3DTextureAsset" id="Terrain3DTextureAsset_q6j5a"]
+name = "Sand"
+albedo_texture = ExtResource("1_cnic2")
+normal_texture = ExtResource("2_fv8se")
+uv_scale = 0.3
+detiling_rotation = 0.25
+
+[sub_resource type="Terrain3DTextureAsset" id="Terrain3DTextureAsset_ntb7c"]
+name = "Rock"
+id = 1
+albedo_texture = ExtResource("3_q6j5a")
+normal_texture = ExtResource("4_ntb7c")
+uv_scale = 0.18
+detiling_rotation = 0.25
+
+[sub_resource type="Terrain3DTextureAsset" id="Terrain3DTextureAsset_lxgeg"]
+name = "Dirt"
+id = 2
+albedo_texture = ExtResource("5_lxgeg")
+normal_texture = ExtResource("6_fjp7t")
+uv_scale = 0.22
+detiling_rotation = 0.25
+
+[sub_resource type="Terrain3DTextureAsset" id="Terrain3DTextureAsset_fjp7t"]
+name = "Stone Path"
+id = 3
+albedo_texture = ExtResource("7_x2ucp")
+normal_texture = ExtResource("8_qf287")
+uv_scale = 0.35
+detiling_rotation = 0.25
+
+[resource]
+mesh_list = Array[Terrain3DMeshAsset]([SubResource("Terrain3DMeshAsset_fv8se")])
+texture_list = Array[Terrain3DTextureAsset]([SubResource("Terrain3DTextureAsset_q6j5a"), SubResource("Terrain3DTextureAsset_ntb7c"), SubResource("Terrain3DTextureAsset_lxgeg"), SubResource("Terrain3DTextureAsset_fjp7t")])

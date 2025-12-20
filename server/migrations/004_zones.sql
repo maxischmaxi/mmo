@@ -22,22 +22,8 @@ CREATE TABLE IF NOT EXISTS zones (
 -- Index for finding default spawn zones by empire
 CREATE INDEX IF NOT EXISTS idx_zones_empire_default ON zones(empire, is_default_spawn);
 
--- =============================================================================
--- Zone Spawn Points Table: Where players can spawn in each zone
--- =============================================================================
-
-CREATE TABLE IF NOT EXISTS zone_spawn_points (
-    id SERIAL PRIMARY KEY,
-    zone_id INTEGER NOT NULL REFERENCES zones(id) ON DELETE CASCADE,
-    name VARCHAR(64) DEFAULT 'default',
-    position_x REAL NOT NULL DEFAULT 0.0,
-    position_y REAL NOT NULL DEFAULT 1.0,
-    position_z REAL NOT NULL DEFAULT 0.0,
-    is_default BOOLEAN DEFAULT FALSE
-);
-
--- Index for fast lookup of spawn points by zone
-CREATE INDEX IF NOT EXISTS idx_zone_spawn_points_zone ON zone_spawn_points(zone_id);
+-- Spawn points are hardcoded in the server (ZoneManager::with_defaults())
+-- to match terrain heights from godot/scripts/tools/terrain_generator.gd
 
 -- =============================================================================
 -- Zone Enemy Spawns Table: Enemy spawn definitions per zone
@@ -77,16 +63,7 @@ ON CONFLICT (id) DO UPDATE SET
     scene_path = EXCLUDED.scene_path,
     is_default_spawn = EXCLUDED.is_default_spawn;
 
--- =============================================================================
--- Seed Data: Spawn Points
--- =============================================================================
 
--- Default spawn points for each village
-INSERT INTO zone_spawn_points (zone_id, name, position_x, position_y, position_z, is_default) VALUES
-(1, 'default', 0.0, 1.0, 0.0, TRUE),
-(100, 'default', 0.0, 1.0, 0.0, TRUE),
-(200, 'default', 0.0, 1.0, 0.0, TRUE)
-ON CONFLICT DO NOTHING;
 
 -- =============================================================================
 -- Seed Data: Enemy Spawns (positioned away from spawn point and NPC at 5,0,5)

@@ -875,6 +875,11 @@ impl Server {
                     if let Some(inv_msg) = result.inventory_update {
                         client.outgoing_queue.push(inv_msg);
                     }
+                    
+                    // Send teleport if present
+                    if let Some(teleport_msg) = result.teleport {
+                        client.outgoing_queue.push(teleport_msg);
+                    }
                 }
             }
             return; // Don't broadcast commands to chat

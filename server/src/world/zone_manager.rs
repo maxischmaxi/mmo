@@ -73,14 +73,46 @@ pub struct ZoneManager {
 impl ZoneManager {
     /// Create a new zone manager with empty data
     pub fn new() -> Self {
-        Self {
+        let mut manager = Self {
             zones: HashMap::new(),
             spawn_points: HashMap::new(),
             enemy_spawns: HashMap::new(),
             npc_spawns: HashMap::new(),
             default_zones: HashMap::new(),
             obstacles: HashMap::new(),
-        }
+        };
+        
+        // Always initialize hardcoded spawn points
+        // Y values match terrain village plateau heights from terrain_generator.gd
+        manager.init_spawn_points();
+        
+        manager
+    }
+    
+    /// Initialize hardcoded spawn points for all zones
+    /// Called from new() to ensure spawn points are always available
+    fn init_spawn_points(&mut self) {
+        self.spawn_points.insert(1, vec![ZoneSpawnPoint {
+            id: 1,
+            zone_id: 1,
+            name: "default".to_string(),
+            position: [0.0, 5.0, 0.0],  // Shinsoo village_height=3.0 + buffer
+            is_default: true,
+        }]);
+        self.spawn_points.insert(100, vec![ZoneSpawnPoint {
+            id: 2,
+            zone_id: 100,
+            name: "default".to_string(),
+            position: [0.0, 5.0, 0.0],  // Chunjo village_height=2.0 + buffer
+            is_default: true,
+        }]);
+        self.spawn_points.insert(200, vec![ZoneSpawnPoint {
+            id: 3,
+            zone_id: 200,
+            name: "default".to_string(),
+            position: [0.0, 12.0, 0.0],  // Jinno village_height=5.0, scene SpawnPoint at y=12
+            is_default: true,
+        }]);
     }
     
     /// Create a zone manager with hardcoded default data
@@ -116,28 +148,7 @@ impl ZoneManager {
         manager.default_zones.insert(Empire::Yellow, 100);
         manager.default_zones.insert(Empire::Blue, 200);
         
-        // Add default spawn points
-        manager.spawn_points.insert(1, vec![ZoneSpawnPoint {
-            id: 1,
-            zone_id: 1,
-            name: "default".to_string(),
-            position: [0.0, 1.0, 0.0],
-            is_default: true,
-        }]);
-        manager.spawn_points.insert(100, vec![ZoneSpawnPoint {
-            id: 2,
-            zone_id: 100,
-            name: "default".to_string(),
-            position: [0.0, 1.0, 0.0],
-            is_default: true,
-        }]);
-        manager.spawn_points.insert(200, vec![ZoneSpawnPoint {
-            id: 3,
-            zone_id: 200,
-            name: "default".to_string(),
-            position: [0.0, 1.0, 0.0],
-            is_default: true,
-        }]);
+        // Spawn points are already initialized in new() via init_spawn_points()
         
         // Add default enemy spawns (positioned away from spawn point and NPC at 5,0,5)
         manager.enemy_spawns.insert(1, vec![
@@ -242,28 +253,8 @@ impl ZoneManager {
         info!("Loaded {} zones from database", self.zones.len());
     }
     
-    /// Load spawn points from database rows
-    pub fn load_spawn_points(&mut self, spawn_points: Vec<(i32, i32, String, f32, f32, f32, bool)>) {
-        self.spawn_points.clear();
-        
-        for (id, zone_id, name, x, y, z, is_default) in spawn_points {
-            let zone_id = zone_id as u32;
-            let spawn_point = ZoneSpawnPoint {
-                id,
-                zone_id,
-                name,
-                position: [x, y, z],
-                is_default,
-            };
-            
-            self.spawn_points
-                .entry(zone_id)
-                .or_insert_with(Vec::new)
-                .push(spawn_point);
-        }
-        
-        info!("Loaded spawn points for {} zones", self.spawn_points.len());
-    }
+    // Spawn points are hardcoded in with_defaults() to match terrain heights
+    // from godot/scripts/tools/terrain_generator.gd
     
     /// Load enemy spawns from database rows
     pub fn load_enemy_spawns(&mut self, enemy_spawns: Vec<(i32, i32, i16, f32, f32, f32, i32)>) {

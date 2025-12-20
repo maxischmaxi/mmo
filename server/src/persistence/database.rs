@@ -877,26 +877,8 @@ impl Database {
         )).collect())
     }
     
-    /// Load all zone spawn points from database
-    /// Returns: Vec<(id, zone_id, name, x, y, z, is_default)>
-    pub async fn load_zone_spawn_points(&self) -> Result<Vec<(i32, i32, String, f32, f32, f32, bool)>, sqlx::Error> {
-        let rows = sqlx::query(
-            "SELECT id, zone_id, name, position_x, position_y, position_z, is_default 
-             FROM zone_spawn_points ORDER BY zone_id, id"
-        )
-            .fetch_all(&self.pool)
-            .await?;
-        
-        Ok(rows.iter().map(|r| (
-            r.get("id"),
-            r.get("zone_id"),
-            r.get("name"),
-            r.get("position_x"),
-            r.get("position_y"),
-            r.get("position_z"),
-            r.get("is_default"),
-        )).collect())
-    }
+    // Spawn points are hardcoded in ZoneManager::with_defaults()
+    // to match terrain heights from godot/scripts/tools/terrain_generator.gd
     
     /// Load all zone enemy spawns from database
     /// Returns: Vec<(id, zone_id, enemy_type, x, y, z, respawn_time_secs)>

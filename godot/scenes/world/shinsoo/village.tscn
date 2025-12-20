@@ -1,18 +1,6 @@
 [gd_scene load_steps=14 format=3 uid="uid://cshinsoovillage"]
 
-[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_ground"]
-albedo_color = Color(0.55, 0.35, 0.25, 1)
-roughness = 0.9
-
-[sub_resource type="PlaneMesh" id="PlaneMesh_ground"]
-size = Vector2(200, 200)
-
-[sub_resource type="BoxShape3D" id="BoxShape3D_ground"]
-size = Vector3(200, 0.1, 200)
-
-[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_label"]
-shading_mode = 0
-albedo_color = Color(0.9, 0.7, 0.5, 1)
+[ext_resource type="Script" path="res://scripts/terrain_loader.gd" id="1_terrain"]
 
 [sub_resource type="StandardMaterial3D" id="StandardMaterial3D_building"]
 albedo_color = Color(0.6, 0.5, 0.4, 1)
@@ -43,24 +31,15 @@ roughness = 0.85
 albedo_color = Color(0.35, 0.25, 0.15, 1)
 roughness = 0.9
 
-[sub_resource type="BoxMesh" id="BoxMesh_crate"]
-size = Vector3(1, 1, 1)
-
 [node name="ShinsooVillage" type="Node3D"]
 
-[node name="Ground" type="MeshInstance3D" parent="."]
-mesh = SubResource("PlaneMesh_ground")
-surface_material_override/0 = SubResource("StandardMaterial3D_ground")
-
-[node name="GroundCollision" type="StaticBody3D" parent="."]
-collision_layer = 1
-
-[node name="CollisionShape3D" type="CollisionShape3D" parent="GroundCollision"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -0.05, 0)
-shape = SubResource("BoxShape3D_ground")
+[node name="TerrainLoader" type="Node3D" parent="."]
+script = ExtResource("1_terrain")
+terrain_data_path = "res://assets/terrain/shinsoo"
+terrain_assets_path = "res://assets/terrain/shinsoo_assets.tres"
 
 [node name="ZoneLabel" type="Label3D" parent="."]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 5, -20)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 8, -20)
 text = "Shinsoo Village"
 font_size = 96
 modulate = Color(1, 0.8, 0.6, 1)
@@ -68,12 +47,12 @@ outline_modulate = Color(0.3, 0.15, 0.1, 1)
 outline_size = 8
 
 [node name="SpawnPoint" type="Marker3D" parent="."]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1, 0)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 4, 0)
 
 [node name="Decorations" type="Node3D" parent="."]
 
 [node name="Pillar1" type="StaticBody3D" parent="Decorations"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -15, 0, -15)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -15, 3, -15)
 
 [node name="Mesh" type="CSGCylinder3D" parent="Decorations/Pillar1"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 2.5, 0)
@@ -87,7 +66,7 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 2.5, 0)
 shape = SubResource("CylinderShape3D_pillar")
 
 [node name="Pillar2" type="StaticBody3D" parent="Decorations"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 15, 0, -15)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 15, 3, -15)
 
 [node name="Mesh" type="CSGCylinder3D" parent="Decorations/Pillar2"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 2.5, 0)
@@ -101,7 +80,7 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 2.5, 0)
 shape = SubResource("CylinderShape3D_pillar")
 
 [node name="Pillar3" type="StaticBody3D" parent="Decorations"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -15, 0, 15)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -15, 3, 15)
 
 [node name="Mesh" type="CSGCylinder3D" parent="Decorations/Pillar3"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 2.5, 0)
@@ -115,7 +94,7 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 2.5, 0)
 shape = SubResource("CylinderShape3D_pillar")
 
 [node name="Pillar4" type="StaticBody3D" parent="Decorations"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 15, 0, 15)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 15, 3, 15)
 
 [node name="Mesh" type="CSGCylinder3D" parent="Decorations/Pillar4"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 2.5, 0)
@@ -131,7 +110,7 @@ shape = SubResource("CylinderShape3D_pillar")
 [node name="Buildings" type="Node3D" parent="."]
 
 [node name="MainBuilding" type="StaticBody3D" parent="Buildings"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 10, 0, -8)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 10, 3, -8)
 
 [node name="Walls" type="CSGBox3D" parent="Buildings/MainBuilding"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 2, 0)
@@ -149,7 +128,7 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 2.5, 0)
 shape = SubResource("BoxShape3D_mainbuilding")
 
 [node name="SecondaryBuilding" type="StaticBody3D" parent="Buildings"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -12, 0, 8)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -12, 3, 8)
 
 [node name="Walls" type="CSGBox3D" parent="Buildings/SecondaryBuilding"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.5, 0)
@@ -167,7 +146,7 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 2, 0)
 shape = SubResource("BoxShape3D_secondarybuilding")
 
 [node name="MarketStall" type="StaticBody3D" parent="Buildings"]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -8, 0, -5)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -8, 3, -5)
 
 [node name="Counter" type="CSGBox3D" parent="Buildings/MarketStall"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.5, 0)

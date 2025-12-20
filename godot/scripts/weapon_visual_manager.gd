@@ -90,7 +90,7 @@ const GRIP_PRESETS := {
 }
 
 ## Base path to weapon meshes
-const WEAPON_MESH_PATH := "res://assets/low_poly_weapon_pack/Weapons for Itch with image texture.fbx_%s.fbx"
+const WEAPON_MESH_PATH := "res://assets/models/low_poly_weapon_pack/Weapons for Itch with image texture.fbx_%s.fbx"
 
 ## Reference to the right hand bone attachment
 var right_hand_attachment: BoneAttachment3D = null

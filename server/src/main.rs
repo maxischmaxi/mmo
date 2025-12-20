@@ -35,15 +35,8 @@ async fn load_zones_from_db(db: &Database) -> ZoneManager {
         }
     }
     
-    // Load spawn points
-    match db.load_zone_spawn_points().await {
-        Ok(spawn_points) => {
-            zone_manager.load_spawn_points(spawn_points);
-        }
-        Err(e) => {
-            error!("Failed to load zone spawn points: {}", e);
-        }
-    }
+    // Spawn points are hardcoded in ZoneManager::with_defaults()
+    // to match terrain heights from terrain_generator.gd
     
     // Load enemy spawns
     match db.load_zone_enemy_spawns().await {

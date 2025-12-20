@@ -481,6 +481,12 @@ pub enum ServerMessage {
         message: String,
     },
     
+    /// Force teleport the player to a new position (same zone)
+    /// Used by admin commands like /reset and /tp
+    Teleport {
+        position: [f32; 3],
+    },
+    
     /// Stats update (when level, gold, or stats change via commands)
     StatsUpdate {
         level: u32,
