@@ -1,6 +1,6 @@
 //! Server-side player entity.
 
-use mmo_shared::{AnimationState, InventorySlot, ItemEffect, ItemDef, ItemType, CharacterClass, Gender, Empire, get_item_definitions, AbilityEffect};
+use mmo_shared::{AnimationState, InventorySlot, ItemEffect, ItemDef, ItemType, CharacterClass, Gender, Empire, get_item_definitions, AbilityEffect, ArmorStats};
 use std::collections::HashMap;
 
 /// Maximum inventory slots
@@ -68,6 +68,18 @@ pub struct ServerPlayer {
     pub inventory: Vec<Option<InventorySlot>>,
     /// Currently equipped weapon item ID (None = unarmed)
     pub equipped_weapon_id: Option<u32>,
+    /// Currently equipped armor item ID (None = no armor)
+    pub equipped_armor_id: Option<u32>,
+    /// Currently equipped helmet item ID (None = no helmet)
+    pub equipped_helmet_id: Option<u32>,
+    /// Currently equipped shield item ID (None = no shield)
+    pub equipped_shield_id: Option<u32>,
+    /// Currently equipped boots item ID (None = no boots)
+    pub equipped_boots_id: Option<u32>,
+    /// Currently equipped necklace item ID (None = no necklace)
+    pub equipped_necklace_id: Option<u32>,
+    /// Currently equipped ring item ID (None = no ring)
+    pub equipped_ring_id: Option<u32>,
     /// Whether death has been announced (prevents duplicate EntityDeath messages)
     pub death_announced: bool,
     /// Player level
@@ -263,6 +275,12 @@ impl ServerPlayer {
             animation_state: AnimationState::Idle,
             inventory,
             equipped_weapon_id,
+            equipped_armor_id: None,
+            equipped_helmet_id: None,
+            equipped_shield_id: None,
+            equipped_boots_id: None,
+            equipped_necklace_id: None,
+            equipped_ring_id: None,
             death_announced: false,
             level,
             experience,
@@ -273,6 +291,105 @@ impl ServerPlayer {
             next_buff_id: 1,
             action_bar: mmo_shared::get_default_action_bar(class),
         }
+    }
+    
+    /// Create a player with saved state including all equipment (for persistence)
+    #[allow(clippy::too_many_arguments)]
+    pub fn with_full_equipment(
+        id: u64,
+        name: String,
+        class: CharacterClass,
+        gender: Gender,
+        empire: Empire,
+        zone_id: u32,
+        position: [f32; 3],
+        rotation: f32,
+        health: u32,
+        max_health: u32,
+        mana: u32,
+        max_mana: u32,
+        attack_power: u32,
+        defense: u32,
+        inventory: Vec<Option<InventorySlot>>,
+        equipped_weapon_id: Option<u32>,
+        equipped_armor_id: Option<u32>,
+        equipped_helmet_id: Option<u32>,
+        equipped_shield_id: Option<u32>,
+        equipped_boots_id: Option<u32>,
+        equipped_necklace_id: Option<u32>,
+        equipped_ring_id: Option<u32>,
+        level: u32,
+        experience: u32,
+        gold: u64,
+    ) -> Self {
+        Self {
+            id,
+            name,
+            class,
+            gender,
+            empire,
+            zone_id,
+            position,
+            rotation,
+            velocity: [0.0, 0.0, 0.0],
+            health,
+            max_health,
+            mana,
+            max_mana,
+            attack_power,
+            defense,
+            animation_state: AnimationState::Idle,
+            inventory,
+            equipped_weapon_id,
+            equipped_armor_id,
+            equipped_helmet_id,
+            equipped_shield_id,
+            equipped_boots_id,
+            equipped_necklace_id,
+            equipped_ring_id,
+            death_announced: false,
+            level,
+            experience,
+            gold,
+            is_invincible: false,
+            ability_cooldowns: HashMap::new(),
+            active_buffs: Vec::new(),
+            next_buff_id: 1,
+            action_bar: mmo_shared::get_default_action_bar(class),
+        }
+    }
+    
+    /// Create a player with saved state including armor (for persistence) - legacy compatibility
+    #[allow(clippy::too_many_arguments)]
+    pub fn with_state_and_armor(
+        id: u64,
+        name: String,
+        class: CharacterClass,
+        gender: Gender,
+        empire: Empire,
+        zone_id: u32,
+        position: [f32; 3],
+        rotation: f32,
+        health: u32,
+        max_health: u32,
+        mana: u32,
+        max_mana: u32,
+        attack_power: u32,
+        defense: u32,
+        inventory: Vec<Option<InventorySlot>>,
+        equipped_weapon_id: Option<u32>,
+        equipped_armor_id: Option<u32>,
+        level: u32,
+        experience: u32,
+        gold: u64,
+    ) -> Self {
+        Self::with_full_equipment(
+            id, name, class, gender, empire, zone_id, position, rotation,
+            health, max_health, mana, max_mana, attack_power, defense,
+            inventory, equipped_weapon_id, equipped_armor_id,
+            None, None, None, None, None,  // New slots empty
+            level, experience, gold,
+        )
     }
     
     /// Add item to inventory, stacking if possible
@@ -373,11 +490,23 @@ impl ServerPlayer {
     }
     
     /// Take damage (returns 0 if invincible)
+    /// Note: For armor-aware damage calculation, use take_damage_with_armor instead
     pub fn take_damage(&mut self, damage: u32) -> u32 {
         if self.is_invincible {
             return 0;
         }
         let actual_damage = damage.saturating_sub(self.defense / 2);
+        self.health = self.health.saturating_sub(actual_damage);
+        actual_damage
+    }
+    
+    /// Take damage with armor bonus factored in
+    pub fn take_damage_with_armor(&mut self, damage: u32, items: &HashMap<u32, ItemDef>) -> u32 {
+        if self.is_invincible {
+            return 0;
+        }
+        let total_defense = self.get_total_defense(items);
+        let actual_damage = damage.saturating_sub(total_defense / 2);
         self.health = self.health.saturating_sub(actual_damage);
         actual_damage
     }
@@ -488,6 +617,124 @@ impl ServerPlayer {
             self.equipped_weapon_id = Some(weapon_id);
             None
         }
+    }
+    
+    // ==========================================================================
+    // Armor Equipment
+    // ==========================================================================
+    
+    /// Try to equip armor from inventory
+    /// Returns Ok(old_armor_id) if successful, Err with reason if failed
+    /// The item is removed from inventory; if there was old armor, it goes into the vacated slot
+    pub fn try_equip_armor(&mut self, inventory_slot: u8, items: &HashMap<u32, ItemDef>) -> Result<Option<u32>, &'static str> {
+        let slot_idx = inventory_slot as usize;
+        if slot_idx >= self.inventory.len() {
+            return Err("Invalid inventory slot");
+        }
+        
+        let inv_slot = self.inventory[slot_idx].as_ref().ok_or("No item in slot")?;
+        let item_id = inv_slot.item_id;
+        
+        let item = items.get(&item_id).ok_or("Item not found")?;
+        
+        // Check if it's armor
+        if item.item_type != ItemType::Armor {
+            return Err("Item is not armor");
+        }
+        
+        // Check armor stats and restrictions
+        if let Some(stats) = &item.armor_stats {
+            // Check level requirement
+            if self.level < stats.level_requirement {
+                return Err("Cannot equip: level too low");
+            }
+            
+            // Check class restriction
+            if let Some(required_class) = stats.class_restriction {
+                if required_class != self.class {
+                    return Err("Cannot equip: wrong class");
+                }
+            }
+        } else {
+            return Err("Armor has no stats");
+        }
+        
+        // Store the old armor before we modify anything
+        let old_armor = self.equipped_armor_id;
+        
+        // Remove item from inventory slot
+        self.inventory[slot_idx] = None;
+        
+        // If we had armor equipped, put it in the now-empty inventory slot
+        if let Some(old_armor_id) = old_armor {
+            self.inventory[slot_idx] = Some(InventorySlot {
+                item_id: old_armor_id,
+                quantity: 1,
+            });
+        }
+        
+        // Equip the new armor
+        self.equipped_armor_id = Some(item_id);
+        
+        Ok(old_armor)
+    }
+    
+    /// Unequip armor and put it back in inventory
+    /// Returns the previously equipped armor ID, or None if no armor was equipped or no space
+    pub fn unequip_armor(&mut self) -> Option<u32> {
+        let armor_id = self.equipped_armor_id.take()?;
+        
+        // Find an empty inventory slot
+        let empty_slot = self.inventory.iter().position(|s| s.is_none());
+        
+        if let Some(slot_idx) = empty_slot {
+            self.inventory[slot_idx] = Some(InventorySlot {
+                item_id: armor_id,
+                quantity: 1,
+            });
+            Some(armor_id)
+        } else {
+            // No space in inventory, re-equip the armor
+            self.equipped_armor_id = Some(armor_id);
+            None
+        }
+    }
+    
+    /// Get defense bonus from equipped armor
+    pub fn get_armor_defense_bonus(&self, items: &HashMap<u32, ItemDef>) -> u32 {
+        if let Some(armor_id) = self.equipped_armor_id {
+            if let Some(item) = items.get(&armor_id) {
+                if let Some(stats) = &item.armor_stats {
+                    return stats.defense;
+                }
+            }
+        }
+        0
+    }
+    
+    /// Get HP bonus from equipped armor
+    pub fn get_armor_hp_bonus(&self, items: &HashMap<u32, ItemDef>) -> u32 {
+        if let Some(armor_id) = self.equipped_armor_id {
+            if let Some(item) = items.get(&armor_id) {
+                if let Some(stats) = &item.armor_stats {
+                    return stats.hp_bonus;
+                }
+            }
+        }
+        0
+    }
+    
+    /// Get total defense (base + armor bonus + buff bonus)
+    pub fn get_total_defense(&self, items: &HashMap<u32, ItemDef>) -> u32 {
+        let base = self.defense;
+        let armor_bonus = self.get_armor_defense_bonus(items);
+        let buff_bonus = self.get_buff_defense_bonus();
+        ((base as i32 + armor_bonus as i32 + buff_bonus).max(0)) as u32
+    }
+    
+    /// Get total max health (base + armor bonus)
+    pub fn get_total_max_health(&self, items: &HashMap<u32, ItemDef>) -> u32 {
+        self.max_health + self.get_armor_hp_bonus(items)
     }
     
     // ==========================================================================

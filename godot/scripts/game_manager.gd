@@ -985,7 +985,8 @@ func _on_enemy_state_updated(id: int, position: Vector3, rotation: float, health
 
 
 ## Handle remote player state update from WorldState
-func _on_player_state_updated(id: int, position: Vector3, rotation: float, health: int, animation_state: int = 0, weapon_id: int = -1) -> void:
+func _on_player_state_updated(id: int, position: Vector3, rotation: float, health: int, animation_state: int = 0, weapon_id: int = -1, _armor_id: int = -1) -> void:
+	# TODO: Pass armor_id to update_remote_player when armor visuals are implemented
 	update_remote_player(id, position, rotation, health, animation_state, weapon_id)
 
 

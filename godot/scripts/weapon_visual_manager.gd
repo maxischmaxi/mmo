@@ -235,7 +235,9 @@ func _find_player_node() -> Node:
 
 
 ## Handle equipment changed signal from player
-func _on_equipment_changed(weapon_id: int) -> void:
+## weapon_id: equipped weapon ID (-1 if unarmed)
+## armor_id: equipped armor ID (-1 if no armor) - not used for weapon visuals
+func _on_equipment_changed(weapon_id: int, _armor_id: int) -> void:
 	if weapon_id < 0:
 		unequip_weapon()
 	else:

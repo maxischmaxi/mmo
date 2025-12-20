@@ -6,7 +6,7 @@
 mod database;
 mod cache;
 
-pub use database::{Database, PlayerData, PlayerStateData, InventorySlotData, CharacterData};
+pub use database::{Database, PlayerData, PlayerStateData, InventorySlotData, CharacterData, CharacterEquipment};
 pub use cache::Cache;
 
 use tokio::sync::mpsc;

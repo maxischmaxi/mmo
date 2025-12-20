@@ -6,7 +6,7 @@ use argon2::{
     Argon2,
 };
 use serde::{Deserialize, Serialize};
-use mmo_shared::{CharacterClass, Gender, Empire, CharacterInfo, MAX_CHARACTERS_PER_ACCOUNT, ItemDef, ItemType, ItemRarity, ItemEffect, WeaponStats, WeaponVisualType};
+use mmo_shared::{CharacterClass, Gender, Empire, CharacterInfo, MAX_CHARACTERS_PER_ACCOUNT, ItemDef, ItemType, ItemRarity, ItemEffect, WeaponStats, WeaponVisualType, ArmorStats, get_starter_armor_id};
 use std::collections::HashMap;
 
 /// Player account data from the database
@@ -114,6 +114,18 @@ pub struct InventorySlotData {
     pub quantity: i32,
 }
 
+/// Character equipment data for persistence
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+pub struct CharacterEquipment {
+    pub weapon_id: Option<u32>,
+    pub armor_id: Option<u32>,
+    pub helmet_id: Option<u32>,
+    pub shield_id: Option<u32>,
+    pub boots_id: Option<u32>,
+    pub necklace_id: Option<u32>,
+    pub ring_id: Option<u32>,
+}
+
 /// Get starter weapon ID for a character class
 pub fn get_starter_weapon_id(class: CharacterClass) -> i32 {
     match class {
@@ -129,33 +141,33 @@ const TELEPORT_RING_ID: i32 = 100;
 
 /// Get starter items based on character class
 /// All classes get a Teleport Ring in addition to their class-specific items
+/// Note: Starter weapon and armor are auto-equipped, not in inventory
 pub fn get_starter_items(class: CharacterClass) -> Vec<InventorySlotData> {
-    let starter_weapon = get_starter_weapon_id(class);
-    
     match class {
         CharacterClass::Ninja => vec![
-            InventorySlotData { slot: 0, item_id: starter_weapon, quantity: 1 },  // Shadow Dagger
-            InventorySlotData { slot: 1, item_id: 1, quantity: 10 }, // Health Potions
-            InventorySlotData { slot: 2, item_id: TELEPORT_RING_ID, quantity: 1 }, // Teleport Ring
+            InventorySlotData { slot: 0, item_id: 1, quantity: 10 }, // Health Potions
+            InventorySlotData { slot: 1, item_id: TELEPORT_RING_ID, quantity: 1 }, // Teleport Ring
         ],
         CharacterClass::Warrior => vec![
-            InventorySlotData { slot: 0, item_id: starter_weapon, quantity: 1 },  // Steel Claymore
-            InventorySlotData { slot: 1, item_id: 1, quantity: 5 },  // Health Potions
-            InventorySlotData { slot: 2, item_id: TELEPORT_RING_ID, quantity: 1 }, // Teleport Ring
+            InventorySlotData { slot: 0, item_id: 1, quantity: 5 },  // Health Potions
+            InventorySlotData { slot: 1, item_id: TELEPORT_RING_ID, quantity: 1 }, // Teleport Ring
         ],
         CharacterClass::Sura => vec![
-            InventorySlotData { slot: 0, item_id: starter_weapon, quantity: 1 },  // Cursed Scimitar
-            InventorySlotData { slot: 1, item_id: 1, quantity: 5 },  // Health Potions
-            InventorySlotData { slot: 2, item_id: 2, quantity: 5 },  // Mana Potions
-            InventorySlotData { slot: 3, item_id: TELEPORT_RING_ID, quantity: 1 }, // Teleport Ring
+            InventorySlotData { slot: 0, item_id: 1, quantity: 5 },  // Health Potions
+            InventorySlotData { slot: 1, item_id: 2, quantity: 5 },  // Mana Potions
+            InventorySlotData { slot: 2, item_id: TELEPORT_RING_ID, quantity: 1 }, // Teleport Ring
         ],
         CharacterClass::Shaman => vec![
-            InventorySlotData { slot: 0, item_id: starter_weapon, quantity: 1 },  // Oak Staff
-            InventorySlotData { slot: 1, item_id: 1, quantity: 3 },  // Health Potions
-            InventorySlotData { slot: 2, item_id: 2, quantity: 10 }, // Mana Potions
-            InventorySlotData { slot: 3, item_id: TELEPORT_RING_ID, quantity: 1 }, // Teleport Ring
+            InventorySlotData { slot: 0, item_id: 1, quantity: 3 },  // Health Potions
+            InventorySlotData { slot: 1, item_id: 2, quantity: 10 }, // Mana Potions
+            InventorySlotData { slot: 2, item_id: TELEPORT_RING_ID, quantity: 1 }, // Teleport Ring
         ],
     }
+}
+
+/// Get starter armor ID for a character class
+pub fn get_starter_armor_id_db(class: CharacterClass) -> i32 {
+    get_starter_armor_id(class) as i32
 }
 
 /// Database connection wrapper
@@ -404,13 +416,15 @@ impl Database {
                 .map_err(|e| CharacterError::Database(e.to_string()))?;
         }
         
-        // Create equipment record with starter weapon auto-equipped
+        // Create equipment record with starter weapon and armor auto-equipped
         let starter_weapon_id = get_starter_weapon_id(class);
+        let starter_armor_id = get_starter_armor_id_db(class);
         sqlx::query(
-            "INSERT INTO character_equipment (character_id, weapon_slot) VALUES ($1, $2)"
+            "INSERT INTO character_equipment (character_id, weapon_slot, armor_slot) VALUES ($1, $2, $3)"
         )
             .bind(character_id)
             .bind(starter_weapon_id)
+            .bind(starter_armor_id)
             .execute(&mut *tx)
             .await
             .map_err(|e| CharacterError::Database(e.to_string()))?;
@@ -619,7 +633,8 @@ impl Database {
         let rows = sqlx::query(
             "SELECT id, name, description, item_type, rarity, max_stack, 
                     damage, attack_speed, class_restriction, effects,
-                    visual_type, mesh_name
+                    visual_type, mesh_name,
+                    defense_bonus, hp_bonus, level_requirement
              FROM items"
         )
             .fetch_all(&self.pool)
@@ -637,6 +652,9 @@ impl Database {
             let effects_json: serde_json::Value = row.get("effects");
             let visual_type: Option<i16> = row.get("visual_type");
             let mesh_name: Option<String> = row.get("mesh_name");
+            let defense_bonus: Option<i32> = row.get("defense_bonus");
+            let hp_bonus: Option<i32> = row.get("hp_bonus");
+            let level_requirement: Option<i32> = row.get("level_requirement");
             
             // Parse item type
             let item_type = match item_type_val {
@@ -645,6 +663,7 @@ impl Database {
                 2 => ItemType::Armor,
                 3 => ItemType::Material,
                 4 => ItemType::Quest,
+                5 => ItemType::Special,
                 _ => ItemType::Material,
             };
             
@@ -676,6 +695,22 @@ impl Database {
                 None
             };
             
+            // Parse armor stats if present
+            let armor_stats = if item_type == ItemType::Armor {
+                if let (Some(def), Some(hp)) = (defense_bonus, hp_bonus) {
+                    Some(ArmorStats {
+                        defense: def as u32,
+                        hp_bonus: hp as u32,
+                        level_requirement: level_requirement.unwrap_or(0) as u32,
+                        class_restriction: class_restriction.and_then(|c| CharacterClass::from_u8(c as u8)),
+                    })
+                } else {
+                    None
+                }
+            } else {
+                None
+            };
+            
             items.insert(id as u32, ItemDef {
                 id: id as u32,
                 name: row.get("name"),
@@ -685,6 +720,7 @@ impl Database {
                 max_stack: row.get::<i32, _>("max_stack") as u32,
                 effects,
                 weapon_stats,
+                armor_stats,
             });
         }
         
@@ -731,31 +767,88 @@ impl Database {
     // =========================================================================
     
     /// Load character equipment from database
-    pub async fn load_character_equipment(&self, character_id: i64) -> Result<Option<u32>, sqlx::Error> {
+    /// Returns (weapon_id, armor_id, helmet_id, shield_id, boots_id, necklace_id, ring_id)
+    pub async fn load_character_equipment(&self, character_id: i64) -> Result<CharacterEquipment, sqlx::Error> {
         let row = sqlx::query(
-            "SELECT weapon_slot FROM character_equipment WHERE character_id = $1"
+            "SELECT weapon_slot, armor_slot, helmet_slot, shield_slot, boots_slot, necklace_slot, ring_slot 
+             FROM character_equipment WHERE character_id = $1"
         )
             .bind(character_id)
             .fetch_optional(&self.pool)
             .await?;
         
-        Ok(row.and_then(|r| {
-            let weapon_slot: Option<i32> = r.get("weapon_slot");
-            weapon_slot.map(|w| w as u32)
-        }))
+        Ok(row.map(|r| {
+            CharacterEquipment {
+                weapon_id: r.get::<Option<i32>, _>("weapon_slot").map(|w| w as u32),
+                armor_id: r.get::<Option<i32>, _>("armor_slot").map(|a| a as u32),
+                helmet_id: r.get::<Option<i32>, _>("helmet_slot").map(|h| h as u32),
+                shield_id: r.get::<Option<i32>, _>("shield_slot").map(|s| s as u32),
+                boots_id: r.get::<Option<i32>, _>("boots_slot").map(|b| b as u32),
+                necklace_id: r.get::<Option<i32>, _>("necklace_slot").map(|n| n as u32),
+                ring_id: r.get::<Option<i32>, _>("ring_slot").map(|r| r as u32),
+            }
+        }).unwrap_or_default())
     }
     
     /// Save character equipment to database
-    pub async fn save_character_equipment(&self, character_id: i64, weapon_id: Option<u32>) -> Result<(), sqlx::Error> {
+    pub async fn save_character_equipment(&self, character_id: i64, equipment: &CharacterEquipment) -> Result<(), sqlx::Error> {
         sqlx::query(
-            "INSERT INTO character_equipment (character_id, weapon_slot)
-             VALUES ($1, $2)
+            "INSERT INTO character_equipment (character_id, weapon_slot, armor_slot, helmet_slot, shield_slot, boots_slot, necklace_slot, ring_slot)
+             VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
              ON CONFLICT (character_id) DO UPDATE SET
                 weapon_slot = EXCLUDED.weapon_slot,
+                armor_slot = EXCLUDED.armor_slot,
+                helmet_slot = EXCLUDED.helmet_slot,
+                shield_slot = EXCLUDED.shield_slot,
+                boots_slot = EXCLUDED.boots_slot,
+                necklace_slot = EXCLUDED.necklace_slot,
+                ring_slot = EXCLUDED.ring_slot,
                 updated_at = NOW()"
         )
             .bind(character_id)
+            .bind(equipment.weapon_id.map(|w| w as i32))
+            .bind(equipment.armor_id.map(|a| a as i32))
+            .bind(equipment.helmet_id.map(|h| h as i32))
+            .bind(equipment.shield_id.map(|s| s as i32))
+            .bind(equipment.boots_id.map(|b| b as i32))
+            .bind(equipment.necklace_id.map(|n| n as i32))
+            .bind(equipment.ring_id.map(|r| r as i32))
+            .execute(&self.pool)
+            .await?;
+        
+        Ok(())
+    }
+    
+    /// Save full equipment state (legacy compatibility wrapper)
+    pub async fn save_character_equipment_legacy(&self, character_id: i64, weapon_id: Option<u32>, armor_id: Option<u32>) -> Result<(), sqlx::Error> {
+        let equipment = CharacterEquipment {
+            weapon_id,
+            armor_id,
+            ..Default::default()
+        };
+        self.save_character_equipment(character_id, &equipment).await
+    }
+    
+    /// Save only weapon equipment
+    pub async fn save_character_weapon(&self, character_id: i64, weapon_id: Option<u32>) -> Result<(), sqlx::Error> {
+        sqlx::query(
+            "UPDATE character_equipment SET weapon_slot = $2, updated_at = NOW() WHERE character_id = $1"
+        )
+            .bind(character_id)
             .bind(weapon_id.map(|w| w as i32))
+            .execute(&self.pool)
+            .await?;
+        
+        Ok(())
+    }
+    
+    /// Save only armor equipment
+    pub async fn save_character_armor(&self, character_id: i64, armor_id: Option<u32>) -> Result<(), sqlx::Error> {
+        sqlx::query(
+            "UPDATE character_equipment SET armor_slot = $2, updated_at = NOW() WHERE character_id = $1"
+        )
+            .bind(character_id)
+            .bind(armor_id.map(|a| a as i32))
             .execute(&self.pool)
             .await?;
         

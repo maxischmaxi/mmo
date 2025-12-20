@@ -47,6 +47,42 @@ const ITEM_DEFS: Dictionary = {
 	
 	# Special Items
 	100: {"name": "Teleport Ring", "description": "A magical ring that allows instant travel between villages.", "type": "special", "rarity": "rare"},
+	
+	# =============================================================================
+	# ARMOR ITEMS (IDs 200-235)
+	# =============================================================================
+	
+	# Ninja Armor (IDs 200-205)
+	200: {"name": "Ninja Cloth Wrappings", "description": "Simple cloth wrappings worn by ninja initiates.", "type": "armor", "rarity": "common", "defense": 5, "hp_bonus": 20, "class": "ninja"},
+	201: {"name": "Shadow Leather Vest", "description": "Dark leather armor that blends with shadows.", "type": "armor", "rarity": "uncommon", "defense": 12, "hp_bonus": 50, "class": "ninja"},
+	202: {"name": "Silent Chainmail", "description": "Specially crafted chainmail that makes no sound.", "type": "armor", "rarity": "rare", "defense": 22, "hp_bonus": 90, "class": "ninja"},
+	203: {"name": "Assassin's Plate", "description": "Lightweight plate armor favored by master assassins.", "type": "armor", "rarity": "rare", "defense": 35, "hp_bonus": 140, "class": "ninja"},
+	204: {"name": "Phantom Armor", "description": "Enchanted armor that seems to phase in and out of existence.", "type": "armor", "rarity": "epic", "defense": 50, "hp_bonus": 200, "class": "ninja"},
+	205: {"name": "Eclipse Raiment", "description": "Legendary armor forged during a solar eclipse.", "type": "armor", "rarity": "legendary", "defense": 70, "hp_bonus": 300, "class": "ninja"},
+	
+	# Warrior Armor (IDs 210-215)
+	210: {"name": "Warrior's Padded Tunic", "description": "A thick padded tunic for new warriors.", "type": "armor", "rarity": "common", "defense": 7, "hp_bonus": 30, "class": "warrior"},
+	211: {"name": "Battle Leather Armor", "description": "Sturdy leather armor reinforced for combat.", "type": "armor", "rarity": "uncommon", "defense": 15, "hp_bonus": 60, "class": "warrior"},
+	212: {"name": "Soldier's Chainmail", "description": "Standard issue chainmail for seasoned soldiers.", "type": "armor", "rarity": "rare", "defense": 28, "hp_bonus": 110, "class": "warrior"},
+	213: {"name": "Veteran's Plate", "description": "Heavy plate armor worn by veteran warriors.", "type": "armor", "rarity": "rare", "defense": 45, "hp_bonus": 170, "class": "warrior"},
+	214: {"name": "Champion's Aegis", "description": "Magnificent armor forged for tournament champions.", "type": "armor", "rarity": "epic", "defense": 65, "hp_bonus": 250, "class": "warrior"},
+	215: {"name": "Warlord's Regalia", "description": "Legendary armor worn by the greatest warlords.", "type": "armor", "rarity": "legendary", "defense": 90, "hp_bonus": 380, "class": "warrior"},
+	
+	# Sura Armor (IDs 220-225)
+	220: {"name": "Sura Initiate Robes", "description": "Dark robes worn by those beginning the path of the Sura.", "type": "armor", "rarity": "common", "defense": 5, "hp_bonus": 25, "class": "sura"},
+	221: {"name": "Dark Leather Vestments", "description": "Leather armor imbued with dark energy.", "type": "armor", "rarity": "uncommon", "defense": 12, "hp_bonus": 55, "class": "sura"},
+	222: {"name": "Cursed Chainmail", "description": "Chainmail armor corrupted by dark magic.", "type": "armor", "rarity": "rare", "defense": 24, "hp_bonus": 100, "class": "sura"},
+	223: {"name": "Demon-Touched Plate", "description": "Plate armor marked by demonic influence.", "type": "armor", "rarity": "rare", "defense": 38, "hp_bonus": 155, "class": "sura"},
+	224: {"name": "Abyssal Armor", "description": "Armor forged in the depths of the abyss.", "type": "armor", "rarity": "epic", "defense": 55, "hp_bonus": 220, "class": "sura"},
+	225: {"name": "Netherworld Vestments", "description": "Legendary armor from the netherworld.", "type": "armor", "rarity": "legendary", "defense": 75, "hp_bonus": 330, "class": "sura"},
+	
+	# Shaman Armor (IDs 230-235)
+	230: {"name": "Shaman Apprentice Robes", "description": "Simple robes worn by shaman apprentices.", "type": "armor", "rarity": "common", "defense": 4, "hp_bonus": 20, "class": "shaman"},
+	231: {"name": "Spirit Leather Tunic", "description": "Leather armor blessed by nature spirits.", "type": "armor", "rarity": "uncommon", "defense": 10, "hp_bonus": 45, "class": "shaman"},
+	232: {"name": "Ancestral Chainmail", "description": "Chainmail passed down through generations of shamans.", "type": "armor", "rarity": "rare", "defense": 20, "hp_bonus": 85, "class": "shaman"},
+	233: {"name": "Totem-Bearer's Plate", "description": "Sacred plate armor worn by totem bearers.", "type": "armor", "rarity": "rare", "defense": 32, "hp_bonus": 130, "class": "shaman"},
+	234: {"name": "Elder's Regalia", "description": "Ceremonial armor of the tribal elders.", "type": "armor", "rarity": "epic", "defense": 48, "hp_bonus": 190, "class": "shaman"},
+	235: {"name": "Sacred Spirit Vestments", "description": "Legendary vestments blessed by the great spirits.", "type": "armor", "rarity": "legendary", "defense": 68, "hp_bonus": 290, "class": "shaman"},
 }
 
 ## Reference to local player
@@ -55,8 +91,14 @@ var local_player: Node = null
 ## Inventory data: array of {item_id: int, quantity: int} or null
 var inventory_slots: Array = []
 
-## Currently equipped weapon item ID (-1 = unarmed)
+## Currently equipped item IDs (-1 = empty)
 var equipped_weapon_id: int = -1
+var equipped_armor_id: int = -1
+var equipped_helmet_id: int = -1
+var equipped_shield_id: int = -1
+var equipped_boots_id: int = -1
+var equipped_necklace_id: int = -1
+var equipped_ring_id: int = -1
 
 ## Current gold
 var current_gold: int = 0
@@ -84,11 +126,15 @@ var drag_preview: Control = null
 @onready var tooltip_hint: Label = $Tooltip/MarginContainer/VBox/UseHint
 @onready var tooltip_stats: Label = $Tooltip/MarginContainer/VBox/Stats
 
-## Equipment panel references (created dynamically if not in scene)
+## Equipment panel references (created dynamically)
 var equipment_panel: Control = null
 var weapon_slot: Control = null
-var weapon_name_label: Label = null
-var weapon_stats_label: Label = null
+var armor_slot: Control = null
+var helmet_slot: Control = null
+var shield_slot: Control = null
+var boots_slot: Control = null
+var necklace_slot: Control = null
+var ring_slot: Control = null
 
 ## Gold display references
 var gold_panel: Control = null
@@ -307,53 +353,153 @@ func _create_equipment_panel() -> void:
 	# Create equipment section container
 	equipment_panel = VBoxContainer.new()
 	equipment_panel.name = "EquipmentPanel"
-	equipment_panel.add_theme_constant_override("separation", 5)
+	equipment_panel.add_theme_constant_override("separation", 4)
 	
-	# Equipment header
-	var equip_header = Label.new()
-	equip_header.text = "EQUIPMENT"
-	equip_header.add_theme_color_override("font_color", Color(0.9, 0.8, 0.6, 1))
-	equip_header.add_theme_font_size_override("font_size", 14)
-	equipment_panel.add_child(equip_header)
+	# Main equipment layout container (centered)
+	var equip_center = CenterContainer.new()
+	equip_center.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	
-	# Weapon slot container (horizontal)
-	var weapon_container = HBoxContainer.new()
-	weapon_container.add_theme_constant_override("separation", 10)
+	# Container for the whole equipment layout
+	var equip_layout = VBoxContainer.new()
+	equip_layout.add_theme_constant_override("separation", 4)
 	
-	# Weapon slot (visual)
-	weapon_slot = ItemSlotScene.instantiate()
-	weapon_slot.slot_index = -1  # Special index for equipment
-	weapon_slot.connect("slot_clicked", _on_weapon_slot_clicked)
-	weapon_slot.connect("slot_right_clicked", _on_weapon_slot_right_clicked)
-	weapon_slot.connect("slot_hovered", _on_weapon_slot_hovered)
-	weapon_slot.connect("slot_unhovered", _on_weapon_slot_unhovered)
-	weapon_container.add_child(weapon_slot)
+	# === ROW 1: Helmet (centered) ===
+	var row1 = CenterContainer.new()
+	helmet_slot = _create_equipment_slot("helmet")
+	row1.add_child(helmet_slot)
+	equip_layout.add_child(row1)
 	
-	# Weapon info
-	var weapon_info = VBoxContainer.new()
-	weapon_info.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	# === ROW 2: Necklace - spacer - Ring ===
+	var row2 = HBoxContainer.new()
+	row2.add_theme_constant_override("separation", 0)
+	row2.alignment = BoxContainer.ALIGNMENT_CENTER
 	
-	weapon_name_label = Label.new()
-	weapon_name_label.text = "[Unarmed]"
-	weapon_name_label.add_theme_color_override("font_color", Color(0.6, 0.6, 0.6))
-	weapon_info.add_child(weapon_name_label)
+	necklace_slot = _create_equipment_slot("necklace")
+	row2.add_child(necklace_slot)
 	
-	weapon_stats_label = Label.new()
-	weapon_stats_label.text = ""
-	weapon_stats_label.add_theme_font_size_override("font_size", 12)
-	weapon_stats_label.add_theme_color_override("font_color", Color(0.7, 0.7, 0.7))
-	weapon_info.add_child(weapon_stats_label)
+	# Spacer for character head area
+	var head_spacer = Control.new()
+	head_spacer.custom_minimum_size = Vector2(50, 0)
+	row2.add_child(head_spacer)
 	
-	weapon_container.add_child(weapon_info)
-	equipment_panel.add_child(weapon_container)
+	ring_slot = _create_equipment_slot("ring")
+	row2.add_child(ring_slot)
+	equip_layout.add_child(row2)
+	
+	# === ROW 3: Weapon - Character Body with Armor - Shield ===
+	var row3 = HBoxContainer.new()
+	row3.add_theme_constant_override("separation", 4)
+	row3.alignment = BoxContainer.ALIGNMENT_CENTER
+	
+	weapon_slot = _create_equipment_slot("weapon")
+	row3.add_child(weapon_slot)
+	
+	# Character silhouette container with armor slot overlay
+	var char_container = _create_character_silhouette()
+	row3.add_child(char_container)
+	
+	shield_slot = _create_equipment_slot("shield")
+	row3.add_child(shield_slot)
+	equip_layout.add_child(row3)
+	
+	# === ROW 4: Boots (centered) ===
+	var row4 = CenterContainer.new()
+	boots_slot = _create_equipment_slot("boots")
+	row4.add_child(boots_slot)
+	equip_layout.add_child(row4)
+	
+	equip_center.add_child(equip_layout)
+	equipment_panel.add_child(equip_center)
 	
 	# Separator
 	var sep = HSeparator.new()
+	sep.modulate = Color(0.55, 0.45, 0.33, 0.5)
 	equipment_panel.add_child(sep)
 	
 	# Insert equipment panel AFTER the Header (index 1)
 	vbox.add_child(equipment_panel)
 	vbox.move_child(equipment_panel, 1)
+
+
+func _create_equipment_slot(slot_type: String) -> Control:
+	"""Create an equipment slot with proper signal connections."""
+	var slot = ItemSlotScene.instantiate()
+	slot.slot_index = -1  # Special index for equipment slots
+	slot.set_meta("slot_type", slot_type)
+	
+	# Connect signals based on slot type
+	slot.connect("slot_clicked", _on_equipment_slot_clicked.bind(slot_type))
+	slot.connect("slot_right_clicked", _on_equipment_slot_right_clicked.bind(slot_type))
+	slot.connect("slot_hovered", _on_equipment_slot_hovered.bind(slot_type))
+	slot.connect("slot_unhovered", _on_equipment_slot_unhovered.bind(slot_type))
+	
+	return slot
+
+
+func _create_character_silhouette() -> Control:
+	"""Create a character silhouette with armor slot overlay."""
+	# Container that holds both silhouette and armor slot
+	var container = Control.new()
+	container.custom_minimum_size = Vector2(70, 90)
+	
+	# Silhouette background panel
+	var silhouette_bg = Panel.new()
+	silhouette_bg.set_anchors_preset(Control.PRESET_FULL_RECT)
+	var silhouette_style = StyleBoxFlat.new()
+	silhouette_style.bg_color = Color(0.08, 0.09, 0.12, 0.6)
+	silhouette_style.border_color = Color(0.29, 0.25, 0.21, 0.5)
+	silhouette_style.set_border_width_all(1)
+	silhouette_style.set_corner_radius_all(4)
+	silhouette_bg.add_theme_stylebox_override("panel", silhouette_style)
+	container.add_child(silhouette_bg)
+	
+	# Head (circle) - positioned at top center
+	var head = ColorRect.new()
+	head.color = Color(0.2, 0.22, 0.28, 0.8)
+	head.size = Vector2(20, 20)
+	head.position = Vector2(25, 5)
+	container.add_child(head)
+	
+	# Body (rectangle) - positioned below head
+	var body = ColorRect.new()
+	body.color = Color(0.2, 0.22, 0.28, 0.8)
+	body.size = Vector2(30, 40)
+	body.position = Vector2(20, 28)
+	container.add_child(body)
+	
+	# Left arm
+	var left_arm = ColorRect.new()
+	left_arm.color = Color(0.2, 0.22, 0.28, 0.8)
+	left_arm.size = Vector2(8, 30)
+	left_arm.position = Vector2(10, 30)
+	container.add_child(left_arm)
+	
+	# Right arm
+	var right_arm = ColorRect.new()
+	right_arm.color = Color(0.2, 0.22, 0.28, 0.8)
+	right_arm.size = Vector2(8, 30)
+	right_arm.position = Vector2(52, 30)
+	container.add_child(right_arm)
+	
+	# Legs
+	var left_leg = ColorRect.new()
+	left_leg.color = Color(0.2, 0.22, 0.28, 0.8)
+	left_leg.size = Vector2(12, 18)
+	left_leg.position = Vector2(22, 70)
+	container.add_child(left_leg)
+	
+	var right_leg = ColorRect.new()
+	right_leg.color = Color(0.2, 0.22, 0.28, 0.8)
+	right_leg.size = Vector2(12, 18)
+	right_leg.position = Vector2(36, 70)
+	container.add_child(right_leg)
+	
+	# Armor slot - overlay on body
+	armor_slot = _create_equipment_slot("armor")
+	armor_slot.position = Vector2(10, 20)
+	container.add_child(armor_slot)
+	
+	return container
 
 
 func _create_slots() -> void:
@@ -489,37 +635,35 @@ func refresh_display() -> void:
 
 
 func _refresh_equipment_display() -> void:
-	if not weapon_slot:
+	# Update weapon slot
+	_update_equipment_slot(weapon_slot, equipped_weapon_id)
+	
+	# Update armor slot
+	_update_equipment_slot(armor_slot, equipped_armor_id)
+	
+	# Update other equipment slots (currently no items for these)
+	_update_equipment_slot(helmet_slot, equipped_helmet_id)
+	_update_equipment_slot(shield_slot, equipped_shield_id)
+	_update_equipment_slot(boots_slot, equipped_boots_id)
+	_update_equipment_slot(necklace_slot, equipped_necklace_id)
+	_update_equipment_slot(ring_slot, equipped_ring_id)
+
+
+func _update_equipment_slot(slot: Control, item_id: int) -> void:
+	"""Update a single equipment slot's display."""
+	if not slot:
 		return
 	
-	if equipped_weapon_id > 0:
-		var item_def = ITEM_DEFS.get(equipped_weapon_id, null)
+	if item_id > 0:
+		var item_def = ITEM_DEFS.get(item_id, null)
 		if item_def:
 			var rarity = item_def.get("rarity", "common")
 			var color = RARITY_COLORS.get(rarity, RARITY_COLORS["common"])
-			weapon_slot.set_item(equipped_weapon_id, 1, color, item_def["name"])
-			
-			if weapon_name_label:
-				weapon_name_label.text = item_def["name"]
-				weapon_name_label.add_theme_color_override("font_color", color)
-			
-			if weapon_stats_label:
-				var damage = item_def.get("damage", 0)
-				var speed = item_def.get("speed", 1.0)
-				weapon_stats_label.text = "Dmg: %d  Spd: %.2fx" % [damage, speed]
+			slot.set_item(item_id, 1, color, item_def["name"])
 		else:
-			weapon_slot.set_item(equipped_weapon_id, 1, Color(0.5, 0.5, 0.5), "Unknown")
-			if weapon_name_label:
-				weapon_name_label.text = "Unknown Weapon"
-			if weapon_stats_label:
-				weapon_stats_label.text = ""
+			slot.set_item(item_id, 1, Color(0.5, 0.5, 0.5), "Unknown")
 	else:
-		weapon_slot.clear_item()
-		if weapon_name_label:
-			weapon_name_label.text = "[Unarmed]"
-			weapon_name_label.add_theme_color_override("font_color", Color(0.6, 0.6, 0.6))
-		if weapon_stats_label:
-			weapon_stats_label.text = "Dmg: Reduced"
+		slot.clear_item()
 
 
 func _on_inventory_updated() -> void:
@@ -534,8 +678,9 @@ func _on_inventory_updated() -> void:
 	refresh_display()
 
 
-func _on_equipment_changed(weapon_id: int) -> void:
+func _on_equipment_changed(weapon_id: int, armor_id: int) -> void:
 	equipped_weapon_id = weapon_id
+	equipped_armor_id = armor_id
 	_refresh_equipment_display()
 
 
@@ -731,6 +876,11 @@ func _on_slot_right_clicked(slot_index: int) -> void:
 			if local_player and local_player.has_method("equip_item"):
 				local_player.equip_item(slot_index)
 				print("Equipping weapon from slot ", slot_index)
+		# Equip armor on right-click
+		elif item_def["type"] == "armor":
+			if local_player and local_player.has_method("equip_item"):
+				local_player.equip_item(slot_index)
+				print("Equipping armor from slot ", slot_index)
 
 
 func _on_slot_hovered(slot_index: int) -> void:
@@ -776,36 +926,51 @@ func clear_slot(index: int) -> void:
 # Equipment Slot Handlers
 # =============================================================================
 
-func _on_weapon_slot_clicked(_slot_index: int) -> void:
-	# Left-click on weapon slot does nothing for now
+func _on_equipment_slot_clicked(_slot_index: int, slot_type: String) -> void:
+	# Left-click on equipment slot does nothing for now
 	pass
 
 
-func _on_weapon_slot_right_clicked(_slot_index: int) -> void:
-	# Right-click on equipped weapon to unequip
-	if equipped_weapon_id > 0:
+func _on_equipment_slot_right_clicked(_slot_index: int, slot_type: String) -> void:
+	# Right-click on equipped item to unequip
+	var item_id = _get_equipped_item_id(slot_type)
+	if item_id > 0:
 		if local_player and local_player.has_method("unequip_item"):
-			local_player.unequip_item("weapon")
-			print("Unequipping weapon")
+			local_player.unequip_item(slot_type)
+			print("Unequipping ", slot_type)
 
 
-func _on_weapon_slot_hovered(_slot_index: int) -> void:
-	if equipped_weapon_id > 0:
-		var item_def = ITEM_DEFS.get(equipped_weapon_id, null)
+func _on_equipment_slot_hovered(_slot_index: int, slot_type: String) -> void:
+	var item_id = _get_equipped_item_id(slot_type)
+	if item_id > 0:
+		var item_def = ITEM_DEFS.get(item_id, null)
 		if item_def and tooltip:
 			_show_tooltip_for_item(item_def, true)
 
 
-func _on_weapon_slot_unhovered(_slot_index: int) -> void:
+func _on_equipment_slot_unhovered(_slot_index: int, slot_type: String) -> void:
 	if tooltip:
 		tooltip.visible = false
+
+
+func _get_equipped_item_id(slot_type: String) -> int:
+	"""Get the equipped item ID for a given slot type."""
+	match slot_type:
+		"weapon": return equipped_weapon_id
+		"armor": return equipped_armor_id
+		"helmet": return equipped_helmet_id
+		"shield": return equipped_shield_id
+		"boots": return equipped_boots_id
+		"necklace": return equipped_necklace_id
+		"ring": return equipped_ring_id
+		_: return -1
 
 
 func _show_tooltip_for_item(item_def: Dictionary, is_equipped: bool = false) -> void:
 	tooltip_name.text = item_def["name"]
 	
 	var type_text = item_def["type"].capitalize()
-	if item_def["type"] == "weapon":
+	if item_def["type"] == "weapon" or item_def["type"] == "armor":
 		var class_restriction = item_def.get("class", "any")
 		if class_restriction != "any":
 			type_text += " (%s)" % class_restriction.capitalize()
@@ -824,6 +989,12 @@ func _show_tooltip_for_item(item_def: Dictionary, is_equipped: bool = false) -> 
 		var speed = item_def.get("speed", 1.0)
 		tooltip_stats.text = "Damage: %d | Speed: %.2fx" % [damage, speed]
 		tooltip_stats.visible = true
+	# Show armor stats if applicable
+	elif tooltip_stats and item_def["type"] == "armor":
+		var defense = item_def.get("defense", 0)
+		var hp_bonus = item_def.get("hp_bonus", 0)
+		tooltip_stats.text = "Defense: %d | HP: +%d" % [defense, hp_bonus]
+		tooltip_stats.visible = true
 	elif tooltip_stats:
 		tooltip_stats.visible = false
 	
@@ -831,7 +1002,7 @@ func _show_tooltip_for_item(item_def: Dictionary, is_equipped: bool = false) -> 
 	if item_def["type"] == "consumable":
 		tooltip_hint.text = "[Right-click to use]"
 		tooltip_hint.visible = true
-	elif item_def["type"] == "weapon":
+	elif item_def["type"] == "weapon" or item_def["type"] == "armor":
 		if is_equipped:
 			tooltip_hint.text = "[Right-click to unequip]"
 		else:

@@ -326,6 +326,8 @@ pub enum ServerMessage {
         inventory: Vec<Option<InventorySlot>>,
         /// Currently equipped weapon item ID (None = unarmed)
         equipped_weapon_id: Option<u32>,
+        /// Currently equipped armor item ID (None = no armor)
+        equipped_armor_id: Option<u32>,
         /// Player's gold currency
         gold: u64,
     },
@@ -439,10 +441,12 @@ pub enum ServerMessage {
         id: u64,
     },
     
-    /// Equipment update (weapon equipped/unequipped)
+    /// Equipment update (weapon/armor equipped/unequipped)
     EquipmentUpdate {
         /// Currently equipped weapon item ID (None = unarmed)
         equipped_weapon_id: Option<u32>,
+        /// Currently equipped armor item ID (None = no armor)
+        equipped_armor_id: Option<u32>,
     },
     
     /// Time synchronization for day/night cycle
@@ -591,6 +595,8 @@ pub struct PlayerState {
     pub animation_state: AnimationState,
     /// Currently equipped weapon item ID (None = unarmed) - for visual display on other clients
     pub equipped_weapon_id: Option<u32>,
+    /// Currently equipped armor item ID (None = no armor) - for visual display on other clients
+    pub equipped_armor_id: Option<u32>,
 }
 
 /// Enemy state for world updates

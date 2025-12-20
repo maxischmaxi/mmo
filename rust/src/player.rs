@@ -99,6 +99,9 @@ pub struct Player {
     /// Currently equipped weapon item ID (None = unarmed)
     equipped_weapon_id: Option<u32>,
     
+    /// Currently equipped armor item ID (None = no armor)
+    equipped_armor_id: Option<u32>,
+    
     /// Movement direction set by camera controller (for both-button movement)
     camera_movement_direction: Option<Vector3>,
     
@@ -157,6 +160,7 @@ impl ICharacterBody3D for Player {
             gold: 0,
             inventory: vec![None; 20],
             equipped_weapon_id: None,
+            equipped_armor_id: None,
             camera_movement_direction: None,
             camera_forward: Vector3::new(0.0, 0.0, -1.0),
             camera_right: Vector3::new(1.0, 0.0, 0.0),
@@ -321,7 +325,7 @@ impl Player {
     
     /// Signal emitted when a remote player's state is updated (from WorldState)
     #[signal]
-    fn player_state_updated(id: i64, position: Vector3, rotation: f64, health: i64, animation_state: i64, equipped_weapon_id: i64);
+    fn player_state_updated(id: i64, position: Vector3, rotation: f64, health: i64, animation_state: i64, equipped_weapon_id: i64, equipped_armor_id: i64);
     
     /// Signal emitted when local player's health changes
     #[signal]
@@ -340,8 +344,10 @@ impl Player {
     fn entity_respawned(entity_id: i64, position: Vector3, health: i64);
     
     /// Signal emitted when equipment changes
+    /// weapon_id: equipped weapon ID (-1 if unarmed)
+    /// armor_id: equipped armor ID (-1 if no armor)
     #[signal]
-    fn equipment_changed(weapon_id: i64);
+    fn equipment_changed(weapon_id: i64, armor_id: i64);
     
     /// Signal emitted when time sync is received from server (for day/night cycle)
     /// unix_timestamp: seconds since Unix epoch (UTC)
@@ -814,6 +820,12 @@ impl Player {
         self.equipped_weapon_id.map(|id| id as i64).unwrap_or(-1)
     }
     
+    /// Get currently equipped armor item ID (-1 if no armor)
+    #[func]
+    fn get_equipped_armor_id(&self) -> i64 {
+        self.equipped_armor_id.map(|id| id as i64).unwrap_or(-1)
+    }
+    
     /// Equip item from inventory slot
     #[func]
     fn equip_item(&mut self, inventory_slot: i64) {
@@ -1141,6 +1153,7 @@ impl Player {
                 attack_speed,
                 inventory,
                 equipped_weapon_id,
+                equipped_armor_id,
                 gold,
             } => {
                 // Store character info
@@ -1168,6 +1181,7 @@ impl Player {
                 self.attack_speed = attack_speed;
                 self.inventory = inventory;
                 self.equipped_weapon_id = equipped_weapon_id;
+                self.equipped_armor_id = equipped_armor_id;
                 
                 // Teleport to position
                 let pos = Vector3::new(position[0], position[1], position[2]);
@@ -1186,6 +1200,7 @@ impl Player {
                 // Emit equipment changed signal
                 self.base_mut().emit_signal("equipment_changed", &[
                     equipped_weapon_id.map(|id| id as i64).unwrap_or(-1).to_variant(),
+                    equipped_armor_id.map(|id| id as i64).unwrap_or(-1).to_variant(),
                 ]);
             }
             
@@ -1246,6 +1261,8 @@ impl Player {
                     };
                     // Convert equipped weapon ID (-1 for unarmed)
                     let weapon_id: i64 = player.equipped_weapon_id.map(|id| id as i64).unwrap_or(-1);
+                    // Convert equipped armor ID (-1 for no armor)
+                    let armor_id: i64 = player.equipped_armor_id.map(|id| id as i64).unwrap_or(-1);
                     self.base_mut().emit_signal("player_state_updated", &[
                         (player.id as i64).to_variant(),
                         pos.to_variant(),
@@ -1253,6 +1270,7 @@ impl Player {
                         (player.health as i64).to_variant(),
                         anim_state.to_variant(),
                         weapon_id.to_variant(),
+                        armor_id.to_variant(),
                     ]);
                 }
                 
@@ -1405,10 +1423,12 @@ impl Player {
                 ]);
             }
             
-            ServerMessage::EquipmentUpdate { equipped_weapon_id } => {
+            ServerMessage::EquipmentUpdate { equipped_weapon_id, equipped_armor_id } => {
                 self.equipped_weapon_id = equipped_weapon_id;
+                self.equipped_armor_id = equipped_armor_id;
                 self.base_mut().emit_signal("equipment_changed", &[
                     equipped_weapon_id.map(|id| id as i64).unwrap_or(-1).to_variant(),
+                    equipped_armor_id.map(|id| id as i64).unwrap_or(-1).to_variant(),
                 ]);
             }
             

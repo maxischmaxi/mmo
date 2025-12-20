@@ -94,7 +94,7 @@ pub fn parse_and_execute(
     Some(match command.as_str() {
         // === All player commands ===
         "help" => cmd_help(is_admin),
-        "items" => cmd_items(),
+        "items" => cmd_items(args),
         "pos" => cmd_pos(player_id, world),
         
         // === Admin-only commands ===
@@ -173,7 +173,7 @@ pub fn parse_and_execute(
 fn cmd_help(is_admin: bool) -> CommandResult {
     let mut help = String::from("Available commands:\n");
     help.push_str("  /help - Show this help message\n");
-    help.push_str("  /items - List all items with IDs\n");
+    help.push_str("  /items [page] - List items with IDs\n");
     help.push_str("  /pos - Show your current position\n");
     help.push_str("  /clear - Clear chat (client-side)\n");
     
@@ -193,12 +193,32 @@ fn cmd_help(is_admin: bool) -> CommandResult {
     CommandResult::success(help)
 }
 
-fn cmd_items() -> CommandResult {
+fn cmd_items(args: &[&str]) -> CommandResult {
     let items = get_item_definitions();
-    let mut msg = String::from("Items:\n");
+    const ITEMS_PER_PAGE: usize = 12;
+    let total_pages = (items.len() + ITEMS_PER_PAGE - 1) / ITEMS_PER_PAGE;
     
-    for item in items {
-        msg.push_str(&format!("  [{}] {} - {}\n", item.id, item.name, item.description));
+    // Parse page number (1-indexed for user friendliness)
+    let page: usize = if args.is_empty() {
+        1
+    } else {
+        match args[0].parse::<usize>() {
+            Ok(p) if p >= 1 && p <= total_pages => p,
+            _ => return CommandResult::error(format!("Invalid page. Use /items 1-{}", total_pages)),
+        }
+    };
+    
+    let start = (page - 1) * ITEMS_PER_PAGE;
+    let end = (start + ITEMS_PER_PAGE).min(items.len());
+    
+    let mut msg = format!("Items (page {}/{}):\n", page, total_pages);
+    
+    for item in &items[start..end] {
+        msg.push_str(&format!("  [{}] {}\n", item.id, item.name));
+    }
+    
+    if page < total_pages {
+        msg.push_str(&format!("Use /items {} for next page", page + 1));
     }
     
     CommandResult::success(msg)

@@ -13,7 +13,7 @@ use mmo_shared::{
 };
 
 use crate::world::GameWorld;
-use crate::persistence::{PersistenceHandle, Database, PlayerStateData, InventorySlotData};
+use crate::persistence::{PersistenceHandle, Database, PlayerStateData, InventorySlotData, CharacterEquipment};
 
 /// Maximum packet size
 const MAX_PACKET_SIZE: usize = 1200;
@@ -524,7 +524,7 @@ impl Server {
         };
         
         // Load character state, inventory, and equipment
-        let (player_state, inventory_data, equipped_weapon_id) = match (
+        let (player_state, inventory_data, equipment) = match (
             db.load_character_state(character_id as i64).await,
             db.load_character_inventory(character_id as i64).await,
             db.load_character_equipment(character_id as i64).await,
@@ -596,7 +596,8 @@ impl Server {
             player_state.attack as u32,
             player_state.defense as u32,
             &inventory_data,
-            equipped_weapon_id,
+            equipment.weapon_id,
+            equipment.armor_id,
             player_state.level as u32,
             player_state.experience as u32,
             player_state.gold as u64,
@@ -639,7 +640,8 @@ impl Server {
             defense: player_state.defense as u32,
             attack_speed,
             inventory: inventory_slots,
-            equipped_weapon_id,
+            equipped_weapon_id: equipment.weapon_id,
+            equipped_armor_id: equipment.armor_id,
             gold: player_state.gold as u64,
         };
         self.send_to(addr, &msg).await;
@@ -1036,17 +1038,34 @@ impl Server {
         let result = world.equip_item(player_id, inventory_slot);
         
         match result {
-            Ok(new_weapon_id) => {
-                // Save equipment to database
+            Ok(equip_result) => {
+                // Get current equipment state
+                let (weapon_id, armor_id) = if let Some(player) = world.get_player(player_id) {
+                    (player.equipped_weapon_id, player.equipped_armor_id)
+                } else {
+                    (None, None)
+                };
+                
+                // Save equipment to database based on what was equipped
                 if let Some(ref db) = self.database {
-                    if let Err(e) = db.save_character_equipment(character_id, new_weapon_id).await {
-                        error!("Failed to save equipment for character {}: {}", character_id, e);
+                    match equip_result {
+                        crate::world::EquipResult::Weapon(_) => {
+                            if let Err(e) = db.save_character_weapon(character_id, weapon_id).await {
+                                error!("Failed to save weapon for character {}: {}", character_id, e);
+                            }
+                        }
+                        crate::world::EquipResult::Armor(_) => {
+                            if let Err(e) = db.save_character_armor(character_id, armor_id).await {
+                                error!("Failed to save armor for character {}: {}", character_id, e);
+                            }
+                        }
                     }
                 }
                 
                 // Send equipment update to client
                 let equip_msg = ServerMessage::EquipmentUpdate {
-                    equipped_weapon_id: new_weapon_id,
+                    equipped_weapon_id: weapon_id,
+                    equipped_armor_id: armor_id,
                 };
                 
                 // Send inventory update (item was removed/swapped)
@@ -1065,11 +1084,20 @@ impl Server {
                     }
                 }
                 
-                info!("Player {} equipped weapon {:?}", player_id, new_weapon_id);
+                match equip_result {
+                    crate::world::EquipResult::Weapon(id) => info!("Player {} equipped weapon {:?}", player_id, id),
+                    crate::world::EquipResult::Armor(id) => info!("Player {} equipped armor {:?}", player_id, id),
+                }
             }
             Err(reason) => {
                 warn!("Player {} failed to equip item from slot {}: {}", player_id, inventory_slot, reason);
-                // Could send error message to client here
+                // Send error message to client
+                if let Some(client) = self.clients.get_mut(&addr) {
+                    client.outgoing_queue.push(ServerMessage::CommandResponse {
+                        success: false,
+                        message: format!("Cannot equip: {}", reason),
+                    });
+                }
             }
         }
     }
@@ -1087,34 +1115,63 @@ impl Server {
             _ => return,
         };
         
-        // Only "weapon" slot supported for now
-        if equipment_slot != "weapon" {
-            warn!("Unknown equipment slot: {}", equipment_slot);
-            return;
-        }
-        
-        // Unequip the weapon (puts it back in inventory)
-        let old_weapon = world.unequip_weapon(player_id);
-        
-        if old_weapon.is_none() {
-            // Either no weapon was equipped, or no inventory space
-            warn!("Player {} could not unequip weapon (none equipped or no space)", player_id);
-            return;
-        }
-        
-        // Save equipment to database
-        if let Some(ref db) = self.database {
-            if let Err(e) = db.save_character_equipment(character_id, None).await {
-                error!("Failed to save equipment for character {}: {}", character_id, e);
+        match equipment_slot.as_str() {
+            "weapon" => {
+                // Unequip the weapon (puts it back in inventory)
+                let old_weapon = world.unequip_weapon(player_id);
+                
+                if old_weapon.is_none() {
+                    warn!("Player {} could not unequip weapon (none equipped or no space)", player_id);
+                    return;
+                }
+                
+                // Save equipment to database
+                if let Some(ref db) = self.database {
+                    if let Err(e) = db.save_character_weapon(character_id, None).await {
+                        error!("Failed to save weapon for character {}: {}", character_id, e);
+                    }
+                }
+                
+                info!("Player {} unequipped weapon {:?}", player_id, old_weapon);
+            }
+            "armor" => {
+                // Unequip the armor (puts it back in inventory)
+                let old_armor = world.unequip_armor(player_id);
+                
+                if old_armor.is_none() {
+                    warn!("Player {} could not unequip armor (none equipped or no space)", player_id);
+                    return;
+                }
+                
+                // Save equipment to database
+                if let Some(ref db) = self.database {
+                    if let Err(e) = db.save_character_armor(character_id, None).await {
+                        error!("Failed to save armor for character {}: {}", character_id, e);
+                    }
+                }
+                
+                info!("Player {} unequipped armor {:?}", player_id, old_armor);
+            }
+            _ => {
+                warn!("Unknown equipment slot: {}", equipment_slot);
+                return;
             }
         }
         
-        // Send equipment update to client
-        let equip_msg = ServerMessage::EquipmentUpdate {
-            equipped_weapon_id: None,
+        // Get current equipment state
+        let (weapon_id, armor_id) = if let Some(player) = world.get_player(player_id) {
+            (player.equipped_weapon_id, player.equipped_armor_id)
+        } else {
+            (None, None)
         };
         
-        // Send inventory update (weapon was added back)
+        // Send equipment update to client
+        let equip_msg = ServerMessage::EquipmentUpdate {
+            equipped_weapon_id: weapon_id,
+            equipped_armor_id: armor_id,
+        };
+        
+        // Send inventory update (item was added back)
         let inv_msg = if let Some(player) = world.get_player(player_id) {
             Some(ServerMessage::InventoryUpdate {
                 slots: player.get_inventory_slots(),
@@ -1129,8 +1186,6 @@ impl Server {
                 client.outgoing_queue.push(inv);
             }
         }
-        
-        info!("Player {} unequipped weapon {:?}", player_id, old_weapon);
     }
     
     /// Handle dev add item command (debug only)
@@ -1397,6 +1452,7 @@ impl Server {
                     max_health: p.max_health,
                     animation_state: p.animation_state,
                     equipped_weapon_id: p.equipped_weapon_id,
+                    equipped_armor_id: p.equipped_armor_id,
                 })
                 .collect();
             

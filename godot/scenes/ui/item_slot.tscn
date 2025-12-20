@@ -3,12 +3,12 @@
 [ext_resource type="Script" path="res://scripts/ui/item_slot.gd" id="1_script"]
 
 [sub_resource type="StyleBoxFlat" id="StyleBoxFlat_slot"]
-bg_color = Color(0.15, 0.15, 0.15, 0.9)
+bg_color = Color(0.03, 0.04, 0.06, 0.9)
 border_width_left = 1
 border_width_top = 1
 border_width_right = 1
 border_width_bottom = 1
-border_color = Color(0.35, 0.32, 0.25, 1)
+border_color = Color(0.29, 0.25, 0.21, 1)
 corner_radius_top_left = 3
 corner_radius_top_right = 3
 corner_radius_bottom_right = 3
@@ -72,4 +72,4 @@ anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
 mouse_filter = 2
-color = Color(1, 0.9, 0.5, 0.3)
+color = Color(0.83, 0.66, 0.29, 0.25)

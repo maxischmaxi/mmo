@@ -9,10 +9,16 @@ use log::{info, debug};
 use rand::Rng;
 
 use mmo_shared::{
-    ServerMessage, AnimationState, EnemyType, NpcType, NpcState, InventorySlot, ItemDef,
+    ServerMessage, AnimationState, EnemyType, NpcType, NpcState, InventorySlot, ItemDef, ItemType,
     CharacterClass, Gender, Empire, AbilityEffect, TargetType,
     get_ability_by_id,
 };
+
+/// Result of equipping an item
+pub enum EquipResult {
+    Weapon(Option<u32>),
+    Armor(Option<u32>),
+}
 
 use crate::entities::player::BuffEffect;
 
@@ -187,6 +193,7 @@ impl GameWorld {
         defense: u32,
         inventory_data: &[InventorySlotData],
         equipped_weapon_id: Option<u32>,
+        equipped_armor_id: Option<u32>,
         level: u32,
         experience: u32,
         gold: u64,
@@ -202,7 +209,7 @@ impl GameWorld {
             }
         }
         
-        let player = ServerPlayer::with_state(
+        let player = ServerPlayer::with_state_and_armor(
             id,
             name,
             class,
@@ -219,6 +226,7 @@ impl GameWorld {
             defense,
             inventory,
             equipped_weapon_id,
+            equipped_armor_id,
             level,
             experience,
             gold,
@@ -407,12 +415,34 @@ impl GameWorld {
         Some((spawn_msg, inv_msg))
     }
     
-    /// Equip an item from inventory
-    /// Returns Ok(new_weapon_id) on success, Err(reason) on failure
-    pub fn equip_item(&mut self, player_id: u64, inventory_slot: u8) -> Result<Option<u32>, &'static str> {
+    /// Equip an item from inventory (weapon or armor)
+    /// Returns Ok(EquipResult) on success, Err(reason) on failure
+    pub fn equip_item(&mut self, player_id: u64, inventory_slot: u8) -> Result<EquipResult, &'static str> {
+        // First check what type of item is in the slot
+        let player = self.players.get(&player_id).ok_or("Player not found")?;
+        let inv_slot = player.inventory.get(inventory_slot as usize)
+            .ok_or("Invalid inventory slot")?
+            .as_ref()
+            .ok_or("No item in slot")?;
+        let item_id = inv_slot.item_id;
+        
+        let item = self.items.get(&item_id).ok_or("Item not found")?;
+        let item_type = item.item_type;
+        
+        // Now get mutable reference and equip based on type
         let player = self.players.get_mut(&player_id).ok_or("Player not found")?;
-        player.try_equip_weapon(inventory_slot, &self.items)?;
-        Ok(player.equipped_weapon_id)
+        
+        match item_type {
+            ItemType::Weapon => {
+                player.try_equip_weapon(inventory_slot, &self.items)?;
+                Ok(EquipResult::Weapon(player.equipped_weapon_id))
+            }
+            ItemType::Armor => {
+                player.try_equip_armor(inventory_slot, &self.items)?;
+                Ok(EquipResult::Armor(player.equipped_armor_id))
+            }
+            _ => Err("Item cannot be equipped"),
+        }
     }
     
     /// Unequip weapon
@@ -420,6 +450,13 @@ impl GameWorld {
     pub fn unequip_weapon(&mut self, player_id: u64) -> Option<u32> {
         let player = self.players.get_mut(&player_id)?;
         player.unequip_weapon()
+    }
+    
+    /// Unequip armor
+    /// Returns the previously equipped armor ID
+    pub fn unequip_armor(&mut self, player_id: u64) -> Option<u32> {
+        let player = self.players.get_mut(&player_id)?;
+        player.unequip_armor()
     }
     
     /// Add item to a player's inventory (for dev commands)
