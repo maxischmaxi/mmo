@@ -1,4 +1,4 @@
-[gd_resource type="Terrain3DAssets" load_steps=15 format=3 uid="uid://e0jdwdr7uoe4"]
+[gd_resource type="Terrain3DAssets" load_steps=15 format=3 uid="uid://b55xcacwgn2hw"]
 
 [ext_resource type="Texture2D" uid="uid://cgfbfvgk7d1p3" path="res://assets/textures/playground_sand/textures/playground_sand_diff_2k.jpg" id="1_cnic2"]
 [ext_resource type="Texture2D" uid="uid://d17k8w1g2gn7b" path="res://assets/textures/playground_sand/textures/playground_sand_nor_gl_2k.jpg" id="2_fv8se"]

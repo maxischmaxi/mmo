@@ -1,4 +1,4 @@
-[gd_resource type="Terrain3DAssets" load_steps=15 format=3 uid="uid://3ecghorqifa7"]
+[gd_resource type="Terrain3DAssets" load_steps=15 format=3 uid="uid://dsqmphk87f7ca"]
 
 [ext_resource type="Texture2D" uid="uid://b0gm2wers10e1" path="res://assets/textures/leaves_forest_ground/textures/leaves_forest_ground_diff_2k.jpg" id="1_hq7nb"]
 [ext_resource type="Texture2D" uid="uid://m8n3on01tbga" path="res://assets/textures/leaves_forest_ground/textures/leaves_forest_ground_nor_gl_2k.jpg" id="2_cigpu"]

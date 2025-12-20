@@ -89,11 +89,16 @@ func _create_selection_circle() -> void:
 
 
 func _process(_delta: float) -> void:
-	# Update selection circle position
-	if selection_circle and current_target_node and is_instance_valid(current_target_node):
+	# Early exit if selection circle isn't visible - no work to do
+	if not selection_circle or not selection_circle.visible:
+		return
+	
+	# Update selection circle position to follow target
+	if current_target_node and is_instance_valid(current_target_node):
 		selection_circle.global_position = current_target_node.global_position
 		selection_circle.global_position.y = 0.05  # Slightly above ground
-	elif selection_circle:
+	else:
+		# Target no longer valid, hide selection circle
 		selection_circle.visible = false
 
 
@@ -117,19 +122,12 @@ func _input(event: InputEvent) -> void:
 
 ## Check if we're in the actual game (not login/character select screens)
 func _is_in_game() -> bool:
-	var gm = get_tree().get_first_node_in_group("game_manager")
-	if gm and "current_state" in gm:
-		# GameState.IN_GAME = 3
-		return gm.current_state == 3
-	return false
+	return UIManager.is_in_game()
 
 
 ## Check if chat input is currently focused
 func _is_chat_focused() -> bool:
-	var chat_ui = get_tree().get_first_node_in_group("chat_ui")
-	if chat_ui and chat_ui.has_method("is_input_focused"):
-		return chat_ui.call("is_input_focused")
-	return false
+	return UIManager.is_chat_focused()
 
 
 ## Called when enemy is clicked (from camera controller)

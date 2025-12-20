@@ -165,12 +165,17 @@ func generate_and_save() -> void:
 	var assets_path: String = output_directory + "/" + empire_name + "_assets.tres"
 	ResourceSaver.save(terrain.assets, assets_path)
 	
-	# Export heightmap as PNG for server
-	var heightmap_path: String = output_directory + "/" + empire_name + "_heightmap.png"
-	height_image.save_png(heightmap_path)
+	# Export heightmap as PNG for visual reference
+	var heightmap_png_path: String = output_directory + "/" + empire_name + "_heightmap.png"
+	height_image.save_png(heightmap_png_path)
+	
+	# Export heightmap as binary for server use
+	# IMPORTANT: We query Terrain3D's actual heights, not our generated image,
+	# because Terrain3D may apply transformations during import
+	_export_heightmap_from_terrain(terrain, empire_name)
 	
 	print("TerrainGenerator: Saved terrain to ", save_path)
-	print("TerrainGenerator: Saved heightmap to ", heightmap_path)
+	print("TerrainGenerator: Saved heightmap to ", heightmap_png_path)
 	
 	# Cleanup
 	terrain.queue_free()
@@ -187,7 +192,10 @@ func _create_terrain(data_dir: String = "") -> Terrain3D:
 	if not data_dir.is_empty():
 		terrain.data_directory = data_dir
 	
-	# Set up material
+	# Set up texture assets BEFORE material (assets may be needed for shader compilation)
+	terrain.assets = _create_texture_assets()
+	
+	# Set up material - do this after assets are set
 	terrain.material = Terrain3DMaterial.new()
 	terrain.material.world_background = Terrain3DMaterial.NONE
 	terrain.material.auto_shader = true
@@ -195,10 +203,11 @@ func _create_terrain(data_dir: String = "") -> Terrain3D:
 	terrain.material.set_shader_param("auto_height_reduction", 0)
 	terrain.material.set_shader_param("blend_sharpness", 0.87)
 	
-	# Set up texture assets
-	terrain.assets = _create_texture_assets()
-	
 	# Need to add to tree temporarily for data operations
+	# Note: Terrain3D addon may emit "Resource file not found: res://" errors in 
+	# headless mode when initializing shaders. This is a known issue in the addon's
+	# headless mode handling and these errors are benign - the terrain will still
+	# generate correctly.
 	add_child(terrain)
 	
 	return terrain
@@ -504,6 +513,73 @@ func _generate_jinno_height(x: float, z: float) -> float:
 func smoothstep(edge0: float, edge1: float, x: float) -> float:
 	var t: float = clampf((x - edge0) / (edge1 - edge0), 0.0, 1.0)
 	return t * t * (3.0 - 2.0 * t)
+
+
+# =============================================================================
+# SERVER HEIGHTMAP EXPORT
+# =============================================================================
+
+## Export heightmap by querying Terrain3D's actual heights
+## This ensures the server uses the exact same heights that Terrain3D renders
+## Creates two files:
+## - {empire}_heightmap.json: Metadata (dimensions, world bounds)
+## - {empire}_heightmap.bin: Raw float32 height data (row-major order)
+func _export_heightmap_from_terrain(terrain: Terrain3D, empire_name: String) -> void:
+	var size: int = HEIGHT_MAP_SIZE * 2  # 1024
+	var half_terrain: float = TERRAIN_SIZE / 2.0  # 256.0
+	
+	# Prepare metadata
+	var metadata: Dictionary = {
+		"version": 1,
+		"width": size,
+		"height": size,
+		"world_min_x": -half_terrain,
+		"world_max_x": half_terrain,
+		"world_min_z": -half_terrain,
+		"world_max_z": half_terrain,
+		"terrain_size": TERRAIN_SIZE,
+	}
+	
+	# Save metadata as JSON
+	var json_path: String = output_directory + "/" + empire_name + "_heightmap.json"
+	var json_file := FileAccess.open(json_path, FileAccess.WRITE)
+	if json_file:
+		json_file.store_string(JSON.stringify(metadata, "  "))
+		json_file.close()
+		print("TerrainGenerator: Saved heightmap metadata to ", json_path)
+	else:
+		push_error("TerrainGenerator: Failed to save heightmap metadata")
+		return
+	
+	# Save raw float32 height data by querying Terrain3D directly
+	var bin_path: String = output_directory + "/" + empire_name + "_heightmap.bin"
+	var bin_file := FileAccess.open(bin_path, FileAccess.WRITE)
+	if bin_file:
+		var world_scale: float = float(TERRAIN_SIZE) / float(size)
+		var half_size: float = size / 2.0
+		
+		# Sample heights from Terrain3D at each grid point
+		# Write in Z-major order (row by row)
+		for z_idx in range(size):
+			for x_idx in range(size):
+				# Convert grid index to world coordinates
+				var world_x: float = (x_idx - half_size) * world_scale
+				var world_z: float = (z_idx - half_size) * world_scale
+				
+				# Query Terrain3D for the actual height at this position
+				var height: float = terrain.data.get_height(Vector3(world_x, 0, world_z))
+				
+				# Handle NaN (outside terrain bounds) - use 0
+				if is_nan(height):
+					height = 0.0
+				
+				bin_file.store_float(height)
+		
+		bin_file.close()
+		print("TerrainGenerator: Saved heightmap binary to ", bin_path, " (", size * size * 4, " bytes)")
+		print("TerrainGenerator: Heights queried directly from Terrain3D")
+	else:
+		push_error("TerrainGenerator: Failed to save heightmap binary")
 
 
 # =============================================================================

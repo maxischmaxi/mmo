@@ -63,6 +63,10 @@ async fn load_zones_from_db(db: &Database) -> ZoneManager {
     // must match the Godot scene layouts
     zone_manager.init_obstacles();
     
+    // Initialize heightmaps for terrain height queries
+    // Required for spawning enemies/NPCs at correct Y positions
+    zone_manager.init_heightmaps();
+    
     zone_manager
 }
 

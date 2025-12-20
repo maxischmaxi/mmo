@@ -1,8 +1,10 @@
 //! Game world management.
 
 mod zone_manager;
+pub mod heightmap;
 
 pub use zone_manager::{ZoneManager, ZoneDefinition, ZoneSpawnPoint, ZoneEnemySpawn, ZoneNpcSpawn};
+pub use heightmap::Heightmap;
 
 use std::collections::HashMap;
 use log::{info, debug};
@@ -111,11 +113,19 @@ impl GameWorld {
     }
     
     /// Spawn a new NPC in a zone
+    /// Automatically adjusts Y position based on terrain heightmap
     pub fn spawn_npc(&mut self, zone_id: u32, position: [f32; 3], rotation: f32, npc_type: NpcType) -> u64 {
         let id = self.next_npc_id;
         self.next_npc_id += 1;
         
-        let npc = ServerNpc::new(id, zone_id, npc_type, position, rotation);
+        // Adjust Y position based on terrain height plus ground offset
+        let terrain_height = self.zone_manager.get_terrain_height(zone_id, position[0], position[2]);
+        let adjusted_position = [position[0], terrain_height + Self::ENTITY_GROUND_OFFSET, position[2]];
+        
+        debug!("Spawning NPC {} at ({:.1}, {:.1}, {:.1}) -> adjusted Y to {:.1} (terrain: {:.1})",
+            id, position[0], position[1], position[2], adjusted_position[1], terrain_height);
+        
+        let npc = ServerNpc::new(id, zone_id, npc_type, adjusted_position, rotation);
         self.npcs.insert(id, npc);
         
         id
@@ -162,12 +172,26 @@ impl GameWorld {
         messages
     }
     
+    /// Small offset added to terrain height for entity spawning.
+    /// This is just a tiny buffer to ensure entities don't clip into the terrain
+    /// due to floating point precision. The heightmap now contains actual
+    /// Terrain3D heights, so only a minimal offset is needed.
+    const ENTITY_GROUND_OFFSET: f32 = 0.1;
+    
     /// Spawn a new enemy in a zone
+    /// Automatically adjusts Y position based on terrain heightmap
     pub fn spawn_enemy(&mut self, zone_id: u32, position: [f32; 3], enemy_type: EnemyType) -> u64 {
         let id = self.next_enemy_id;
         self.next_enemy_id += 1;
         
-        let enemy = ServerEnemy::new(id, zone_id, enemy_type, position);
+        // Adjust Y position based on terrain height plus ground offset
+        let terrain_height = self.zone_manager.get_terrain_height(zone_id, position[0], position[2]);
+        let adjusted_position = [position[0], terrain_height + Self::ENTITY_GROUND_OFFSET, position[2]];
+        
+        info!("Spawning enemy {} at ({:.1}, {:.1}, {:.1}) -> adjusted Y to {:.1} (terrain: {:.1}, offset: {:.1})",
+            id, position[0], position[1], position[2], adjusted_position[1], terrain_height, Self::ENTITY_GROUND_OFFSET);
+        
+        let enemy = ServerEnemy::new(id, zone_id, enemy_type, adjusted_position);
         self.enemies.insert(id, enemy);
         
         id
@@ -543,6 +567,26 @@ impl GameWorld {
             
             if let Some((target_player_id, damage)) = enemy.update(delta, player_positions, obstacles) {
                 attacks.push((enemy.id, target_player_id, damage));
+            }
+        }
+        
+        // Update enemy Y positions based on terrain height
+        // This is done after movement to ensure enemies follow the terrain
+        for enemy in self.enemies.values_mut() {
+            let terrain_height = self.zone_manager.get_terrain_height(
+                enemy.zone_id,
+                enemy.position[0],
+                enemy.position[2]
+            );
+            // Apply ground offset to ensure enemies stand ON the terrain
+            enemy.position[1] = terrain_height + Self::ENTITY_GROUND_OFFSET;
+            // Also update spawn position Y if it hasn't been set
+            if enemy.spawn_position[1] == 0.0 {
+                enemy.spawn_position[1] = self.zone_manager.get_terrain_height(
+                    enemy.zone_id,
+                    enemy.spawn_position[0],
+                    enemy.spawn_position[2]
+                ) + Self::ENTITY_GROUND_OFFSET;
             }
         }
         

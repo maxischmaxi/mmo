@@ -38,6 +38,9 @@ class_name WorldHealthBar
 ## Materials
 var fill_material: StandardMaterial3D
 
+## Cached camera reference for billboard effect
+var _cached_camera: Camera3D = null
+
 
 func _ready() -> void:
 	# Create materials
@@ -50,15 +53,18 @@ func _ready() -> void:
 
 func _process(_delta: float) -> void:
 	# Billboard: always face the camera
-	var camera = get_viewport().get_camera_3d()
-	if camera:
+	# Use cached camera reference to avoid get_viewport().get_camera_3d() every frame
+	if not _cached_camera or not is_instance_valid(_cached_camera):
+		_cached_camera = get_viewport().get_camera_3d()
+	
+	if _cached_camera:
 		# Look at camera but stay upright
-		var cam_pos = camera.global_position
-		var my_pos = global_position
-		var direction = (cam_pos - my_pos).normalized()
+		var cam_pos := _cached_camera.global_position
+		var my_pos := global_position
+		var direction := (cam_pos - my_pos)
 		direction.y = 0  # Keep upright
-		if direction.length() > 0.01:
-			look_at(global_position - direction, Vector3.UP)
+		if direction.length_squared() > 0.0001:  # Use length_squared() to avoid sqrt
+			look_at(global_position - direction.normalized(), Vector3.UP)
 
 
 func _setup_materials() -> void:

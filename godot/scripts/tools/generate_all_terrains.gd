@@ -1,19 +1,19 @@
-extends SceneTree
-## Command-line terrain generator
-## Run with: godot --headless --script res://scripts/tools/generate_all_terrains.gd
+@tool
+extends EditorScript
+## Editor script to generate all empire terrains
+##
+## Right-click this file in the FileSystem dock and select "Run" to execute.
+##
+## NOTE: You may see "Resource file not found: res://" errors during generation.
+## These are benign warnings from the Terrain3D addon and can be safely ignored.
 
 
-func _init() -> void:
+func _run() -> void:
+	print("")
 	print("==============================================")
 	print("       MMO Terrain Generator")
 	print("==============================================")
 	print("")
-	
-	# We need to wait for the scene tree to be ready
-	call_deferred("_generate_terrains")
-
-
-func _generate_terrains() -> void:
 	print("Generating terrains for all empires...")
 	print("")
 	
@@ -33,8 +33,13 @@ func _generate_terrains() -> void:
 		generator.empire = empire_idx
 		generator.output_directory = "res://assets/terrain"
 		
-		# Add to tree so it can work
-		root.add_child(generator)
+		# Add to edited scene root so it can work
+		var scene_root := get_scene()
+		if scene_root:
+			scene_root.add_child(generator)
+		else:
+			# Fallback: add to editor interface
+			get_editor_interface().get_base_control().add_child(generator)
 		
 		# Generate
 		generator.generate_and_save()
@@ -54,10 +59,9 @@ func _generate_terrains() -> void:
 	print("  - jinno/")
 	print("")
 	print("Heightmaps exported for server:")
-	print("  - shinsoo_heightmap.png")
-	print("  - chunjo_heightmap.png") 
-	print("  - jinno_heightmap.png")
+	print("  - shinsoo_heightmap.json + .bin")
+	print("  - chunjo_heightmap.json + .bin") 
+	print("  - jinno_heightmap.json + .bin")
 	print("")
-	
-	# Exit
-	quit()
+	print("Run 'copy_heightmaps_to_server.gd' to copy files to server/heightmaps/")
+	print("")

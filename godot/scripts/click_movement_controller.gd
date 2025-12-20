@@ -79,7 +79,7 @@ func _physics_process(delta: float) -> void:
 	var current_rot := player.rotation
 	player.rotation.y = lerp_angle(current_rot.y, target_yaw, 10.0 * delta)
 	
-	# Actually move the player (Player's move_and_slide already ran with potentially zero velocity)
+	# Actually move the player (Player skips move_and_slide when is_click_moving is true)
 	player.move_and_slide()
 
 

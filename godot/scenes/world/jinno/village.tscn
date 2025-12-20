@@ -1,14 +1,10 @@
-[gd_scene load_steps=8 format=3 uid="uid://cjinnovillage"]
+[gd_scene load_steps=6 format=3 uid="uid://cjinnovillage"]
 
 [ext_resource type="Script" uid="uid://b0nfbg8pcwcdv" path="res://scripts/terrain_loader.gd" id="1_terrain"]
 [ext_resource type="PackedScene" uid="uid://byd7w2p1kqrc3" path="res://assets/map/medieval_village/FBX/Prop_Wagon.fbx" id="2_d5joe"]
 [ext_resource type="PackedScene" uid="uid://be26f08fsukai" path="res://scenes/buildings/house_1.tscn" id="4_bq3iw"]
 [ext_resource type="PackedScene" uid="uid://c2l2qo47cwylw" path="res://scenes/buildings/stall.tscn" id="4_pioek"]
 [ext_resource type="PackedScene" uid="uid://d4nctjfkbmt0f" path="res://assets/map/medieval_village/FBX/Prop_Crate.fbx" id="5_jssws"]
-[ext_resource type="Material" uid="uid://xast62c21pof" path="res://assets/animations/kachujin_MAT_.tres" id="6_f5iww"]
-
-[sub_resource type="BoxMesh" id="BoxMesh_jssws"]
-material = ExtResource("6_f5iww")
 
 [node name="JinnoVillage" type="Node3D"]
 
@@ -37,8 +33,3 @@ transform = Transform3D(0.8469271, 0, -0.531709, 0, 1, 0, 0.531709, 0, 0.8469271
 
 [node name="Stall" parent="." instance=ExtResource("4_pioek")]
 transform = Transform3D(1.5, 0, 0, 0, 1.5, 0, 0, 0, 1.5, 41.331814, 7.5253315, 0)
-
-[node name="MeshInstance3D" type="MeshInstance3D" parent="."]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 12.33984, 10.051947, 0)
-mesh = SubResource("BoxMesh_jssws")
-skeleton = NodePath("")

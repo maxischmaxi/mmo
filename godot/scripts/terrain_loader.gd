@@ -104,6 +104,9 @@ func _load_terrain() -> void:
 				terrain.material.update()
 	
 	print("TerrainLoader: Terrain loaded from ", terrain_data_path)
+	
+	# Debug: Print actual terrain heights to compare with server heightmap
+	debug_print_heights()
 
 
 ## Get the height at a world position
@@ -119,3 +122,22 @@ func is_position_valid(world_pos: Vector3) -> bool:
 		var height: float = terrain.data.get_height(world_pos)
 		return not is_nan(height)
 	return false
+
+
+## Debug: Print terrain height at various positions
+func debug_print_heights() -> void:
+	if not terrain or not terrain.data:
+		print("TerrainLoader DEBUG: No terrain loaded")
+		return
+	
+	print("TerrainLoader DEBUG: Querying terrain heights...")
+	var test_positions = [
+		Vector3(0, 0, 0),      # Center
+		Vector3(25, 0, 25),    # Enemy spawn area
+		Vector3(-25, 0, 15),   # Another spawn
+		Vector3(5, 0, 5),      # Near NPC
+	]
+	
+	for pos in test_positions:
+		var h = terrain.data.get_height(pos)
+		print("  Position (%d, %d): Terrain3D height = %.3f" % [pos.x, pos.z, h])

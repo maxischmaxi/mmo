@@ -8,10 +8,11 @@
 
 use std::collections::HashMap;
 use std::path::Path;
-use log::{info, warn, error};
+use log::{info, warn, error, debug};
 use mmo_shared::{Empire, EnemyType, NpcType};
 
 use crate::navigation::{Obstacle, CircleObstacle, BoxObstacle};
+use super::heightmap::Heightmap;
 
 /// Zone definition loaded from database
 #[derive(Debug, Clone)]
@@ -54,7 +55,6 @@ pub struct ZoneNpcSpawn {
 }
 
 /// Manages zone definitions and provides zone-related queries
-#[derive(Debug)]
 pub struct ZoneManager {
     /// All zone definitions, keyed by zone ID
     zones: HashMap<u32, ZoneDefinition>,
@@ -68,6 +68,22 @@ pub struct ZoneManager {
     default_zones: HashMap<Empire, u32>,
     /// Obstacles per zone (for enemy navigation)
     obstacles: HashMap<u32, Vec<Obstacle>>,
+    /// Heightmaps per zone (for terrain height queries)
+    heightmaps: HashMap<u32, Heightmap>,
+}
+
+impl std::fmt::Debug for ZoneManager {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("ZoneManager")
+            .field("zones", &self.zones)
+            .field("spawn_points", &self.spawn_points)
+            .field("enemy_spawns", &self.enemy_spawns)
+            .field("npc_spawns", &self.npc_spawns)
+            .field("default_zones", &self.default_zones)
+            .field("obstacles", &self.obstacles.keys().collect::<Vec<_>>())
+            .field("heightmaps", &self.heightmaps.keys().collect::<Vec<_>>())
+            .finish()
+    }
 }
 
 impl ZoneManager {
@@ -80,6 +96,7 @@ impl ZoneManager {
             npc_spawns: HashMap::new(),
             default_zones: HashMap::new(),
             obstacles: HashMap::new(),
+            heightmaps: HashMap::new(),
         };
         
         // Always initialize hardcoded spawn points
@@ -383,6 +400,58 @@ impl ZoneManager {
     /// Get obstacles for a zone (for enemy pathfinding)
     pub fn get_obstacles(&self, zone_id: u32) -> &[Obstacle] {
         self.obstacles.get(&zone_id).map(|v| v.as_slice()).unwrap_or(&[])
+    }
+    
+    /// Get terrain height at a world position in a zone
+    /// Returns the Y coordinate for the terrain surface at (x, z)
+    /// Falls back to 0.0 if no heightmap is loaded for the zone
+    pub fn get_terrain_height(&self, zone_id: u32, x: f32, z: f32) -> f32 {
+        if let Some(heightmap) = self.heightmaps.get(&zone_id) {
+            heightmap.get_height(x, z)
+        } else {
+            // Fallback: use hardcoded village heights from terrain_generator.gd
+            match zone_id {
+                1 => 3.0,      // Shinsoo village_height
+                100 => 2.0,   // Chunjo village_height
+                200 => 5.0,   // Jinno village_height
+                _ => 0.0,
+            }
+        }
+    }
+    
+    /// Check if a heightmap is loaded for a zone
+    pub fn has_heightmap(&self, zone_id: u32) -> bool {
+        self.heightmaps.contains_key(&zone_id)
+    }
+    
+    /// Initialize heightmaps for all zones
+    /// Looks for heightmap files in the heightmaps/ directory
+    pub fn init_heightmaps(&mut self) {
+        self.heightmaps.clear();
+        
+        // Map zone IDs to empire names for file lookup
+        let zone_empire_map: Vec<(u32, &str)> = vec![
+            (1, "shinsoo"),
+            (100, "chunjo"),
+            (200, "jinno"),
+        ];
+        
+        for (zone_id, empire_name) in zone_empire_map {
+            let json_path = format!("heightmaps/{}_heightmap.json", empire_name);
+            
+            match Heightmap::load(&json_path) {
+                Ok(heightmap) => {
+                    info!("Loaded heightmap for zone {} ({})", zone_id, empire_name);
+                    self.heightmaps.insert(zone_id, heightmap);
+                }
+                Err(e) => {
+                    warn!("Could not load heightmap for zone {} ({}): {}", zone_id, empire_name, e);
+                    debug!("Looking for: {}", json_path);
+                }
+            }
+        }
+        
+        info!("Loaded {} heightmaps", self.heightmaps.len());
     }
     
     /// Initialize obstacles for all zones

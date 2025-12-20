@@ -466,10 +466,7 @@ func is_camera_rotating() -> bool:
 
 ## Check if chat input is currently focused
 func _is_chat_focused() -> bool:
-	var chat_ui = get_tree().get_first_node_in_group("chat_ui")
-	if chat_ui and chat_ui.has_method("is_input_focused"):
-		return chat_ui.call("is_input_focused")
-	return false
+	return UIManager.is_chat_focused()
 
 
 ## Unfocus the chat input

@@ -172,6 +172,10 @@ const INTERPOLATION_SPEED: float = 10.0
 
 
 func _process(delta: float) -> void:
+	# Early exit if no entities to interpolate - avoids unnecessary loop overhead
+	if enemies.is_empty() and remote_players.is_empty() and npcs.is_empty():
+		return
+	
 	# Interpolate enemy positions for smooth movement
 	for id in enemies:
 		var enemy_data = enemies[id]

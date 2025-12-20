@@ -206,11 +206,7 @@ func _do_scroll_to_bottom() -> void:
 
 ## Check if we're in the actual game (not login/character select screens)
 func _is_in_game() -> bool:
-	var game_manager = get_tree().get_first_node_in_group("game_manager")
-	if game_manager and "current_state" in game_manager:
-		# GameState.IN_GAME = 3
-		return game_manager.current_state == 3
-	return false
+	return UIManager.is_in_game()
 
 
 func _set_mode(mode: ChatMode) -> void:

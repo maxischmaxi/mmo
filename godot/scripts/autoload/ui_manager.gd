@@ -55,10 +55,23 @@ func _handle_escape() -> void:
 
 func _is_in_game() -> bool:
 	"""Check if we're in the actual game state."""
+	return is_in_game()
+
+
+## Check if we're in the actual game state (public helper for other scripts)
+func is_in_game() -> bool:
 	var game_manager = get_tree().get_first_node_in_group("game_manager")
 	if game_manager and "current_state" in game_manager:
 		# GameState.IN_GAME = 3
 		return game_manager.current_state == 3
+	return false
+
+
+## Check if chat input is currently focused (public helper for other scripts)
+func is_chat_focused() -> bool:
+	var chat_ui = get_tree().get_first_node_in_group("chat_ui")
+	if chat_ui and chat_ui.has_method("is_input_focused"):
+		return chat_ui.call("is_input_focused")
 	return false
 
 
