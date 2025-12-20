@@ -54,6 +54,16 @@ async fn load_zones_from_db(db: &Database) -> ZoneManager {
         }
     }
     
+    // Load NPC spawns
+    match db.load_zone_npc_spawns().await {
+        Ok(npc_spawns) => {
+            zone_manager.load_npc_spawns(npc_spawns);
+        }
+        Err(e) => {
+            error!("Failed to load zone NPC spawns: {}", e);
+        }
+    }
+    
     zone_manager
 }
 

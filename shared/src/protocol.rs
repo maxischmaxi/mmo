@@ -3,7 +3,7 @@
 use serde::{Deserialize, Serialize};
 
 /// Protocol version for compatibility checking
-pub const PROTOCOL_VERSION: u32 = 9;
+pub const PROTOCOL_VERSION: u32 = 10;
 
 /// Server tick rate in Hz
 pub const SERVER_TICK_RATE: u32 = 20;
@@ -367,6 +367,7 @@ pub enum ServerMessage {
         tick: u64,
         players: Vec<PlayerState>,
         enemies: Vec<EnemyState>,
+        npcs: Vec<NpcState>,
     },
     
     /// Chat message broadcast
@@ -607,6 +608,17 @@ pub struct EnemyState {
     pub target_id: Option<u64>,
 }
 
+/// NPC state for world updates
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct NpcState {
+    pub id: u64,
+    pub zone_id: u32,
+    pub npc_type: NpcType,
+    pub position: [f32; 3],
+    pub rotation: f32,
+    pub animation_state: AnimationState,
+}
+
 /// Animation state enum
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Default)]
 pub enum AnimationState {
@@ -628,6 +640,32 @@ pub enum EnemyType {
     Skeleton,
     Mutant,
     Wolf,
+}
+
+/// NPC type enum
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[repr(u8)]
+pub enum NpcType {
+    OldMan = 0,
+}
+
+impl NpcType {
+    pub fn from_u8(value: u8) -> Option<Self> {
+        match value {
+            0 => Some(Self::OldMan),
+            _ => None,
+        }
+    }
+    
+    pub fn as_u8(&self) -> u8 {
+        *self as u8
+    }
+    
+    pub fn name(&self) -> &'static str {
+        match self {
+            Self::OldMan => "Old Man",
+        }
+    }
 }
 
 /// Inventory slot

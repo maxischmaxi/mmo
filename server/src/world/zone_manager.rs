@@ -8,7 +8,7 @@
 
 use std::collections::HashMap;
 use log::{info, warn};
-use mmo_shared::{Empire, EnemyType};
+use mmo_shared::{Empire, EnemyType, NpcType};
 
 /// Zone definition loaded from database
 #[derive(Debug, Clone)]
@@ -40,6 +40,16 @@ pub struct ZoneEnemySpawn {
     pub respawn_time_secs: u32,
 }
 
+/// NPC spawn definition within a zone
+#[derive(Debug, Clone)]
+pub struct ZoneNpcSpawn {
+    pub id: i32,
+    pub zone_id: u32,
+    pub npc_type: NpcType,
+    pub position: [f32; 3],
+    pub rotation: f32,
+}
+
 /// Manages zone definitions and provides zone-related queries
 #[derive(Debug)]
 pub struct ZoneManager {
@@ -49,6 +59,8 @@ pub struct ZoneManager {
     spawn_points: HashMap<u32, Vec<ZoneSpawnPoint>>,
     /// Enemy spawns per zone
     enemy_spawns: HashMap<u32, Vec<ZoneEnemySpawn>>,
+    /// NPC spawns per zone
+    npc_spawns: HashMap<u32, Vec<ZoneNpcSpawn>>,
     /// Default zone for each empire
     default_zones: HashMap<Empire, u32>,
 }
@@ -60,6 +72,7 @@ impl ZoneManager {
             zones: HashMap::new(),
             spawn_points: HashMap::new(),
             enemy_spawns: HashMap::new(),
+            npc_spawns: HashMap::new(),
             default_zones: HashMap::new(),
         }
     }
@@ -120,29 +133,41 @@ impl ZoneManager {
             is_default: true,
         }]);
         
-        // Add default enemy spawns
+        // Add default enemy spawns (positioned away from spawn point and NPC at 5,0,5)
         manager.enemy_spawns.insert(1, vec![
-            ZoneEnemySpawn { id: 1, zone_id: 1, enemy_type: EnemyType::Goblin, position: [10.0, 0.0, 10.0], respawn_time_secs: 60 },
-            ZoneEnemySpawn { id: 2, zone_id: 1, enemy_type: EnemyType::Goblin, position: [-10.0, 0.0, 5.0], respawn_time_secs: 60 },
-            ZoneEnemySpawn { id: 3, zone_id: 1, enemy_type: EnemyType::Goblin, position: [15.0, 0.0, -10.0], respawn_time_secs: 60 },
-            ZoneEnemySpawn { id: 4, zone_id: 1, enemy_type: EnemyType::Mutant, position: [0.0, 0.0, 20.0], respawn_time_secs: 90 },
-            ZoneEnemySpawn { id: 5, zone_id: 1, enemy_type: EnemyType::Skeleton, position: [-15.0, 0.0, -15.0], respawn_time_secs: 120 },
-            ZoneEnemySpawn { id: 14, zone_id: 1, enemy_type: EnemyType::Wolf, position: [5.0, 0.0, -5.0], respawn_time_secs: 60 },
-            ZoneEnemySpawn { id: 15, zone_id: 1, enemy_type: EnemyType::Wolf, position: [8.0, 0.0, -8.0], respawn_time_secs: 60 },
+            ZoneEnemySpawn { id: 1, zone_id: 1, enemy_type: EnemyType::Goblin, position: [25.0, 0.0, 25.0], respawn_time_secs: 60 },
+            ZoneEnemySpawn { id: 2, zone_id: 1, enemy_type: EnemyType::Goblin, position: [-25.0, 0.0, 15.0], respawn_time_secs: 60 },
+            ZoneEnemySpawn { id: 3, zone_id: 1, enemy_type: EnemyType::Goblin, position: [30.0, 0.0, -20.0], respawn_time_secs: 60 },
+            ZoneEnemySpawn { id: 4, zone_id: 1, enemy_type: EnemyType::Mutant, position: [0.0, 0.0, 35.0], respawn_time_secs: 90 },
+            ZoneEnemySpawn { id: 5, zone_id: 1, enemy_type: EnemyType::Skeleton, position: [-30.0, 0.0, -30.0], respawn_time_secs: 120 },
+            ZoneEnemySpawn { id: 14, zone_id: 1, enemy_type: EnemyType::Wolf, position: [20.0, 0.0, -15.0], respawn_time_secs: 60 },
+            ZoneEnemySpawn { id: 15, zone_id: 1, enemy_type: EnemyType::Wolf, position: [25.0, 0.0, -20.0], respawn_time_secs: 60 },
         ]);
         manager.enemy_spawns.insert(100, vec![
-            ZoneEnemySpawn { id: 6, zone_id: 100, enemy_type: EnemyType::Goblin, position: [8.0, 0.0, 12.0], respawn_time_secs: 60 },
-            ZoneEnemySpawn { id: 7, zone_id: 100, enemy_type: EnemyType::Goblin, position: [-12.0, 0.0, 8.0], respawn_time_secs: 60 },
-            ZoneEnemySpawn { id: 8, zone_id: 100, enemy_type: EnemyType::Skeleton, position: [20.0, 0.0, 5.0], respawn_time_secs: 120 },
-            ZoneEnemySpawn { id: 9, zone_id: 100, enemy_type: EnemyType::Mutant, position: [-5.0, 0.0, 18.0], respawn_time_secs: 90 },
-            ZoneEnemySpawn { id: 16, zone_id: 100, enemy_type: EnemyType::Wolf, position: [15.0, 0.0, -10.0], respawn_time_secs: 60 },
+            ZoneEnemySpawn { id: 6, zone_id: 100, enemy_type: EnemyType::Goblin, position: [25.0, 0.0, 25.0], respawn_time_secs: 60 },
+            ZoneEnemySpawn { id: 7, zone_id: 100, enemy_type: EnemyType::Goblin, position: [-25.0, 0.0, 20.0], respawn_time_secs: 60 },
+            ZoneEnemySpawn { id: 8, zone_id: 100, enemy_type: EnemyType::Skeleton, position: [35.0, 0.0, 15.0], respawn_time_secs: 120 },
+            ZoneEnemySpawn { id: 9, zone_id: 100, enemy_type: EnemyType::Mutant, position: [-20.0, 0.0, 30.0], respawn_time_secs: 90 },
+            ZoneEnemySpawn { id: 16, zone_id: 100, enemy_type: EnemyType::Wolf, position: [30.0, 0.0, -20.0], respawn_time_secs: 60 },
         ]);
         manager.enemy_spawns.insert(200, vec![
-            ZoneEnemySpawn { id: 10, zone_id: 200, enemy_type: EnemyType::Mutant, position: [5.0, 0.0, 15.0], respawn_time_secs: 90 },
-            ZoneEnemySpawn { id: 11, zone_id: 200, enemy_type: EnemyType::Mutant, position: [-8.0, 0.0, 10.0], respawn_time_secs: 90 },
-            ZoneEnemySpawn { id: 12, zone_id: 200, enemy_type: EnemyType::Goblin, position: [18.0, 0.0, -5.0], respawn_time_secs: 60 },
-            ZoneEnemySpawn { id: 13, zone_id: 200, enemy_type: EnemyType::Skeleton, position: [-20.0, 0.0, 0.0], respawn_time_secs: 120 },
-            ZoneEnemySpawn { id: 17, zone_id: 200, enemy_type: EnemyType::Wolf, position: [-12.0, 0.0, -8.0], respawn_time_secs: 60 },
+            ZoneEnemySpawn { id: 10, zone_id: 200, enemy_type: EnemyType::Mutant, position: [20.0, 0.0, 30.0], respawn_time_secs: 90 },
+            ZoneEnemySpawn { id: 11, zone_id: 200, enemy_type: EnemyType::Mutant, position: [-25.0, 0.0, 25.0], respawn_time_secs: 90 },
+            ZoneEnemySpawn { id: 12, zone_id: 200, enemy_type: EnemyType::Goblin, position: [35.0, 0.0, -15.0], respawn_time_secs: 60 },
+            ZoneEnemySpawn { id: 13, zone_id: 200, enemy_type: EnemyType::Skeleton, position: [-35.0, 0.0, 10.0], respawn_time_secs: 120 },
+            ZoneEnemySpawn { id: 17, zone_id: 200, enemy_type: EnemyType::Wolf, position: [-25.0, 0.0, -20.0], respawn_time_secs: 60 },
+        ]);
+        
+        // Add default NPC spawns - one Old Man per empire zone
+        // Positioned near the spawn point but offset so they're visible
+        manager.npc_spawns.insert(1, vec![
+            ZoneNpcSpawn { id: 1, zone_id: 1, npc_type: NpcType::OldMan, position: [5.0, 0.0, 5.0], rotation: 0.0 },
+        ]);
+        manager.npc_spawns.insert(100, vec![
+            ZoneNpcSpawn { id: 2, zone_id: 100, npc_type: NpcType::OldMan, position: [5.0, 0.0, 5.0], rotation: 0.0 },
+        ]);
+        manager.npc_spawns.insert(200, vec![
+            ZoneNpcSpawn { id: 3, zone_id: 200, npc_type: NpcType::OldMan, position: [5.0, 0.0, 5.0], rotation: 0.0 },
         ]);
         
         info!("ZoneManager initialized with {} zones (hardcoded defaults)", manager.zones.len());
@@ -237,6 +262,38 @@ impl ZoneManager {
         info!("Loaded {} enemy spawns across {} zones", total_spawns, self.enemy_spawns.len());
     }
     
+    /// Load NPC spawns from database rows
+    pub fn load_npc_spawns(&mut self, npc_spawns: Vec<(i32, i32, i16, f32, f32, f32, f32)>) {
+        self.npc_spawns.clear();
+        
+        for (id, zone_id, npc_type, x, y, z, rotation) in npc_spawns {
+            let zone_id = zone_id as u32;
+            let npc_type = match npc_type {
+                0 => NpcType::OldMan,
+                _ => {
+                    warn!("Unknown NPC type {} in spawn {}, defaulting to OldMan", npc_type, id);
+                    NpcType::OldMan
+                }
+            };
+            
+            let spawn = ZoneNpcSpawn {
+                id,
+                zone_id,
+                npc_type,
+                position: [x, y, z],
+                rotation,
+            };
+            
+            self.npc_spawns
+                .entry(zone_id)
+                .or_insert_with(Vec::new)
+                .push(spawn);
+        }
+        
+        let total_spawns: usize = self.npc_spawns.values().map(|v| v.len()).sum();
+        info!("Loaded {} NPC spawns across {} zones", total_spawns, self.npc_spawns.len());
+    }
+    
     /// Get a zone definition by ID
     pub fn get_zone(&self, zone_id: u32) -> Option<&ZoneDefinition> {
         self.zones.get(&zone_id)
@@ -282,6 +339,11 @@ impl ZoneManager {
     /// Get enemy spawns for a zone
     pub fn get_enemy_spawns(&self, zone_id: u32) -> &[ZoneEnemySpawn] {
         self.enemy_spawns.get(&zone_id).map(|v| v.as_slice()).unwrap_or(&[])
+    }
+    
+    /// Get NPC spawns for a zone
+    pub fn get_npc_spawns(&self, zone_id: u32) -> &[ZoneNpcSpawn] {
+        self.npc_spawns.get(&zone_id).map(|v| v.as_slice()).unwrap_or(&[])
     }
     
     /// Check if a zone exists

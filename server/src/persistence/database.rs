@@ -825,6 +825,27 @@ impl Database {
             r.get("respawn_time_secs"),
         )).collect())
     }
+    
+    /// Load all zone NPC spawns from database
+    /// Returns: Vec<(id, zone_id, npc_type, x, y, z, rotation)>
+    pub async fn load_zone_npc_spawns(&self) -> Result<Vec<(i32, i32, i16, f32, f32, f32, f32)>, sqlx::Error> {
+        let rows = sqlx::query(
+            "SELECT id, zone_id, npc_type, position_x, position_y, position_z, rotation
+             FROM zone_npc_spawns ORDER BY zone_id, id"
+        )
+            .fetch_all(&self.pool)
+            .await?;
+        
+        Ok(rows.iter().map(|r| (
+            r.get("id"),
+            r.get("zone_id"),
+            r.get("npc_type"),
+            r.get("position_x"),
+            r.get("position_y"),
+            r.get("position_z"),
+            r.get("rotation"),
+        )).collect())
+    }
 }
 
 /// Registration errors

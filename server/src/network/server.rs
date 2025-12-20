@@ -7,7 +7,7 @@ use tokio::net::UdpSocket;
 use log::{info, warn, error};
 
 use mmo_shared::{
-    ClientMessage, ServerMessage, PlayerState, EnemyState,
+    ClientMessage, ServerMessage, PlayerState, EnemyState, NpcState,
     AnimationState, InventorySlot, CharacterClass, Gender, Empire,
     CharacterInfo, PROTOCOL_VERSION,
 };
@@ -49,6 +49,10 @@ pub struct ClientConnection {
     pub outgoing_queue: Vec<ServerMessage>,
     /// Whether this player is an admin
     pub is_admin: bool,
+    /// Last zone ID the client was in (for detecting zone changes)
+    pub last_zone_id: Option<u32>,
+    /// Set of NPC IDs the client already knows about (to avoid resending static NPCs)
+    pub known_npcs: std::collections::HashSet<u64>,
 }
 
 impl ClientConnection {
@@ -62,7 +66,14 @@ impl ClientConnection {
             last_seen: std::time::Instant::now(),
             outgoing_queue: Vec::new(),
             is_admin,
+            last_zone_id: None,
+            known_npcs: std::collections::HashSet::new(),
         }
+    }
+    
+    /// Clear known NPCs (called on zone change)
+    pub fn clear_known_npcs(&mut self) {
+        self.known_npcs.clear();
     }
     
     pub fn is_timed_out(&self) -> bool {
@@ -1297,6 +1308,8 @@ impl Server {
                 last_seen: c.last_seen,
                 outgoing_queue: Vec::new(),
                 is_admin: c.is_admin,
+                last_zone_id: c.last_zone_id,
+                known_npcs: c.known_npcs.clone(),
             }))
             .collect();
         
@@ -1351,8 +1364,11 @@ impl Server {
     
     /// Broadcast world state to all connected clients (zone-filtered)
     /// Each client only receives players and enemies in their current zone
-    pub async fn broadcast_world_state(&self, world: &GameWorld, tick: u64) {
-        // For each in-game client, send zone-filtered world state
+    /// NPCs are only sent once per zone (they're static)
+    pub async fn broadcast_world_state(&mut self, world: &GameWorld, tick: u64) {
+        // Collect data for each client first to avoid borrow issues
+        let mut client_updates: Vec<(SocketAddr, ServerMessage, Vec<u64>)> = Vec::new();
+        
         for (addr, client) in &self.clients {
             // Only send to in-game clients
             if !client.is_in_game() {
@@ -1364,6 +1380,9 @@ impl Server {
                 Some(p) => p.zone_id,
                 None => continue, // Player not in world, skip
             };
+            
+            // Check if zone changed - if so, we need to send NPCs
+            let zone_changed = client.last_zone_id != Some(player_zone_id);
             
             // Get players in the same zone
             let players: Vec<PlayerState> = world.get_players_in_zone(player_zone_id)
@@ -1398,16 +1417,82 @@ impl Server {
                 })
                 .collect();
             
+            // Only include NPCs that the client doesn't know about yet
+            // (NPCs are static, so we only need to send them once per zone)
+            let mut new_npc_ids: Vec<u64> = Vec::new();
+            let npcs: Vec<NpcState> = if zone_changed {
+                // Zone changed - send all NPCs in new zone
+                world.get_npcs_in_zone(player_zone_id)
+                    .iter()
+                    .map(|n| {
+                        new_npc_ids.push(n.id);
+                        NpcState {
+                            id: n.id,
+                            zone_id: n.zone_id,
+                            npc_type: n.npc_type,
+                            position: n.position,
+                            rotation: n.rotation,
+                            animation_state: n.animation_state,
+                        }
+                    })
+                    .collect()
+            } else {
+                // Same zone - only send NPCs client doesn't know about
+                world.get_npcs_in_zone(player_zone_id)
+                    .iter()
+                    .filter(|n| !client.known_npcs.contains(&n.id))
+                    .map(|n| {
+                        new_npc_ids.push(n.id);
+                        NpcState {
+                            id: n.id,
+                            zone_id: n.zone_id,
+                            npc_type: n.npc_type,
+                            position: n.position,
+                            rotation: n.rotation,
+                            animation_state: n.animation_state,
+                        }
+                    })
+                    .collect()
+            };
+            
+            // Log when sending NPCs to a new zone
+            if !npcs.is_empty() {
+                info!("Sending {} NPCs to player {} in zone {}", npcs.len(), client.player_id, player_zone_id);
+            }
+            
             let msg = ServerMessage::WorldState {
                 tick,
                 players,
                 enemies,
+                npcs,
             };
             
+            client_updates.push((*addr, msg, new_npc_ids));
+        }
+        
+        // Now send messages and update client state
+        for (addr, msg, new_npc_ids) in client_updates {
             let data = msg.serialize();
             
-            if let Err(e) = self.socket.send_to(&data, addr).await {
+            if let Err(e) = self.socket.send_to(&data, &addr).await {
                 error!("Failed to send world state to {}: {}", addr, e);
+            }
+            
+            // Update client's known NPCs and zone
+            if let Some(client) = self.clients.get_mut(&addr) {
+                // Update last zone
+                if let Some(player) = world.get_player(client.player_id) {
+                    if client.last_zone_id != Some(player.zone_id) {
+                        // Zone changed - clear old NPCs
+                        client.clear_known_npcs();
+                        client.last_zone_id = Some(player.zone_id);
+                    }
+                }
+                
+                // Add new NPCs to known set
+                for npc_id in new_npc_ids {
+                    client.known_npcs.insert(npc_id);
+                }
             }
         }
     }

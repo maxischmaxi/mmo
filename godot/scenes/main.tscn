@@ -60,6 +60,8 @@ script = ExtResource("3_game_manager")
 
 [node name="EnemiesContainer" type="Node3D" parent="GameManager"]
 
+[node name="NpcsContainer" type="Node3D" parent="GameManager"]
+
 [node name="ItemsContainer" type="Node3D" parent="GameManager"]
 
 [node name="EffectsContainer" type="Node3D" parent="GameManager"]

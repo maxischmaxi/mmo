@@ -2,14 +2,14 @@
 
 mod zone_manager;
 
-pub use zone_manager::{ZoneManager, ZoneDefinition, ZoneSpawnPoint, ZoneEnemySpawn};
+pub use zone_manager::{ZoneManager, ZoneDefinition, ZoneSpawnPoint, ZoneEnemySpawn, ZoneNpcSpawn};
 
 use std::collections::HashMap;
 use log::{info, debug};
 use rand::Rng;
 
 use mmo_shared::{
-    ServerMessage, AnimationState, EnemyType, InventorySlot, ItemDef,
+    ServerMessage, AnimationState, EnemyType, NpcType, NpcState, InventorySlot, ItemDef,
     CharacterClass, Gender, Empire, AbilityEffect, TargetType,
     get_ability_by_id,
 };
@@ -18,14 +18,16 @@ use crate::entities::player::BuffEffect;
 
 use crate::persistence::InventorySlotData;
 
-use crate::entities::{ServerPlayer, ServerEnemy, WorldItem};
+use crate::entities::{ServerPlayer, ServerEnemy, ServerNpc, WorldItem};
 
 /// The game world containing all entities
 pub struct GameWorld {
     players: HashMap<u64, ServerPlayer>,
     enemies: HashMap<u64, ServerEnemy>,
+    npcs: HashMap<u64, ServerNpc>,
     world_items: HashMap<u64, WorldItem>,
     next_enemy_id: u64,
+    next_npc_id: u64,
     next_item_id: u64,
     /// Item definitions loaded from database
     pub items: HashMap<u32, ItemDef>,
@@ -38,8 +40,10 @@ impl GameWorld {
         let mut world = Self {
             players: HashMap::new(),
             enemies: HashMap::new(),
+            npcs: HashMap::new(),
             world_items: HashMap::new(),
             next_enemy_id: 10000, // Start enemy IDs high to avoid confusion with player IDs
+            next_npc_id: 30000,   // NPCs start at 30000
             next_item_id: 20000,
             items,
             zone_manager,
@@ -47,6 +51,9 @@ impl GameWorld {
         
         // Spawn enemies for all zones
         world.spawn_all_zone_enemies();
+        
+        // Spawn NPCs for all zones
+        world.spawn_all_zone_npcs();
         
         world
     }
@@ -72,6 +79,52 @@ impl GameWorld {
         }
         
         info!("Spawned {} enemies across all zones", total_spawned);
+    }
+    
+    /// Spawn NPCs for all zones using zone_manager data
+    fn spawn_all_zone_npcs(&mut self) {
+        let zone_ids = self.zone_manager.get_zone_ids();
+        let mut total_spawned = 0;
+        
+        // Collect spawn data first to avoid borrow issues
+        let mut spawn_data: Vec<(u32, [f32; 3], f32, NpcType)> = Vec::new();
+        for zone_id in zone_ids {
+            let spawns = self.zone_manager.get_npc_spawns(zone_id);
+            for spawn in spawns {
+                spawn_data.push((zone_id, spawn.position, spawn.rotation, spawn.npc_type));
+            }
+        }
+        
+        // Now spawn NPCs
+        for (zone_id, position, rotation, npc_type) in spawn_data {
+            self.spawn_npc(zone_id, position, rotation, npc_type);
+            total_spawned += 1;
+        }
+        
+        info!("Spawned {} NPCs across all zones (next_npc_id: {})", total_spawned, self.next_npc_id);
+    }
+    
+    /// Spawn a new NPC in a zone
+    pub fn spawn_npc(&mut self, zone_id: u32, position: [f32; 3], rotation: f32, npc_type: NpcType) -> u64 {
+        let id = self.next_npc_id;
+        self.next_npc_id += 1;
+        
+        let npc = ServerNpc::new(id, zone_id, npc_type, position, rotation);
+        self.npcs.insert(id, npc);
+        
+        id
+    }
+    
+    /// Get all NPCs
+    pub fn get_npcs(&self) -> Vec<&ServerNpc> {
+        self.npcs.values().collect()
+    }
+    
+    /// Get all NPCs in a specific zone
+    pub fn get_npcs_in_zone(&self, zone_id: u32) -> Vec<&ServerNpc> {
+        self.npcs.values()
+            .filter(|n| n.zone_id == zone_id)
+            .collect()
     }
     
     /// Spawn enemies for a specific zone

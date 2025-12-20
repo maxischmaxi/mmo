@@ -311,6 +311,14 @@ impl Player {
     #[signal]
     fn enemy_state_updated(id: i64, position: Vector3, rotation: f64, health: i64, animation_state: i64);
     
+    /// Signal emitted when an NPC spawns
+    #[signal]
+    fn npc_spawned(id: i64, npc_type: i64, position: Vector3, rotation: f64);
+    
+    /// Signal emitted when an NPC's state is updated (from WorldState)
+    #[signal]
+    fn npc_state_updated(id: i64, position: Vector3, rotation: f64, animation_state: i64);
+    
     /// Signal emitted when a remote player's state is updated (from WorldState)
     #[signal]
     fn player_state_updated(id: i64, position: Vector3, rotation: f64, health: i64, animation_state: i64, equipped_weapon_id: i64);
@@ -1213,7 +1221,7 @@ impl Player {
                 self.base_mut().emit_signal("player_despawned", &[(id as i64).to_variant()]);
             }
             
-            ServerMessage::WorldState { tick, players, enemies } => {
+            ServerMessage::WorldState { tick, players, enemies, npcs } => {
                 // Emit tick signal
                 self.base_mut().emit_signal("world_state_received", &[(tick as i64).to_variant()]);
                 
@@ -1266,6 +1274,27 @@ impl Player {
                         pos.to_variant(),
                         (enemy.rotation as f64).to_variant(),
                         (enemy.health as i64).to_variant(),
+                        anim_state.to_variant(),
+                    ]);
+                }
+                
+                // Emit updates for each NPC
+                for npc in npcs {
+                    let pos = Vector3::new(npc.position[0], npc.position[1], npc.position[2]);
+                    let anim_state = match npc.animation_state {
+                        mmo_shared::AnimationState::Idle => 0i64,
+                        mmo_shared::AnimationState::Walking => 1i64,
+                        mmo_shared::AnimationState::Running => 2i64,
+                        mmo_shared::AnimationState::Jumping => 3i64,
+                        mmo_shared::AnimationState::Attacking => 4i64,
+                        mmo_shared::AnimationState::TakingDamage => 5i64,
+                        mmo_shared::AnimationState::Dying => 6i64,
+                        mmo_shared::AnimationState::Dead => 7i64,
+                    };
+                    self.base_mut().emit_signal("npc_state_updated", &[
+                        (npc.id as i64).to_variant(),
+                        pos.to_variant(),
+                        (npc.rotation as f64).to_variant(),
                         anim_state.to_variant(),
                     ]);
                 }

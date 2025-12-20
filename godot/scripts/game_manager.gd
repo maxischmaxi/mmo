@@ -18,6 +18,12 @@ const ENEMY_SCENES := {
 	3: "res://scenes/enemies/wolf.tscn",    # Wolf - pack predator
 }
 
+## NPC model scenes - loaded dynamically based on type
+## Key: npc_type (int), Value: PackedScene path
+const NPC_SCENES := {
+	0: "res://scenes/npcs/old_man.tscn",  # Old Man NPC
+}
+
 ## Game state enum
 enum GameState { LOGIN, CHARACTER_SELECT, CHARACTER_CREATE, IN_GAME }
 
@@ -51,6 +57,9 @@ var remote_players: Dictionary = {}
 ## Dictionary of enemies by ID
 var enemies: Dictionary = {}
 
+## Dictionary of NPCs by ID
+var npcs: Dictionary = {}
+
 ## Dictionary of world items by entity ID
 var world_items: Dictionary = {}
 
@@ -61,6 +70,7 @@ const DAMAGE_NUMBER_POOL_SIZE: int = 20
 ## Container nodes
 @onready var players_container: Node3D = $PlayersContainer
 @onready var enemies_container: Node3D = $EnemiesContainer
+@onready var npcs_container: Node3D = $NpcsContainer
 @onready var items_container: Node3D = $ItemsContainer
 @onready var effects_container: Node3D = $EffectsContainer
 
@@ -132,6 +142,10 @@ func _ready() -> void:
 		if local_player.has_signal("player_state_updated"):
 			local_player.connect("player_state_updated", _on_player_state_updated)
 		
+		# Connect to NPC signals
+		if local_player.has_signal("npc_state_updated"):
+			local_player.connect("npc_state_updated", _on_npc_state_updated)
+		
 		# Connect time sync signal for day/night cycle
 		if local_player.has_signal("time_sync"):
 			local_player.connect("time_sync", _on_time_sync)
@@ -182,6 +196,19 @@ func _process(delta: float) -> void:
 		
 		if player_data.has("target_rotation"):
 			var target_rot: float = player_data["target_rotation"]
+			node.rotation.y = lerp_angle(node.rotation.y, target_rot, INTERPOLATION_SPEED * delta)
+	
+	# Interpolate NPC positions for smooth movement (for future roaming support)
+	for id in npcs:
+		var npc_data = npcs[id]
+		var node = npc_data["node"] as Node3D
+		
+		if npc_data.has("target_position"):
+			var target_pos: Vector3 = npc_data["target_position"]
+			node.global_position = node.global_position.lerp(target_pos, INTERPOLATION_SPEED * delta)
+		
+		if npc_data.has("target_rotation"):
+			var target_rot: float = npc_data["target_rotation"]
 			node.rotation.y = lerp_angle(node.rotation.y, target_rot, INTERPOLATION_SPEED * delta)
 
 
@@ -663,6 +690,136 @@ func _remove_enemy(id: int) -> void:
 		enemies.erase(id)
 
 
+# =============================================================================
+# NPC Handling
+# =============================================================================
+
+## Handle NPC state update from WorldState
+## NPCs are spawned on first update (no separate spawn signal like enemies)
+func _on_npc_state_updated(id: int, position: Vector3, rotation: float, animation_state: int = 0) -> void:
+	if npcs.has(id):
+		# Update existing NPC
+		update_npc(id, position, rotation, animation_state)
+	else:
+		# First time seeing this NPC - spawn it
+		# Extract npc_type from the ID range (NPCs start at 30000)
+		# For now, all NPCs are type 0 (Old Man) until we have more types
+		_spawn_npc(id, 0, position, rotation)
+
+
+## Spawn an NPC
+func _spawn_npc(id: int, npc_type: int, position: Vector3, rotation: float) -> void:
+	if npcs.has(id):
+		return
+	
+	var npc_name := _get_npc_name(npc_type)
+	print("GameManager: Spawning NPC ", npc_name, " (ID: ", id, ") at ", position)
+	
+	var npc := _create_npc(npc_type)
+	if not npc:
+		push_warning("GameManager: Failed to create NPC of type %d" % npc_type)
+		return
+	
+	# Add to scene tree first, then set position
+	if npcs_container:
+		npcs_container.add_child(npc)
+	else:
+		add_child(npc)
+	
+	npc.global_position = position
+	npc.rotation.y = rotation
+	
+	npcs[id] = {
+		"id": id,
+		"node": npc,
+		"type": npc_type,
+		"name": npc_name,
+		"target_position": position,
+		"target_rotation": rotation,
+	}
+
+
+## Create an NPC with the appropriate model
+func _create_npc(npc_type: int) -> Node3D:
+	# Check if we have a scene for this NPC type
+	if NPC_SCENES.has(npc_type):
+		var scene_path: String = NPC_SCENES[npc_type]
+		if ResourceLoader.exists(scene_path):
+			var scene = load(scene_path) as PackedScene
+			if scene:
+				var npc_model = scene.instantiate()
+				
+				# Wrap in a simple Node3D (NPCs don't need physics)
+				var npc = Node3D.new()
+				npc.add_child(npc_model)
+				
+				# Initialize the NPC model with its type
+				if npc_model.has_method("initialize_npc"):
+					npc_model.initialize_npc(npc_type)
+				
+				# Store reference to model for animation updates
+				npc.set_meta("npc_model", npc_model)
+				
+				return npc
+	
+	# Fallback to placeholder
+	return _create_npc_placeholder(npc_type)
+
+
+## Create a placeholder NPC (capsule)
+func _create_npc_placeholder(npc_type: int) -> Node3D:
+	var npc = Node3D.new()
+	
+	# Create mesh
+	var mesh_instance = MeshInstance3D.new()
+	var mesh = CapsuleMesh.new()
+	mesh.radius = 0.3
+	mesh.height = 1.5
+	mesh_instance.mesh = mesh
+	mesh_instance.position.y = 0.75
+	
+	# Give NPCs a distinct color (blue-ish)
+	var material = StandardMaterial3D.new()
+	material.albedo_color = Color(0.3, 0.5, 0.8)  # Blue-ish for NPC
+	mesh_instance.material_override = material
+	
+	npc.add_child(mesh_instance)
+	
+	return npc
+
+
+## Update NPC position from world state
+func update_npc(id: int, position: Vector3, rotation: float, animation_state: int = 0) -> void:
+	if npcs.has(id):
+		var npc_data = npcs[id]
+		
+		# Store target position/rotation for interpolation
+		npc_data["target_position"] = position
+		npc_data["target_rotation"] = rotation
+		
+		# Update animation state on the NPC model (if it has one)
+		var npc_node = npc_data["node"]
+		if npc_node and npc_node.has_meta("npc_model"):
+			var npc_model = npc_node.get_meta("npc_model")
+			if npc_model and npc_model.has_method("set_animation_state"):
+				npc_model.set_animation_state(animation_state)
+
+
+## Remove an NPC
+func _remove_npc(id: int) -> void:
+	if npcs.has(id):
+		var npc_data = npcs[id]
+		npc_data["node"].queue_free()
+		npcs.erase(id)
+
+
+## Get NPC name by type
+func _get_npc_name(npc_type: int) -> String:
+	match npc_type:
+		0: return "Old Man"
+		_: return "NPC"
+
+
 func _on_chat_received(sender_name: String, content: String) -> void:
 	print("[Chat] ", sender_name, ": ", content)
 	# Chat UI handles this via its own signal connection
@@ -850,6 +1007,11 @@ func _on_zone_change(_zone_id: int, _zone_name: String, _scene_path: String, _sp
 		_remove_enemy(id)
 	enemies.clear()
 	
+	# Clear all NPCs - they were in the old zone
+	for id in npcs.keys():
+		_remove_npc(id)
+	npcs.clear()
+	
 	# Clear world items
 	for id in world_items.keys():
 		if world_items[id].has("node"):
@@ -861,7 +1023,7 @@ func _on_zone_change(_zone_id: int, _zone_name: String, _scene_path: String, _sp
 	if targeting_system and targeting_system.has_method("clear_target"):
 		targeting_system.clear_target()
 	
-	print("GameManager: Cleared ", remote_players.size(), " players, ", enemies.size(), " enemies")
+	print("GameManager: Cleared ", remote_players.size(), " players, ", enemies.size(), " enemies, ", npcs.size(), " NPCs")
 
 
 # =============================================================================
