@@ -1,0 +1,132 @@
+[gd_scene load_steps=3 format=3 uid="uid://dulxwtstfdnfg"]
+
+[ext_resource type="Script" path="res://scripts/ui/debug_overlay.gd" id="1_script"]
+
+[sub_resource type="LabelSettings" id="LabelSettings_debug"]
+font_size = 14
+font_color = Color(1, 1, 1, 1)
+shadow_size = 2
+shadow_color = Color(0, 0, 0, 0.8)
+shadow_offset = Vector2(1, 1)
+
+[node name="DebugOverlay" type="Control"]
+process_mode = 3
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+script = ExtResource("1_script")
+
+[node name="RightColumn" type="VBoxContainer" parent="."]
+layout_mode = 1
+anchors_preset = 1
+anchor_left = 1.0
+anchor_right = 1.0
+offset_left = -300.0
+offset_top = 10.0
+offset_right = -10.0
+offset_bottom = 200.0
+grow_horizontal = 0
+mouse_filter = 2
+theme_override_constants/separation = 2
+
+[node name="FPSLabel" type="Label" parent="RightColumn"]
+layout_mode = 2
+mouse_filter = 2
+text = "FPS: 60"
+label_settings = SubResource("LabelSettings_debug")
+horizontal_alignment = 2
+
+[node name="XYZLabel" type="Label" parent="RightColumn"]
+layout_mode = 2
+mouse_filter = 2
+text = "XYZ: 0.00 / 0.00 / 0.00"
+label_settings = SubResource("LabelSettings_debug")
+horizontal_alignment = 2
+
+[node name="FacingLabel" type="Label" parent="RightColumn"]
+layout_mode = 2
+mouse_filter = 2
+text = "Facing: 0.0 (N)"
+label_settings = SubResource("LabelSettings_debug")
+horizontal_alignment = 2
+
+[node name="SpeedLabel" type="Label" parent="RightColumn"]
+layout_mode = 2
+mouse_filter = 2
+text = "Speed: 0.00 m/s"
+label_settings = SubResource("LabelSettings_debug")
+horizontal_alignment = 2
+
+[node name="ZoneLabel" type="Label" parent="RightColumn"]
+layout_mode = 2
+mouse_filter = 2
+text = "Zone: Unknown"
+label_settings = SubResource("LabelSettings_debug")
+horizontal_alignment = 2
+
+[node name="TimeLabel" type="Label" parent="RightColumn"]
+layout_mode = 2
+mouse_filter = 2
+text = "Time: N/A"
+label_settings = SubResource("LabelSettings_debug")
+horizontal_alignment = 2
+
+[node name="ConnectedLabel" type="Label" parent="RightColumn"]
+layout_mode = 2
+mouse_filter = 2
+text = "Connected: No"
+label_settings = SubResource("LabelSettings_debug")
+horizontal_alignment = 2
+
+[node name="PingLabel" type="Label" parent="RightColumn"]
+layout_mode = 2
+mouse_filter = 2
+text = "Ping: N/A"
+label_settings = SubResource("LabelSettings_debug")
+horizontal_alignment = 2
+
+[node name="PacketsLabel" type="Label" parent="RightColumn"]
+layout_mode = 2
+mouse_filter = 2
+text = "Packets: N/A"
+label_settings = SubResource("LabelSettings_debug")
+horizontal_alignment = 2
+
+[node name="PlayersLabel" type="Label" parent="RightColumn"]
+layout_mode = 2
+mouse_filter = 2
+text = "Players: 0"
+label_settings = SubResource("LabelSettings_debug")
+horizontal_alignment = 2
+
+[node name="EnemiesLabel" type="Label" parent="RightColumn"]
+layout_mode = 2
+mouse_filter = 2
+text = "Enemies: 0"
+label_settings = SubResource("LabelSettings_debug")
+horizontal_alignment = 2
+
+[node name="NPCsLabel" type="Label" parent="RightColumn"]
+layout_mode = 2
+mouse_filter = 2
+text = "NPCs: 0"
+label_settings = SubResource("LabelSettings_debug")
+horizontal_alignment = 2
+
+[node name="DrawCallsLabel" type="Label" parent="RightColumn"]
+layout_mode = 2
+mouse_filter = 2
+text = "Draw Calls: 0"
+label_settings = SubResource("LabelSettings_debug")
+horizontal_alignment = 2
+
+[node name="MemoryLabel" type="Label" parent="RightColumn"]
+layout_mode = 2
+mouse_filter = 2
+text = "Memory: 0.0 MB"
+label_settings = SubResource("LabelSettings_debug")
+horizontal_alignment = 2

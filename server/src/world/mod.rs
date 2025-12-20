@@ -521,6 +521,10 @@ impl GameWorld {
         // Collect attacks from enemies
         let mut attacks: Vec<(u64, u64, u32)> = Vec::new(); // (enemy_id, player_id, damage)
         
+        // Log obstacle count once per update cycle (not per enemy)
+        static OBSTACLE_LOG_COUNTER: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
+        let log_count = OBSTACLE_LOG_COUNTER.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+        
         for enemy in self.enemies.values_mut() {
             // Get players in the same zone as this enemy
             let player_positions = zone_player_positions
@@ -528,7 +532,16 @@ impl GameWorld {
                 .map(|v| v.as_slice())
                 .unwrap_or(&[]);
             
-            if let Some((target_player_id, damage)) = enemy.update(delta, player_positions) {
+            // Get obstacles for this zone
+            let obstacles = self.zone_manager.get_obstacles(enemy.zone_id);
+            
+            // Debug log every 100 updates (about every 5 seconds at 20 tick/s)
+            if log_count % 100 == 0 && enemy.target_id.is_some() {
+                debug!("Enemy {} in zone {} chasing target, {} obstacles available", 
+                    enemy.id, enemy.zone_id, obstacles.len());
+            }
+            
+            if let Some((target_player_id, damage)) = enemy.update(delta, player_positions, obstacles) {
                 attacks.push((enemy.id, target_player_id, damage));
             }
         }

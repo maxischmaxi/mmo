@@ -1,0 +1,25 @@
+[remap]
+
+importer="wavefront_obj"
+importer_version=1
+type="Mesh"
+uid="uid://dilb5rbhpt2aj"
+path="res://.godot/imported/Overhang_RoofIncline_Plaster.obj-d78f7edf88e56b1f9177cddad40c1b99.mesh"
+
+[deps]
+
+files=["res://.godot/imported/Overhang_RoofIncline_Plaster.obj-d78f7edf88e56b1f9177cddad40c1b99.mesh"]
+
+source_file="res://assets/map/medieval_village/OBJ/Overhang_RoofIncline_Plaster.obj"
+dest_files=["res://.godot/imported/Overhang_RoofIncline_Plaster.obj-d78f7edf88e56b1f9177cddad40c1b99.mesh", "res://.godot/imported/Overhang_RoofIncline_Plaster.obj-d78f7edf88e56b1f9177cddad40c1b99.mesh"]
+
+[params]
+
+generate_tangents=true
+generate_lods=true
+generate_shadow_mesh=true
+generate_lightmap_uv2=false
+generate_lightmap_uv2_texel_size=0.2
+scale_mesh=Vector3(1, 1, 1)
+offset_mesh=Vector3(0, 0, 0)
+force_disable_mesh_compression=false

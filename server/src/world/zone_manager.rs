@@ -7,8 +7,11 @@
 //!   300+:    Neutral/Dungeons (future)
 
 use std::collections::HashMap;
-use log::{info, warn};
+use std::path::Path;
+use log::{info, warn, error};
 use mmo_shared::{Empire, EnemyType, NpcType};
+
+use crate::navigation::{Obstacle, CircleObstacle, BoxObstacle};
 
 /// Zone definition loaded from database
 #[derive(Debug, Clone)]
@@ -63,6 +66,8 @@ pub struct ZoneManager {
     npc_spawns: HashMap<u32, Vec<ZoneNpcSpawn>>,
     /// Default zone for each empire
     default_zones: HashMap<Empire, u32>,
+    /// Obstacles per zone (for enemy navigation)
+    obstacles: HashMap<u32, Vec<Obstacle>>,
 }
 
 impl ZoneManager {
@@ -74,6 +79,7 @@ impl ZoneManager {
             enemy_spawns: HashMap::new(),
             npc_spawns: HashMap::new(),
             default_zones: HashMap::new(),
+            obstacles: HashMap::new(),
         }
     }
     
@@ -142,6 +148,10 @@ impl ZoneManager {
             ZoneEnemySpawn { id: 5, zone_id: 1, enemy_type: EnemyType::Skeleton, position: [-30.0, 0.0, -30.0], respawn_time_secs: 120 },
             ZoneEnemySpawn { id: 14, zone_id: 1, enemy_type: EnemyType::Wolf, position: [20.0, 0.0, -15.0], respawn_time_secs: 60 },
             ZoneEnemySpawn { id: 15, zone_id: 1, enemy_type: EnemyType::Wolf, position: [25.0, 0.0, -20.0], respawn_time_secs: 60 },
+            // TEST: Wolf behind main building - must go around to reach spawn at (0,0)
+            ZoneEnemySpawn { id: 20, zone_id: 1, enemy_type: EnemyType::Wolf, position: [18.0, 0.0, -8.0], respawn_time_secs: 30 },
+            // TEST: Goblin behind market stall
+            ZoneEnemySpawn { id: 21, zone_id: 1, enemy_type: EnemyType::Goblin, position: [-8.0, 0.0, -12.0], respawn_time_secs: 30 },
         ]);
         manager.enemy_spawns.insert(100, vec![
             ZoneEnemySpawn { id: 6, zone_id: 100, enemy_type: EnemyType::Goblin, position: [25.0, 0.0, 25.0], respawn_time_secs: 60 },
@@ -156,6 +166,12 @@ impl ZoneManager {
             ZoneEnemySpawn { id: 12, zone_id: 200, enemy_type: EnemyType::Goblin, position: [35.0, 0.0, -15.0], respawn_time_secs: 60 },
             ZoneEnemySpawn { id: 13, zone_id: 200, enemy_type: EnemyType::Skeleton, position: [-35.0, 0.0, 10.0], respawn_time_secs: 120 },
             ZoneEnemySpawn { id: 17, zone_id: 200, enemy_type: EnemyType::Wolf, position: [-25.0, 0.0, -20.0], respawn_time_secs: 60 },
+            // TEST: Wolf behind main building (10, -8) - must go around to reach spawn at (0,0)
+            // Building is Box (6,-13) to (14,-3), so spawn at (18, -8) to force pathing
+            ZoneEnemySpawn { id: 18, zone_id: 200, enemy_type: EnemyType::Wolf, position: [18.0, 0.0, -8.0], respawn_time_secs: 30 },
+            // TEST: Goblin behind market stall (-8, -5) - must go around
+            // Stall is Box (-10,-8) to (-6,-2), so spawn at (-8, -12)
+            ZoneEnemySpawn { id: 19, zone_id: 200, enemy_type: EnemyType::Goblin, position: [-8.0, 0.0, -12.0], respawn_time_secs: 30 },
         ]);
         
         // Add default NPC spawns - one Old Man per empire zone
@@ -169,6 +185,28 @@ impl ZoneManager {
         manager.npc_spawns.insert(200, vec![
             ZoneNpcSpawn { id: 3, zone_id: 200, npc_type: NpcType::OldMan, position: [5.0, 0.0, 5.0], rotation: 0.0 },
         ]);
+        
+        // Add obstacles for each zone
+        // Based on shinsoo/village.tscn decorations (4 pillars at corners)
+        // Each pillar is a cylinder with radius 1.0
+        let village_obstacles = vec![
+            // Decorative pillars at corners of the central area
+            Obstacle::Circle(CircleObstacle::new(-15.0, -15.0, 1.5)),
+            Obstacle::Circle(CircleObstacle::new(15.0, -15.0, 1.5)),
+            Obstacle::Circle(CircleObstacle::new(-15.0, 15.0, 1.5)),
+            Obstacle::Circle(CircleObstacle::new(15.0, 15.0, 1.5)),
+            // Example buildings (boxes) - these match typical village layouts
+            // Main building near spawn
+            Obstacle::Box(BoxObstacle::from_center(10.0, -8.0, 4.0, 5.0)),
+            // Secondary building
+            Obstacle::Box(BoxObstacle::from_center(-12.0, 8.0, 3.0, 4.0)),
+            // Market stall area
+            Obstacle::Box(BoxObstacle::from_center(-8.0, -5.0, 2.0, 3.0)),
+        ];
+        
+        manager.obstacles.insert(1, village_obstacles.clone());
+        manager.obstacles.insert(100, village_obstacles.clone());
+        manager.obstacles.insert(200, village_obstacles);
         
         info!("ZoneManager initialized with {} zones (hardcoded defaults)", manager.zones.len());
         
@@ -349,6 +387,171 @@ impl ZoneManager {
     /// Check if a zone exists
     pub fn zone_exists(&self, zone_id: u32) -> bool {
         self.zones.contains_key(&zone_id)
+    }
+    
+    /// Get obstacles for a zone (for enemy pathfinding)
+    pub fn get_obstacles(&self, zone_id: u32) -> &[Obstacle] {
+        self.obstacles.get(&zone_id).map(|v| v.as_slice()).unwrap_or(&[])
+    }
+    
+    /// Initialize obstacles for all zones
+    /// 
+    /// First tries to load from obstacles.json (exported from Godot).
+    /// Falls back to hardcoded obstacles if the file doesn't exist.
+    pub fn init_obstacles(&mut self) {
+        // Clear any existing obstacles
+        self.obstacles.clear();
+        
+        // Try to load from JSON file first
+        if self.load_obstacles_from_json("obstacles.json") {
+            return;
+        }
+        
+        info!("No obstacles.json found, using hardcoded fallback obstacles");
+        self.init_hardcoded_obstacles();
+    }
+    
+    /// Load obstacles from a JSON file exported by Godot
+    /// Returns true if successful, false if file not found or parse error
+    fn load_obstacles_from_json<P: AsRef<Path>>(&mut self, path: P) -> bool {
+        let path = path.as_ref();
+        
+        let content = match std::fs::read_to_string(path) {
+            Ok(c) => c,
+            Err(e) => {
+                if e.kind() != std::io::ErrorKind::NotFound {
+                    warn!("Failed to read obstacles file {:?}: {}", path, e);
+                }
+                return false;
+            }
+        };
+        
+        let json: serde_json::Value = match serde_json::from_str(&content) {
+            Ok(v) => v,
+            Err(e) => {
+                error!("Failed to parse obstacles.json: {}", e);
+                return false;
+            }
+        };
+        
+        let obj = match json.as_object() {
+            Some(o) => o,
+            None => {
+                error!("obstacles.json root is not an object");
+                return false;
+            }
+        };
+        
+        for (zone_id_str, obstacles_array) in obj {
+            let zone_id: u32 = match zone_id_str.parse() {
+                Ok(id) => id,
+                Err(_) => {
+                    warn!("Invalid zone ID in obstacles.json: {}", zone_id_str);
+                    continue;
+                }
+            };
+            
+            let obstacles = match obstacles_array.as_array() {
+                Some(arr) => arr,
+                None => {
+                    warn!("Zone {} obstacles is not an array", zone_id);
+                    continue;
+                }
+            };
+            
+            let mut zone_obstacles = Vec::new();
+            
+            for obs in obstacles {
+                if let Some(obstacle) = self.parse_obstacle(obs) {
+                    zone_obstacles.push(obstacle);
+                }
+            }
+            
+            if !zone_obstacles.is_empty() {
+                self.obstacles.insert(zone_id, zone_obstacles);
+            }
+        }
+        
+        let total_obstacles: usize = self.obstacles.values().map(|v| v.len()).sum();
+        info!("Loaded {} obstacles from {:?} across {} zones", 
+            total_obstacles, path, self.obstacles.len());
+        
+        // Log each zone's obstacles
+        for (zone_id, obs) in &self.obstacles {
+            info!("  Zone {}: {} obstacles", zone_id, obs.len());
+        }
+        
+        true
+    }
+    
+    /// Parse a single obstacle from JSON
+    fn parse_obstacle(&self, value: &serde_json::Value) -> Option<Obstacle> {
+        let obj = value.as_object()?;
+        let obstacle_type = obj.get("type")?.as_str()?;
+        
+        match obstacle_type {
+            "circle" => {
+                let x = obj.get("center_x")?.as_f64()? as f32;
+                let z = obj.get("center_z")?.as_f64()? as f32;
+                let radius = obj.get("radius")?.as_f64()? as f32;
+                Some(Obstacle::Circle(CircleObstacle::new(x, z, radius)))
+            }
+            "box" => {
+                let x = obj.get("center_x")?.as_f64()? as f32;
+                let z = obj.get("center_z")?.as_f64()? as f32;
+                let half_w = obj.get("half_width")?.as_f64()? as f32;
+                let half_d = obj.get("half_depth")?.as_f64()? as f32;
+                Some(Obstacle::Box(BoxObstacle::from_center(x, z, half_w, half_d)))
+            }
+            _ => {
+                warn!("Unknown obstacle type: {}", obstacle_type);
+                None
+            }
+        }
+    }
+    
+    /// Fallback: hardcoded obstacles matching the Godot scene layouts
+    fn init_hardcoded_obstacles(&mut self) {
+        // Common village obstacles (same layout for all empires)
+        let village_obstacles = vec![
+            // Decorative pillars at corners
+            Obstacle::Circle(CircleObstacle::new(-15.0, -15.0, 1.5)),
+            Obstacle::Circle(CircleObstacle::new(15.0, -15.0, 1.5)),
+            Obstacle::Circle(CircleObstacle::new(-15.0, 15.0, 1.5)),
+            Obstacle::Circle(CircleObstacle::new(15.0, 15.0, 1.5)),
+            
+            // Main building at (10, -8) with half-extents (4, 5)
+            Obstacle::Box(BoxObstacle::from_center(10.0, -8.0, 4.0, 5.0)),
+            
+            // Secondary building at (-12, 8) with half-extents (3, 4)
+            Obstacle::Box(BoxObstacle::from_center(-12.0, 8.0, 3.0, 4.0)),
+            
+            // Market stall at (-8, -5) with half-extents (2, 3)
+            Obstacle::Box(BoxObstacle::from_center(-8.0, -5.0, 2.0, 3.0)),
+        ];
+        
+        // Apply common obstacles to all zones
+        for zone_id in self.zones.keys().copied().collect::<Vec<_>>() {
+            self.obstacles.insert(zone_id, village_obstacles.clone());
+        }
+        
+        let total_obstacles: usize = self.obstacles.values().map(|v| v.len()).sum();
+        info!("Initialized {} obstacles across {} zones", total_obstacles, self.obstacles.len());
+        
+        // Debug: log each zone's obstacles
+        for (zone_id, obs) in &self.obstacles {
+            info!("  Zone {}: {} obstacles", zone_id, obs.len());
+            for (i, obstacle) in obs.iter().enumerate() {
+                match obstacle {
+                    Obstacle::Circle(c) => {
+                        info!("    [{}] Circle at ({}, {}) radius {}", i, c.center.x, c.center.z, c.radius);
+                    }
+                    Obstacle::Box(b) => {
+                        info!("    [{}] Box from ({}, {}) to ({}, {})", i, b.min.x, b.min.z, b.max.x, b.max.z);
+                    }
+                }
+            }
+        }
     }
 }
 

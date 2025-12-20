@@ -1,0 +1,25 @@
+[remap]
+
+importer="wavefront_obj"
+importer_version=1
+type="Mesh"
+uid="uid://cqy63age2541x"
+path="res://.godot/imported/Wall_Plaster_Window_Wide_Flat.obj-ce48b2e0719c0c5a3582d202c2585c60.mesh"
+
+[deps]
+
+files=["res://.godot/imported/Wall_Plaster_Window_Wide_Flat.obj-ce48b2e0719c0c5a3582d202c2585c60.mesh"]
+
+source_file="res://assets/map/medieval_village/OBJ/Wall_Plaster_Window_Wide_Flat.obj"
+dest_files=["res://.godot/imported/Wall_Plaster_Window_Wide_Flat.obj-ce48b2e0719c0c5a3582d202c2585c60.mesh", "res://.godot/imported/Wall_Plaster_Window_Wide_Flat.obj-ce48b2e0719c0c5a3582d202c2585c60.mesh"]
+
+[params]
+
+generate_tangents=true
+generate_lods=true
+generate_shadow_mesh=true
+generate_lightmap_uv2=false
+generate_lightmap_uv2_texel_size=0.2
+scale_mesh=Vector3(1, 1, 1)
+offset_mesh=Vector3(0, 0, 0)
+force_disable_mesh_compression=false

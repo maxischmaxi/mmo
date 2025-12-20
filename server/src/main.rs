@@ -7,6 +7,7 @@ mod world;
 mod entities;
 mod persistence;
 pub mod commands;
+pub mod navigation;
 
 use std::time::{Duration, Instant};
 use log::{info, error};
@@ -63,6 +64,11 @@ async fn load_zones_from_db(db: &Database) -> ZoneManager {
             error!("Failed to load zone NPC spawns: {}", e);
         }
     }
+    
+    // Initialize obstacles for enemy pathfinding
+    // This is done in code rather than database because obstacles
+    // must match the Godot scene layouts
+    zone_manager.init_obstacles();
     
     zone_manager
 }

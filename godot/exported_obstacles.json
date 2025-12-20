@@ -1,0 +1,374 @@
+{
+  "1": [
+    {
+      "center_x": -15.0,
+      "center_z": -15.0,
+      "radius": 1.5,
+      "type": "circle"
+    },
+    {
+      "center_x": 15.0,
+      "center_z": -15.0,
+      "radius": 1.5,
+      "type": "circle"
+    },
+    {
+      "center_x": -15.0,
+      "center_z": 15.0,
+      "radius": 1.5,
+      "type": "circle"
+    },
+    {
+      "center_x": 15.0,
+      "center_z": 15.0,
+      "radius": 1.5,
+      "type": "circle"
+    },
+    {
+      "center_x": 10.0,
+      "center_z": -8.0,
+      "half_depth": 5.0,
+      "half_width": 4.0,
+      "type": "box"
+    },
+    {
+      "center_x": -12.0,
+      "center_z": 8.0,
+      "half_depth": 4.0,
+      "half_width": 3.0,
+      "type": "box"
+    },
+    {
+      "center_x": -8.0,
+      "center_z": -5.0,
+      "half_depth": 3.0,
+      "half_width": 2.0,
+      "type": "box"
+    }
+  ],
+  "100": [
+    {
+      "center_x": -20.0,
+      "center_z": -20.0,
+      "half_depth": 2.0,
+      "half_width": 2.0,
+      "type": "box"
+    },
+    {
+      "center_x": 20.0,
+      "center_z": -20.0,
+      "half_depth": 2.0,
+      "half_width": 2.0,
+      "type": "box"
+    },
+    {
+      "center_x": -20.0,
+      "center_z": 20.0,
+      "half_depth": 2.0,
+      "half_width": 2.0,
+      "type": "box"
+    },
+    {
+      "center_x": 20.0,
+      "center_z": 20.0,
+      "half_depth": 2.0,
+      "half_width": 2.0,
+      "type": "box"
+    },
+    {
+      "center_x": -15.0,
+      "center_z": -15.0,
+      "radius": 1.5,
+      "type": "circle"
+    },
+    {
+      "center_x": 15.0,
+      "center_z": -15.0,
+      "radius": 1.5,
+      "type": "circle"
+    },
+    {
+      "center_x": -15.0,
+      "center_z": 15.0,
+      "radius": 1.5,
+      "type": "circle"
+    },
+    {
+      "center_x": 15.0,
+      "center_z": 15.0,
+      "radius": 1.5,
+      "type": "circle"
+    },
+    {
+      "center_x": 10.0,
+      "center_z": -8.0,
+      "half_depth": 5.0,
+      "half_width": 4.0,
+      "type": "box"
+    },
+    {
+      "center_x": -12.0,
+      "center_z": 8.0,
+      "half_depth": 4.0,
+      "half_width": 3.0,
+      "type": "box"
+    },
+    {
+      "center_x": -8.0,
+      "center_z": -5.0,
+      "half_depth": 3.0,
+      "half_width": 2.0,
+      "type": "box"
+    }
+  ],
+  "200": [
+    {
+      "center_x": 32.3727722167969,
+      "center_z": -4.5,
+      "half_depth": 4.0271053314209,
+      "half_width": 1.23953139781952,
+      "type": "box"
+    },
+    {
+      "center_x": 32.4000015258789,
+      "center_z": -8.40000057220459,
+      "half_depth": 1.20479881763458,
+      "half_width": 1.22100222110748,
+      "type": "box"
+    },
+    {
+      "center_x": 33.6001319885254,
+      "center_z": -8.45754623413086,
+      "half_depth": 1.25924837589264,
+      "half_width": 0.11531525105238,
+      "type": "box"
+    },
+    {
+      "center_x": 32.5246963500977,
+      "center_z": -9.60120868682861,
+      "half_depth": 0.119641117751598,
+      "half_width": 1.19520270824432,
+      "type": "box"
+    },
+    {
+      "center_x": 27.6000003814697,
+      "center_z": -4.80000019073486,
+      "half_depth": 4.91077899932861,
+      "half_width": 3.77065205574036,
+      "type": "box"
+    },
+    {
+      "center_x": 27.6000003814697,
+      "center_z": -4.20000028610229,
+      "half_depth": 6.36833524703979,
+      "half_width": 4.91647338867188,
+      "type": "box"
+    },
+    {
+      "center_x": 27.6000003814697,
+      "center_z": 0.0,
+      "half_depth": 0.145074471831322,
+      "half_width": 3.74333500862122,
+      "type": "box"
+    },
+    {
+      "center_x": 24.0,
+      "center_z": 0.600000023841858,
+      "half_depth": 0.79586797952652,
+      "half_width": 0.213409438729286,
+      "type": "box"
+    },
+    {
+      "center_x": 31.2000007629395,
+      "center_z": 0.600000023841858,
+      "half_depth": 0.79586797952652,
+      "half_width": 0.213409438729286,
+      "type": "box"
+    },
+    {
+      "center_x": 36.2989113330841,
+      "center_z": -0.252787915291265,
+      "half_depth": 1.14689764124341,
+      "half_width": 1.46355628967285,
+      "type": "box"
+    },
+    {
+      "center_x": 38.7892188727856,
+      "center_z": -1.22478458308615,
+      "half_depth": 0.529790371889248,
+      "half_width": 0.54179123044014,
+      "type": "box"
+    },
+    {
+      "center_x": 39.3686027228832,
+      "center_z": -2.56444045924582,
+      "half_depth": 0.529790371889248,
+      "half_width": 0.54179123044014,
+      "type": "box"
+    },
+    {
+      "center_x": 39.4389991462231,
+      "center_z": -1.8918480577413,
+      "half_depth": 0.529790371889248,
+      "half_width": 0.54179123044014,
+      "type": "box"
+    },
+    {
+      "center_x": 42.8470034003258,
+      "center_z": 0.586202923208475,
+      "half_depth": 0.628581698983908,
+      "half_width": 1.53378373384476,
+      "type": "box"
+    },
+    {
+      "center_x": 45.8605134487152,
+      "center_z": 0.586202923208475,
+      "half_depth": 0.628581698983908,
+      "half_width": 1.52027368545532,
+      "type": "box"
+    },
+    {
+      "center_x": 48.8605134487152,
+      "center_z": 0.586202923208475,
+      "half_depth": 0.628581698983908,
+      "half_width": 1.52027368545532,
+      "type": "box"
+    },
+    {
+      "center_x": 41.3605134487152,
+      "center_z": -0.913797076791525,
+      "half_depth": 0.628581698983908,
+      "half_width": 1.52027368545532,
+      "type": "box"
+    },
+    {
+      "center_x": 41.3605134487152,
+      "center_z": -3.91379707679152,
+      "half_depth": 0.628581698983908,
+      "half_width": 1.52027368545532,
+      "type": "box"
+    },
+    {
+      "center_x": 41.3470034003258,
+      "center_z": -6.91379707679152,
+      "half_depth": 0.628581698983908,
+      "half_width": 1.53378373384476,
+      "type": "box"
+    },
+    {
+      "center_x": 41.3605134487152,
+      "center_z": -9.91379707679152,
+      "half_depth": 0.628581698983908,
+      "half_width": 1.52027368545532,
+      "type": "box"
+    },
+    {
+      "center_x": 41.3605134487152,
+      "center_z": -12.9137970767915,
+      "half_depth": 0.628581698983908,
+      "half_width": 1.52027368545532,
+      "type": "box"
+    },
+    {
+      "center_x": 42.8605134487152,
+      "center_z": -14.4137970767915,
+      "half_depth": 0.628581698983908,
+      "half_width": 1.52027368545532,
+      "type": "box"
+    },
+    {
+      "center_x": 45.8605134487152,
+      "center_z": -14.4137970767915,
+      "half_depth": 0.628581698983908,
+      "half_width": 1.52027368545532,
+      "type": "box"
+    },
+    {
+      "center_x": 48.8605134487152,
+      "center_z": -14.4137970767915,
+      "half_depth": 0.628581698983908,
+      "half_width": 1.52027368545532,
+      "type": "box"
+    },
+    {
+      "center_x": 50.3605134487152,
+      "center_z": -12.9137970767915,
+      "half_depth": 0.628581698983908,
+      "half_width": 1.52027368545532,
+      "type": "box"
+    },
+    {
+      "center_x": 50.3605134487152,
+      "center_z": -9.91379707679152,
+      "half_depth": 0.628581698983908,
+      "half_width": 1.52027368545532,
+      "type": "box"
+    },
+    {
+      "center_x": 50.3605134487152,
+      "center_z": -6.91379707679152,
+      "half_depth": 0.628581698983908,
+      "half_width": 1.52027368545532,
+      "type": "box"
+    },
+    {
+      "center_x": 50.3605134487152,
+      "center_z": -3.91379707679152,
+      "half_depth": 0.628581698983908,
+      "half_width": 1.52027368545532,
+      "type": "box"
+    },
+    {
+      "center_x": 50.3605134487152,
+      "center_z": -0.913797076791525,
+      "half_depth": 0.628581698983908,
+      "half_width": 1.52027368545532,
+      "type": "box"
+    },
+    {
+      "center_x": -15.0,
+      "center_z": -15.0,
+      "radius": 1.5,
+      "type": "circle"
+    },
+    {
+      "center_x": 15.0,
+      "center_z": -15.0,
+      "radius": 1.5,
+      "type": "circle"
+    },
+    {
+      "center_x": -15.0,
+      "center_z": 15.0,
+      "radius": 1.5,
+      "type": "circle"
+    },
+    {
+      "center_x": 15.0,
+      "center_z": 15.0,
+      "radius": 1.5,
+      "type": "circle"
+    },
+    {
+      "center_x": 10.0,
+      "center_z": -8.0,
+      "half_depth": 5.0,
+      "half_width": 4.0,
+      "type": "box"
+    },
+    {
+      "center_x": -12.0,
+      "center_z": 8.0,
+      "half_depth": 4.0,
+      "half_width": 3.0,
+      "type": "box"
+    },
+    {
+      "center_x": -8.0,
+      "center_z": -5.0,
+      "half_depth": 3.0,
+      "half_width": 2.0,
+      "type": "box"
+    }
+  ]
+}

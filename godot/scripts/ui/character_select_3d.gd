@@ -493,9 +493,11 @@ func _confirm_selection() -> void:
 		_pending_character_id = char_id
 		_is_entering_game = true
 		
-		# Update button state
+		# Update button state - disable all buttons while entering
 		enter_button.text = "ENTERING..."
 		enter_button.disabled = true
+		back_button.disabled = true
+		delete_button.disabled = true
 		
 		# Try to play rallying animation on the current character model
 		var anim_started := _start_rallying_animation()
@@ -658,8 +660,12 @@ func _on_character_select_failed(reason: String) -> void:
 	_is_entering_game = false
 	_pending_character_id = -1
 	
+	# Re-enable buttons
 	enter_button.text = "ENTER WORLD"
 	enter_button.disabled = false
+	back_button.disabled = false
+	# Delete button state depends on whether current slot has a character
+	delete_button.disabled = current_index >= characters.size()
 
 
 func _on_character_deleted(character_id: int) -> void:

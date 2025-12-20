@@ -41,6 +41,25 @@ pub struct NetworkClient {
     
     /// Received messages waiting to be processed
     incoming_messages: Vec<ServerMessage>,
+    
+    // =========================================================================
+    // Network Statistics (for F3 debug overlay)
+    // =========================================================================
+    
+    /// Total packets sent
+    packets_sent: u64,
+    
+    /// Total packets received
+    packets_received: u64,
+    
+    /// Last time we sent a ping request
+    ping_sent_time: Option<Instant>,
+    
+    /// Current ping in milliseconds (-1 if not yet measured)
+    ping_ms: i64,
+    
+    /// Time of last received packet (for detecting connection issues)
+    last_receive_time: Option<Instant>,
 }
 
 impl NetworkClient {
@@ -54,6 +73,12 @@ impl NetworkClient {
             connect_time: None,
             last_send_time: Instant::now(),
             incoming_messages: Vec::new(),
+            // Network stats
+            packets_sent: 0,
+            packets_received: 0,
+            ping_sent_time: None,
+            ping_ms: -1,
+            last_receive_time: None,
         }
     }
     
@@ -126,6 +151,13 @@ impl NetworkClient {
         self.player_id = None;
         self.connect_time = None;
         self.incoming_messages.clear();
+        
+        // Reset network stats on disconnect
+        self.packets_sent = 0;
+        self.packets_received = 0;
+        self.ping_sent_time = None;
+        self.ping_ms = -1;
+        self.last_receive_time = None;
     }
     
     /// Check if connected
@@ -193,6 +225,10 @@ impl NetworkClient {
     
     /// Process a received packet
     fn process_packet(&mut self, data: &[u8]) {
+        // Track receive stats
+        self.packets_received += 1;
+        self.last_receive_time = Some(Instant::now());
+        
         let message = match ServerMessage::deserialize(data) {
             Ok(msg) => msg,
             Err(e) => {
@@ -218,6 +254,22 @@ impl NetworkClient {
             ServerMessage::RegisterFailed { reason } => {
                 godot::prelude::godot_error!("Registration failed: {}", reason);
             }
+            // Use WorldState as a ping indicator (it's sent every tick from server)
+            ServerMessage::WorldState { .. } => {
+                // Calculate ping based on time since last send
+                // This is a rough estimate - the server sends WorldState every tick (50ms)
+                // A proper ping would require a dedicated Ping/Pong message
+                if let Some(ping_time) = self.ping_sent_time.take() {
+                    let rtt = ping_time.elapsed().as_millis() as i64;
+                    // Smooth the ping value to avoid jitter
+                    if self.ping_ms < 0 {
+                        self.ping_ms = rtt;
+                    } else {
+                        // Exponential moving average (alpha = 0.3)
+                        self.ping_ms = (self.ping_ms * 7 + rtt * 3) / 10;
+                    }
+                }
+            }
             _ => {}
         }
         
@@ -236,6 +288,7 @@ impl NetworkClient {
             .map_err(|e| format!("Failed to send: {}", e))?;
         
         self.last_send_time = Instant::now();
+        self.packets_sent += 1;
         
         Ok(())
     }
@@ -248,6 +301,11 @@ impl NetworkClient {
         velocity: [f32; 3],
         animation_state: AnimationState,
     ) {
+        // Record time for ping calculation (we'll measure RTT to next WorldState)
+        if self.ping_sent_time.is_none() {
+            self.ping_sent_time = Some(Instant::now());
+        }
+        
         let msg = ClientMessage::PlayerUpdate {
             position,
             rotation,
@@ -286,6 +344,32 @@ impl NetworkClient {
     /// Check if we should send a heartbeat
     pub fn should_send_heartbeat(&self) -> bool {
         self.is_connected() && self.last_send_time.elapsed() > HEARTBEAT_INTERVAL
+    }
+    
+    // =========================================================================
+    // Network Statistics Getters (for F3 debug overlay)
+    // =========================================================================
+    
+    /// Get current ping in milliseconds (-1 if not yet measured)
+    pub fn get_ping_ms(&self) -> i64 {
+        self.ping_ms
+    }
+    
+    /// Get total packets sent
+    pub fn get_packets_sent(&self) -> u64 {
+        self.packets_sent
+    }
+    
+    /// Get total packets received
+    pub fn get_packets_received(&self) -> u64 {
+        self.packets_received
+    }
+    
+    /// Get milliseconds since last packet was received (-1 if never)
+    pub fn get_ms_since_last_receive(&self) -> i64 {
+        self.last_receive_time
+            .map(|t| t.elapsed().as_millis() as i64)
+            .unwrap_or(-1)
     }
     
     // =========================================================================

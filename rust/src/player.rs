@@ -879,6 +879,34 @@ impl Player {
     fn is_zone_ready(&self) -> bool {
         self.zone_ready
     }
+    
+    // ==========================================================================
+    // Network Statistics (for F3 debug overlay)
+    // ==========================================================================
+    
+    /// Get current ping in milliseconds (-1 if not yet measured)
+    #[func]
+    fn get_ping_ms(&self) -> i64 {
+        self.network.as_ref()
+            .map(|n| n.get_ping_ms())
+            .unwrap_or(-1)
+    }
+    
+    /// Get total packets sent
+    #[func]
+    fn get_packets_sent(&self) -> i64 {
+        self.network.as_ref()
+            .map(|n| n.get_packets_sent() as i64)
+            .unwrap_or(0)
+    }
+    
+    /// Get total packets received
+    #[func]
+    fn get_packets_received(&self) -> i64 {
+        self.network.as_ref()
+            .map(|n| n.get_packets_received() as i64)
+            .unwrap_or(0)
+    }
 }
 
 impl Player {

@@ -1,4 +1,4 @@
-[gd_scene load_steps=22 format=3 uid="uid://dmwxm4pqywvpr"]
+[gd_scene load_steps=23 format=3 uid="uid://dmwxm4pqywvpr"]
 
 [ext_resource type="PackedScene" uid="uid://bk3qj8l2xp5yw" path="res://scenes/player/player.tscn" id="2_player"]
 [ext_resource type="Script" path="res://scripts/game_manager.gd" id="3_game_manager"]
@@ -20,6 +20,7 @@
 [ext_resource type="PackedScene" uid="uid://csettingsdialog" path="res://scenes/ui/settings_dialog.tscn" id="19_settings"]
 [ext_resource type="PackedScene" uid="uid://cmapwindow001" path="res://scenes/ui/map_window.tscn" id="20_map"]
 [ext_resource type="PackedScene" uid="uid://characterpanel001" path="res://scenes/ui/character_panel.tscn" id="21_charpanel"]
+[ext_resource type="PackedScene" uid="uid://dulxwtstfdnfg" path="res://scenes/ui/debug_overlay.tscn" id="22_debugoverlay"]
 
 [sub_resource type="ShaderMaterial" id="ShaderMaterial_sky"]
 shader = ExtResource("14_sky_shader")
@@ -110,6 +111,8 @@ mouse_filter = 2
 [node name="MapWindow" parent="UI/GameUI" instance=ExtResource("20_map")]
 
 [node name="CharacterPanel" parent="UI/GameUI" instance=ExtResource("21_charpanel")]
+
+[node name="DebugOverlay" parent="UI" instance=ExtResource("22_debugoverlay")]
 
 [node name="DayNightController" type="Node3D" parent="." groups=["day_night_controller"]]
 script = ExtResource("13_daynight")

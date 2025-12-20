@@ -975,6 +975,11 @@ func get_all_players() -> Dictionary:
 	return remote_players.duplicate()
 
 
+## Get all NPCs
+func get_all_npcs() -> Dictionary:
+	return npcs.duplicate()
+
+
 # =============================================================================
 # World State Update Handlers
 # =============================================================================
