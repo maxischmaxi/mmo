@@ -77,6 +77,13 @@ const DAMAGE_NUMBER_POOL_SIZE: int = 20
 ## Reference to day/night controller
 var day_night_controller: Node3D = null
 
+## Debug: Enable logging of all light sources every second
+@export var debug_log_lights: bool = false
+
+## Debug: Timer for logging light sources
+var _light_debug_timer: float = 0.0
+const LIGHT_DEBUG_INTERVAL: float = 1.0  # Log every second
+
 
 func _ready() -> void:
 	# Add to group for easy finding
@@ -172,6 +179,13 @@ const INTERPOLATION_SPEED: float = 10.0
 
 
 func _process(delta: float) -> void:
+	# Debug: Log light sources every second (if enabled)
+	if debug_log_lights:
+		_light_debug_timer += delta
+		if _light_debug_timer >= LIGHT_DEBUG_INTERVAL:
+			_light_debug_timer = 0.0
+			_log_light_sources()
+	
 	# Early exit if no entities to interpolate - avoids unnecessary loop overhead
 	if enemies.is_empty() and remote_players.is_empty() and npcs.is_empty():
 		return
@@ -621,6 +635,10 @@ func _create_enemy(enemy_type: int) -> Node3D:
 			if scene:
 				var enemy_model = scene.instantiate()
 				
+				# Remove any lights that were baked into the model from Blender export
+				# These are typically "Hemi" lights that affect the entire scene globally
+				_remove_lights_recursive(enemy_model)
+				
 				# Wrap in CharacterBody3D for physics/collision
 				var enemy = CharacterBody3D.new()
 				enemy.add_child(enemy_model)
@@ -698,6 +716,23 @@ func _remove_enemy(id: int) -> void:
 		var enemy_data = enemies[id]
 		enemy_data["node"].queue_free()
 		enemies.erase(id)
+
+
+## Remove all Light3D nodes from a node tree recursively.
+## Used to strip out lights baked into imported 3D models (e.g., Blender Hemi lights).
+func _remove_lights_recursive(node: Node) -> void:
+	# Collect lights first to avoid modifying tree while iterating
+	var lights_to_remove: Array[Light3D] = []
+	for child in node.get_children():
+		if child is Light3D:
+			lights_to_remove.append(child)
+		else:
+			_remove_lights_recursive(child)
+	
+	# Remove collected lights
+	for light in lights_to_remove:
+		print("GameManager: Removing baked light '%s' from imported model" % light.name)
+		light.queue_free()
 
 
 ## Set visual layer for a node and all its children recursively.
@@ -1072,6 +1107,55 @@ func _on_time_sync(unix_timestamp: int, latitude: float, longitude: float) -> vo
 ## Get the day/night controller reference (for dev menu)
 func get_day_night_controller() -> Node3D:
 	return day_night_controller
+
+
+# =============================================================================
+# Debug: Light Source Logging
+# =============================================================================
+
+## Log all light sources in the scene tree
+func _log_light_sources() -> void:
+	var lights: Array[Dictionary] = []
+	_find_lights_recursive(get_tree().root, lights)
+	
+	print("=== LIGHT SOURCES (%d total) ===" % lights.size())
+	for light_info in lights:
+		var light: Light3D = light_info["node"]
+		var path: String = light_info["path"]
+		var light_type: String = _get_light_type_name(light)
+		var enabled_str: String = "ON" if light.visible and light.light_energy > 0 else "OFF"
+		print("  [%s] %s - %s (energy: %.2f, color: %s)" % [
+			enabled_str,
+			light_type,
+			path,
+			light.light_energy,
+			light.light_color
+		])
+	print("=== END LIGHT SOURCES ===")
+
+
+## Recursively find all Light3D nodes in the scene tree
+func _find_lights_recursive(node: Node, lights: Array[Dictionary]) -> void:
+	if node is Light3D:
+		lights.append({
+			"node": node,
+			"path": node.get_path()
+		})
+	
+	for child in node.get_children():
+		_find_lights_recursive(child, lights)
+
+
+## Get a human-readable name for the light type
+func _get_light_type_name(light: Light3D) -> String:
+	if light is DirectionalLight3D:
+		return "DirectionalLight3D"
+	elif light is OmniLight3D:
+		return "OmniLight3D"
+	elif light is SpotLight3D:
+		return "SpotLight3D"
+	else:
+		return "Light3D"
 
 
 func _exit_tree() -> void:
