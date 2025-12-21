@@ -40,6 +40,7 @@ _shader_parameters = {
 world_background = 0
 shader_override_enabled = true
 shader_override = ExtResource("1_25yvq")
+show_checkered = true
 
 [sub_resource type="StandardMaterial3D" id="StandardMaterial3D_s618i"]
 transparency = 4
@@ -125,6 +126,7 @@ data_directory = "res://assets/terrain/jinno"
 material = SubResource("Terrain3DMaterial_fswue")
 assets = SubResource("Terrain3DAssets_0qkg8")
 label_distance = 1500.0
+show_checkered = true
 top_level = true
 metadata/_edit_lock_ = true
 
