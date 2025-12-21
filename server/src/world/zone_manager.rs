@@ -106,9 +106,120 @@ impl ZoneManager {
         manager
     }
     
-    /// Initialize hardcoded spawn points for all zones
-    /// Called from new() to ensure spawn points are always available
+    /// Initialize spawn points for all zones
+    /// First tries to load from spawn_points.json (exported from Godot).
+    /// Falls back to hardcoded spawn points if the file doesn't exist.
     fn init_spawn_points(&mut self) {
+        // Try to load from JSON file first
+        if self.load_spawn_points_from_json("spawn_points.json") {
+            return;
+        }
+        
+        info!("No spawn_points.json found, using hardcoded fallback spawn points");
+        self.init_hardcoded_spawn_points();
+    }
+    
+    /// Load spawn points from a JSON file exported by Godot
+    /// Returns true if successful, false if file not found or parse error
+    fn load_spawn_points_from_json<P: AsRef<Path>>(&mut self, path: P) -> bool {
+        let path = path.as_ref();
+        
+        let content = match std::fs::read_to_string(path) {
+            Ok(c) => c,
+            Err(e) => {
+                if e.kind() != std::io::ErrorKind::NotFound {
+                    warn!("Failed to read spawn points file {:?}: {}", path, e);
+                }
+                return false;
+            }
+        };
+        
+        let json: serde_json::Value = match serde_json::from_str(&content) {
+            Ok(v) => v,
+            Err(e) => {
+                error!("Failed to parse spawn_points.json: {}", e);
+                return false;
+            }
+        };
+        
+        let obj = match json.as_object() {
+            Some(o) => o,
+            None => {
+                error!("spawn_points.json root is not an object");
+                return false;
+            }
+        };
+        
+        let mut spawn_id_counter = 1;
+        
+        for (zone_id_str, spawn_points_array) in obj {
+            let zone_id: u32 = match zone_id_str.parse() {
+                Ok(id) => id,
+                Err(_) => {
+                    warn!("Invalid zone ID in spawn_points.json: {}", zone_id_str);
+                    continue;
+                }
+            };
+            
+            let spawn_points = match spawn_points_array.as_array() {
+                Some(arr) => arr,
+                None => {
+                    warn!("Zone {} spawn_points is not an array", zone_id);
+                    continue;
+                }
+            };
+            
+            let mut zone_spawn_points = Vec::new();
+            
+            for sp in spawn_points {
+                if let Some(spawn_point) = self.parse_spawn_point(sp, zone_id, spawn_id_counter) {
+                    zone_spawn_points.push(spawn_point);
+                    spawn_id_counter += 1;
+                }
+            }
+            
+            if !zone_spawn_points.is_empty() {
+                self.spawn_points.insert(zone_id, zone_spawn_points);
+            }
+        }
+        
+        let total_spawns: usize = self.spawn_points.values().map(|v| v.len()).sum();
+        info!("Loaded {} spawn points from {:?} across {} zones", 
+            total_spawns, path, self.spawn_points.len());
+        
+        // Log each zone's spawn points
+        for (zone_id, spawns) in &self.spawn_points {
+            for sp in spawns {
+                let default_str = if sp.is_default { " (default)" } else { "" };
+                info!("  Zone {}: {} at ({:.1}, {:.1}, {:.1}){}",
+                    zone_id, sp.name, sp.position[0], sp.position[1], sp.position[2], default_str);
+            }
+        }
+        
+        true
+    }
+    
+    /// Parse a single spawn point from JSON
+    fn parse_spawn_point(&self, value: &serde_json::Value, zone_id: u32, id: i32) -> Option<ZoneSpawnPoint> {
+        let obj = value.as_object()?;
+        
+        let name = obj.get("name")?.as_str()?.to_string();
+        let x = obj.get("x")?.as_f64()? as f32;
+        let y = obj.get("y")?.as_f64()? as f32;
+        let z = obj.get("z")?.as_f64()? as f32;
+        let is_default = obj.get("is_default").and_then(|v| v.as_bool()).unwrap_or(false);
+        
+        Some(ZoneSpawnPoint {
+            id,
+            zone_id,
+            name,
+            position: [x, y, z],
+            is_default,
+        })
+    }
+    
+    /// Fallback: hardcoded spawn points for all zones
+    fn init_hardcoded_spawn_points(&mut self) {
         self.spawn_points.insert(1, vec![ZoneSpawnPoint {
             id: 1,
             zone_id: 1,
@@ -130,6 +241,8 @@ impl ZoneManager {
             position: [0.0, 12.0, 0.0],  // Jinno village_height=5.0, scene SpawnPoint at y=12
             is_default: true,
         }]);
+        
+        info!("Initialized hardcoded spawn points for {} zones", self.spawn_points.len());
     }
     
     /// Create a zone manager with hardcoded default data

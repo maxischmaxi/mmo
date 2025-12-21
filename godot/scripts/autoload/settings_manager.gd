@@ -23,6 +23,9 @@ enum AAMode { DISABLED, FXAA, MSAA_2X, MSAA_4X, MSAA_8X, TAA }
 ## Shadow quality levels
 enum ShadowQuality { OFF, LOW, MEDIUM, HIGH }
 
+## Fog distance levels
+enum FogDistance { OFF, NEAR, MEDIUM, FAR, VERY_FAR }
+
 ## Quality presets
 enum QualityPreset { LOW, MEDIUM, HIGH, ULTRA, CUSTOM }
 
@@ -41,6 +44,10 @@ const DEFAULTS := {
 		"shadow_quality": ShadowQuality.MEDIUM,
 		"ssao": false,
 		"bloom": true,
+		# Atmosphere settings
+		"fog_distance": FogDistance.MEDIUM,
+		"volumetric_fog": false,
+		"tone_mapping": true,
 	}
 }
 
@@ -63,6 +70,9 @@ const PRESETS := {
 		"shadow_quality": ShadowQuality.LOW,
 		"ssao": false,
 		"bloom": false,
+		"fog_distance": FogDistance.FAR,
+		"volumetric_fog": false,
+		"tone_mapping": true,
 	},
 	"medium": {
 		"render_scale": 0.85,
@@ -70,6 +80,9 @@ const PRESETS := {
 		"shadow_quality": ShadowQuality.MEDIUM,
 		"ssao": false,
 		"bloom": true,
+		"fog_distance": FogDistance.MEDIUM,
+		"volumetric_fog": false,
+		"tone_mapping": true,
 	},
 	"high": {
 		"render_scale": 1.0,
@@ -77,6 +90,9 @@ const PRESETS := {
 		"shadow_quality": ShadowQuality.HIGH,
 		"ssao": true,
 		"bloom": true,
+		"fog_distance": FogDistance.MEDIUM,
+		"volumetric_fog": true,
+		"tone_mapping": true,
 	},
 	"ultra": {
 		"render_scale": 1.0,
@@ -84,6 +100,9 @@ const PRESETS := {
 		"shadow_quality": ShadowQuality.HIGH,
 		"ssao": true,
 		"bloom": true,
+		"fog_distance": FogDistance.MEDIUM,
+		"volumetric_fog": true,
+		"tone_mapping": true,
 	},
 }
 
@@ -352,6 +371,15 @@ func get_ssao() -> bool:
 func get_bloom() -> bool:
 	return get_setting("graphics", "bloom", true)
 
+func get_fog_distance() -> int:
+	return get_setting("graphics", "fog_distance", FogDistance.MEDIUM)
+
+func get_volumetric_fog() -> bool:
+	return get_setting("graphics", "volumetric_fog", false)
+
+func get_tone_mapping() -> bool:
+	return get_setting("graphics", "tone_mapping", true)
+
 func get_current_preset() -> int:
 	return _current_preset
 
@@ -466,6 +494,7 @@ func _apply_remaining_settings() -> void:
 	_apply_shadow_quality()
 	_apply_ssao()
 	_apply_bloom()
+	_apply_atmosphere_settings()
 	
 	settings_applied.emit()
 	print("SettingsManager: Settings applied")
@@ -624,3 +653,16 @@ func _apply_bloom() -> void:
 			_environment.glow_strength = 1.0
 			_environment.glow_bloom = 0.1
 			_environment.glow_blend_mode = Environment.GLOW_BLEND_MODE_ADDITIVE
+
+
+func _apply_atmosphere_settings() -> void:
+	"""Apply atmosphere settings (fog, volumetric fog, tone mapping).
+	
+	Note: Most atmosphere settings are handled by DayNightController which
+	queries these settings directly. This function notifies the controller
+	to update its environment settings.
+	"""
+	# Notify DayNightController to update atmosphere settings
+	var day_night = get_tree().get_first_node_in_group("day_night_controller")
+	if day_night and day_night.has_method("update_atmosphere_settings"):
+		day_night.update_atmosphere_settings()

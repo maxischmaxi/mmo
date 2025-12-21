@@ -9,7 +9,7 @@
 [ext_resource type="Texture2D" uid="uid://dg1x85c75ihc8" path="res://assets/textures/monastery_stone_floor/textures/monastery_stone_floor_diff_2k.jpg" id="7_oc23y"]
 [ext_resource type="Texture2D" uid="uid://bq572vo85svg0" path="res://assets/textures/monastery_stone_floor/textures/monastery_stone_floor_nor_gl_2k.jpg" id="8_y48yj"]
 
-[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_igohv"]
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_h2t1o"]
 transparency = 4
 cull_mode = 2
 vertex_color_use_as_albedo = true
@@ -19,22 +19,22 @@ distance_fade_mode = 1
 distance_fade_min_distance = 128.0
 distance_fade_max_distance = 96.0
 
-[sub_resource type="Terrain3DMeshAsset" id="Terrain3DMeshAsset_2wfk1"]
+[sub_resource type="Terrain3DMeshAsset" id="Terrain3DMeshAsset_hdk7q"]
 generated_type = 1
 height_offset = 0.5
-material_override = SubResource("StandardMaterial3D_igohv")
+material_override = SubResource("StandardMaterial3D_h2t1o")
 last_lod = 0
 last_shadow_lod = 0
 lod0_range = 128.0
 
-[sub_resource type="Terrain3DTextureAsset" id="Terrain3DTextureAsset_lg3qu"]
+[sub_resource type="Terrain3DTextureAsset" id="Terrain3DTextureAsset_4rksg"]
 name = "Grass"
 albedo_texture = ExtResource("1_igohv")
 normal_texture = ExtResource("2_2wfk1")
 uv_scale = 0.25
 detiling_rotation = 0.25
 
-[sub_resource type="Terrain3DTextureAsset" id="Terrain3DTextureAsset_mpf52"]
+[sub_resource type="Terrain3DTextureAsset" id="Terrain3DTextureAsset_bixlq"]
 name = "Rock"
 id = 1
 albedo_texture = ExtResource("3_lg3qu")
@@ -42,7 +42,7 @@ normal_texture = ExtResource("4_mpf52")
 uv_scale = 0.18
 detiling_rotation = 0.25
 
-[sub_resource type="Terrain3DTextureAsset" id="Terrain3DTextureAsset_uurb4"]
+[sub_resource type="Terrain3DTextureAsset" id="Terrain3DTextureAsset_ng8il"]
 name = "Coast"
 id = 2
 albedo_texture = ExtResource("5_uurb4")
@@ -50,7 +50,7 @@ normal_texture = ExtResource("6_yafyc")
 uv_scale = 0.22
 detiling_rotation = 0.25
 
-[sub_resource type="Terrain3DTextureAsset" id="Terrain3DTextureAsset_yafyc"]
+[sub_resource type="Terrain3DTextureAsset" id="Terrain3DTextureAsset_ay7sj"]
 name = "Stone Path"
 id = 3
 albedo_texture = ExtResource("7_oc23y")
@@ -59,5 +59,5 @@ uv_scale = 0.35
 detiling_rotation = 0.25
 
 [resource]
-mesh_list = Array[Terrain3DMeshAsset]([SubResource("Terrain3DMeshAsset_2wfk1")])
-texture_list = Array[Terrain3DTextureAsset]([SubResource("Terrain3DTextureAsset_lg3qu"), SubResource("Terrain3DTextureAsset_mpf52"), SubResource("Terrain3DTextureAsset_uurb4"), SubResource("Terrain3DTextureAsset_yafyc")])
+mesh_list = Array[Terrain3DMeshAsset]([SubResource("Terrain3DMeshAsset_hdk7q")])
+texture_list = Array[Terrain3DTextureAsset]([SubResource("Terrain3DTextureAsset_4rksg"), SubResource("Terrain3DTextureAsset_bixlq"), SubResource("Terrain3DTextureAsset_ng8il"), SubResource("Terrain3DTextureAsset_ay7sj")])

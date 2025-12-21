@@ -22,23 +22,28 @@ var _settings_modified: bool = false
 @onready var apply_button: Button = $CenterContainer/Panel/VBox/BottomButtons/ApplyButton
 
 ## UI References - Graphics Tab
-@onready var preset_low_btn: Button = $CenterContainer/Panel/VBox/TabContainer/Graphics/VBox/PresetContainer/LowButton
-@onready var preset_medium_btn: Button = $CenterContainer/Panel/VBox/TabContainer/Graphics/VBox/PresetContainer/MediumButton
-@onready var preset_high_btn: Button = $CenterContainer/Panel/VBox/TabContainer/Graphics/VBox/PresetContainer/HighButton
-@onready var preset_ultra_btn: Button = $CenterContainer/Panel/VBox/TabContainer/Graphics/VBox/PresetContainer/UltraButton
+@onready var preset_low_btn: Button = $CenterContainer/Panel/VBox/TabContainer/Graphics/ScrollContainer/VBox/PresetContainer/LowButton
+@onready var preset_medium_btn: Button = $CenterContainer/Panel/VBox/TabContainer/Graphics/ScrollContainer/VBox/PresetContainer/MediumButton
+@onready var preset_high_btn: Button = $CenterContainer/Panel/VBox/TabContainer/Graphics/ScrollContainer/VBox/PresetContainer/HighButton
+@onready var preset_ultra_btn: Button = $CenterContainer/Panel/VBox/TabContainer/Graphics/ScrollContainer/VBox/PresetContainer/UltraButton
 
-@onready var window_mode_option: OptionButton = $CenterContainer/Panel/VBox/TabContainer/Graphics/VBox/DisplaySection/WindowModeRow/WindowModeOption
-@onready var resolution_option: OptionButton = $CenterContainer/Panel/VBox/TabContainer/Graphics/VBox/DisplaySection/ResolutionRow/ResolutionOption
-@onready var vsync_option: OptionButton = $CenterContainer/Panel/VBox/TabContainer/Graphics/VBox/DisplaySection/VSyncRow/VSyncOption
-@onready var fps_limit_option: OptionButton = $CenterContainer/Panel/VBox/TabContainer/Graphics/VBox/DisplaySection/FPSLimitRow/FPSLimitOption
+@onready var window_mode_option: OptionButton = $CenterContainer/Panel/VBox/TabContainer/Graphics/ScrollContainer/VBox/DisplaySection/WindowModeRow/WindowModeOption
+@onready var resolution_option: OptionButton = $CenterContainer/Panel/VBox/TabContainer/Graphics/ScrollContainer/VBox/DisplaySection/ResolutionRow/ResolutionOption
+@onready var vsync_option: OptionButton = $CenterContainer/Panel/VBox/TabContainer/Graphics/ScrollContainer/VBox/DisplaySection/VSyncRow/VSyncOption
+@onready var fps_limit_option: OptionButton = $CenterContainer/Panel/VBox/TabContainer/Graphics/ScrollContainer/VBox/DisplaySection/FPSLimitRow/FPSLimitOption
 
-@onready var render_scale_slider: HSlider = $CenterContainer/Panel/VBox/TabContainer/Graphics/VBox/QualitySection/RenderScaleRow/RenderScaleSlider
-@onready var render_scale_label: Label = $CenterContainer/Panel/VBox/TabContainer/Graphics/VBox/QualitySection/RenderScaleRow/RenderScaleValue
-@onready var aa_option: OptionButton = $CenterContainer/Panel/VBox/TabContainer/Graphics/VBox/QualitySection/AARow/AAOption
-@onready var shadow_option: OptionButton = $CenterContainer/Panel/VBox/TabContainer/Graphics/VBox/QualitySection/ShadowRow/ShadowOption
+@onready var render_scale_slider: HSlider = $CenterContainer/Panel/VBox/TabContainer/Graphics/ScrollContainer/VBox/QualitySection/RenderScaleRow/RenderScaleSlider
+@onready var render_scale_label: Label = $CenterContainer/Panel/VBox/TabContainer/Graphics/ScrollContainer/VBox/QualitySection/RenderScaleRow/RenderScaleValue
+@onready var aa_option: OptionButton = $CenterContainer/Panel/VBox/TabContainer/Graphics/ScrollContainer/VBox/QualitySection/AARow/AAOption
+@onready var shadow_option: OptionButton = $CenterContainer/Panel/VBox/TabContainer/Graphics/ScrollContainer/VBox/QualitySection/ShadowRow/ShadowOption
 
-@onready var ssao_check: CheckBox = $CenterContainer/Panel/VBox/TabContainer/Graphics/VBox/EffectsSection/SSAORow/SSAOCheck
-@onready var bloom_check: CheckBox = $CenterContainer/Panel/VBox/TabContainer/Graphics/VBox/EffectsSection/BloomRow/BloomCheck
+@onready var ssao_check: CheckBox = $CenterContainer/Panel/VBox/TabContainer/Graphics/ScrollContainer/VBox/EffectsSection/SSAORow/SSAOCheck
+@onready var bloom_check: CheckBox = $CenterContainer/Panel/VBox/TabContainer/Graphics/ScrollContainer/VBox/EffectsSection/BloomRow/BloomCheck
+@onready var tone_mapping_check: CheckBox = $CenterContainer/Panel/VBox/TabContainer/Graphics/ScrollContainer/VBox/EffectsSection/ToneMappingRow/ToneMappingCheck
+
+## UI References - Atmosphere Section
+@onready var fog_distance_option: OptionButton = $CenterContainer/Panel/VBox/TabContainer/Graphics/ScrollContainer/VBox/AtmosphereSection/FogDistanceRow/FogDistanceOption
+@onready var volumetric_fog_check: CheckBox = $CenterContainer/Panel/VBox/TabContainer/Graphics/ScrollContainer/VBox/AtmosphereSection/VolumetricFogRow/VolumetricFogCheck
 
 
 func _ready() -> void:
@@ -148,6 +153,24 @@ func _setup_graphics_controls() -> void:
 	# Bloom
 	if bloom_check:
 		bloom_check.toggled.connect(_on_bloom_toggled)
+	
+	# Tone Mapping
+	if tone_mapping_check:
+		tone_mapping_check.toggled.connect(_on_tone_mapping_toggled)
+	
+	# Fog Distance
+	if fog_distance_option:
+		fog_distance_option.clear()
+		fog_distance_option.add_item("Off", 0)
+		fog_distance_option.add_item("Near (50m)", 1)
+		fog_distance_option.add_item("Medium (100m)", 2)
+		fog_distance_option.add_item("Far (200m)", 3)
+		fog_distance_option.add_item("Very Far (400m)", 4)
+		fog_distance_option.item_selected.connect(_on_fog_distance_changed)
+	
+	# Volumetric Fog
+	if volumetric_fog_check:
+		volumetric_fog_check.toggled.connect(_on_volumetric_fog_toggled)
 
 
 func _populate_resolutions() -> void:
@@ -207,6 +230,18 @@ func _load_current_settings() -> void:
 	# Bloom
 	if bloom_check:
 		bloom_check.button_pressed = SettingsManager.get_bloom()
+	
+	# Tone Mapping
+	if tone_mapping_check:
+		tone_mapping_check.button_pressed = SettingsManager.get_tone_mapping()
+	
+	# Fog Distance
+	if fog_distance_option:
+		fog_distance_option.select(SettingsManager.get_fog_distance())
+	
+	# Volumetric Fog
+	if volumetric_fog_check:
+		volumetric_fog_check.button_pressed = SettingsManager.get_volumetric_fog()
 	
 	# Clear staged settings and modified flag
 	_staged_settings.clear()
@@ -355,6 +390,12 @@ func _apply_preset(preset_name: String) -> void:
 		ssao_check.button_pressed = SettingsManager.get_ssao()
 	if bloom_check:
 		bloom_check.button_pressed = SettingsManager.get_bloom()
+	if tone_mapping_check:
+		tone_mapping_check.button_pressed = SettingsManager.get_tone_mapping()
+	if fog_distance_option:
+		fog_distance_option.select(SettingsManager.get_fog_distance())
+	if volumetric_fog_check:
+		volumetric_fog_check.button_pressed = SettingsManager.get_volumetric_fog()
 	
 	_mark_modified()
 	_update_preset_highlight()
@@ -423,5 +464,26 @@ func _on_ssao_toggled(pressed: bool) -> void:
 func _on_bloom_toggled(pressed: bool) -> void:
 	_staged_settings["graphics/bloom"] = pressed
 	SettingsManager.set_setting("graphics", "bloom", pressed)
+	_mark_modified()
+	_update_preset_highlight()
+
+
+func _on_tone_mapping_toggled(pressed: bool) -> void:
+	_staged_settings["graphics/tone_mapping"] = pressed
+	SettingsManager.set_setting("graphics", "tone_mapping", pressed)
+	_mark_modified()
+	_update_preset_highlight()
+
+
+func _on_fog_distance_changed(index: int) -> void:
+	_staged_settings["graphics/fog_distance"] = index
+	SettingsManager.set_setting("graphics", "fog_distance", index)
+	_mark_modified()
+	_update_preset_highlight()
+
+
+func _on_volumetric_fog_toggled(pressed: bool) -> void:
+	_staged_settings["graphics/volumetric_fog"] = pressed
+	SettingsManager.set_setting("graphics", "volumetric_fog", pressed)
 	_mark_modified()
 	_update_preset_highlight()
