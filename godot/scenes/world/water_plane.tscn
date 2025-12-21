@@ -1,0 +1,75 @@
+[gd_scene load_steps=5 format=3 uid="uid://dgj066ak01mwj"]
+
+[ext_resource type="Shader" path="res://shaders/water.gdshader" id="1_water_shader"]
+[ext_resource type="Script" path="res://scripts/water_plane.gd" id="2_water_script"]
+
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_water"]
+render_priority = 0
+shader = ExtResource("1_water_shader")
+
+# Water Type
+shader_parameter/flow_direction = Vector2(0, 0)
+shader_parameter/flow_speed = 1.0
+shader_parameter/turbulence = 0.3
+
+# Colors
+shader_parameter/shallow_color = Color(0.08, 0.55, 0.55, 1)
+shader_parameter/deep_color = Color(0.02, 0.12, 0.22, 1)
+shader_parameter/absorption = Color(0.42, 0.038, 0.02, 1)
+shader_parameter/scatter_color = Color(0, 0.08, 0.12, 1)
+shader_parameter/scatter_strength = 0.3
+shader_parameter/foam_color = Color(0.95, 0.98, 1, 1)
+shader_parameter/sky_reflection_color = Color(0.55, 0.72, 0.92, 1)
+
+# Waves
+shader_parameter/wave_amplitude = 0.4
+shader_parameter/wave_frequency = 0.06
+shader_parameter/wave_speed = 1.0
+
+# Ripples
+shader_parameter/ripple_scale_large = 0.08
+shader_parameter/ripple_scale_small = 0.4
+shader_parameter/ripple_strength = 0.5
+shader_parameter/ripple_speed = 1.0
+
+# Foam
+shader_parameter/foam_amount = 0.35
+shader_parameter/shore_foam_width = 2.5
+shader_parameter/shore_foam_intensity = 0.8
+shader_parameter/river_foam_intensity = 0.5
+shader_parameter/crest_foam_threshold = 0.6
+
+# Optical
+shader_parameter/clarity = 12.0
+shader_parameter/refraction_strength = 0.04
+shader_parameter/enable_chromatic_aberration = true
+shader_parameter/reflection_strength = 0.6
+
+# Caustics
+shader_parameter/enable_caustics = true
+shader_parameter/caustic_strength = 0.35
+shader_parameter/caustic_scale = 0.12
+shader_parameter/caustic_speed = 0.4
+
+# Material
+shader_parameter/roughness_calm = 0.02
+shader_parameter/roughness_turbulent = 0.25
+shader_parameter/specular_intensity = 0.9
+shader_parameter/metallic = 0.0
+
+[sub_resource type="PlaneMesh" id="PlaneMesh_water"]
+size = Vector2(2048, 2048)
+subdivide_width = 128
+subdivide_depth = 128
+
+[node name="WaterPlane" type="MeshInstance3D"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, -20, 0)
+material_override = SubResource("ShaderMaterial_water")
+cast_shadow = 0
+gi_mode = 0
+mesh = SubResource("PlaneMesh_water")
+script = ExtResource("2_water_script")
+water_level = -20.0
+water_size = 2048.0
+subdivisions = 128
+follow_player = true

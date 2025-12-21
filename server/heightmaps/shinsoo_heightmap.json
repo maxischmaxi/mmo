@@ -1,10 +1,10 @@
 {
   "height": 1024,
-  "terrain_size": 512,
+  "terrain_size": 1536.0,
   "version": 1,
   "width": 1024,
-  "world_max_x": 256.0,
-  "world_max_z": 256.0,
-  "world_min_x": -256.0,
-  "world_min_z": -256.0
+  "world_max_x": 1536.0,
+  "world_max_z": 1536.0,
+  "world_min_x": 0.0,
+  "world_min_z": 0.0
 }

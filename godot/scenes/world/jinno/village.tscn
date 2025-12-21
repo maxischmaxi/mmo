@@ -1,35 +1,155 @@
-[gd_scene load_steps=6 format=3 uid="uid://cjinnovillage"]
+[gd_scene load_steps=18 format=3 uid="uid://cjinnovillage"]
 
-[ext_resource type="Script" uid="uid://b0nfbg8pcwcdv" path="res://scripts/terrain_loader.gd" id="1_terrain"]
+[ext_resource type="Shader" uid="uid://3qibbbogmem2" path="res://shaders/fortnite_terrain.gdshader" id="1_25yvq"]
 [ext_resource type="PackedScene" uid="uid://byd7w2p1kqrc3" path="res://assets/map/medieval_village/FBX/Prop_Wagon.fbx" id="2_d5joe"]
 [ext_resource type="PackedScene" uid="uid://be26f08fsukai" path="res://scenes/buildings/house_1.tscn" id="4_bq3iw"]
 [ext_resource type="PackedScene" uid="uid://c2l2qo47cwylw" path="res://scenes/buildings/stall.tscn" id="4_pioek"]
 [ext_resource type="PackedScene" uid="uid://d4nctjfkbmt0f" path="res://assets/map/medieval_village/FBX/Prop_Crate.fbx" id="5_jssws"]
+[ext_resource type="PackedScene" uid="uid://xc0dfuwpmpmo" path="res://assets/map/stylized_nature/FBX/TwistedTree_1.fbx" id="10_0qkg8"]
+[ext_resource type="Shader" uid="uid://bw7fk7p3uevar" path="res://shaders/water.gdshader" id="11_0qkg8"]
+[ext_resource type="PackedScene" uid="uid://foyyhlxac3ek" path="res://assets/map/stylized_nature/FBX/TwistedTree_2.fbx" id="11_30boe"]
+[ext_resource type="PackedScene" uid="uid://dwcypgwtj74xt" path="res://assets/map/stylized_nature/FBX/Rock_Medium_3.fbx" id="12_30boe"]
+[ext_resource type="PackedScene" uid="uid://ccwn674o6kq6y" path="res://assets/map/stylized_nature/FBX/Rock_Medium_1.fbx" id="13_7avjf"]
+[ext_resource type="PackedScene" uid="uid://cfvtk6w7swni6" path="res://assets/map/stylized_nature/FBX/Rock_Medium_2.fbx" id="14_y5stq"]
+
+[sub_resource type="Terrain3DMaterial" id="Terrain3DMaterial_fswue"]
+_shader_parameters = {
+&"dirt_color": Color(0.55, 0.42, 0.28, 1),
+&"dirt_max_height": 50.0,
+&"dirt_roughness": 0.9,
+&"grass_color": Color(0.24313726, 0.5019608, 0.2, 1),
+&"grass_max_height": 25.0,
+&"grass_roughness": 0.85,
+&"rock_color": Color(0.42, 0.42, 0.46, 1),
+&"rock_max_height": 75.0,
+&"rock_roughness": 0.75,
+&"sand_color": Color(0.82, 0.72, 0.55, 1),
+&"sand_roughness": 0.95,
+&"shoreline_height": 5.0,
+&"slope_rock_influence": 0.6,
+&"slope_rock_threshold": 0.4,
+&"snow_color": Color(0.92, 0.94, 0.98, 1),
+&"snow_roughness": 0.6,
+&"transition_sharpness": 8.0,
+&"water_level": -20.0,
+&"wet_sand_color": Color(0.3, 0.22, 0.12, 1),
+&"wet_sand_roughness": 0.3
+}
+world_background = 0
+shader_override_enabled = true
+shader_override = ExtResource("1_25yvq")
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_s618i"]
+transparency = 4
+cull_mode = 2
+vertex_color_use_as_albedo = true
+backlight_enabled = true
+backlight = Color(0.5, 0.5, 0.5, 1)
+distance_fade_mode = 1
+distance_fade_min_distance = 128.0
+distance_fade_max_distance = 96.0
+
+[sub_resource type="Terrain3DMeshAsset" id="Terrain3DMeshAsset_25yvq"]
+generated_type = 1
+height_offset = 0.5
+material_override = SubResource("StandardMaterial3D_s618i")
+last_lod = 0
+last_shadow_lod = 0
+lod0_range = 128.0
+
+[sub_resource type="Terrain3DAssets" id="Terrain3DAssets_0qkg8"]
+mesh_list = Array[Terrain3DMeshAsset]([SubResource("Terrain3DMeshAsset_25yvq")])
+
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_30boe"]
+render_priority = 0
+shader = ExtResource("11_0qkg8")
+shader_parameter/flow_direction = Vector2(0, 0)
+shader_parameter/flow_speed = 1.0
+shader_parameter/turbulence = 0.3
+shader_parameter/shallow_color = Color(0.15, 0.65, 0.75, 1)
+shader_parameter/deep_color = Color(0.05, 0.25, 0.45, 1)
+shader_parameter/absorption = Color(0.42, 0.038, 0.02, 1)
+shader_parameter/scatter_color = Color(0, 0.08, 0.12, 1)
+shader_parameter/scatter_strength = 0.3
+shader_parameter/foam_color = Color(0.9, 0.95, 1, 1)
+shader_parameter/sky_reflection_color = Color(0.6, 0.75, 0.9, 1)
+shader_parameter/wave_amplitude = 0.4
+shader_parameter/wave_frequency = 0.06
+shader_parameter/wave_speed = 0.8
+shader_parameter/ripple_scale_large = 0.08
+shader_parameter/ripple_scale_small = 0.4
+shader_parameter/ripple_strength = 0.3
+shader_parameter/ripple_speed = 1.0
+shader_parameter/foam_amount = 0.4
+shader_parameter/shore_foam_width = 2.5
+shader_parameter/shore_foam_intensity = 0.8
+shader_parameter/river_foam_intensity = 0.5
+shader_parameter/crest_foam_threshold = 0.6
+shader_parameter/clarity = 12.0
+shader_parameter/refraction_strength = 0.04
+shader_parameter/enable_chromatic_aberration = true
+shader_parameter/reflection_strength = 0.5
+shader_parameter/enable_caustics = true
+shader_parameter/caustic_strength = 0.35
+shader_parameter/caustic_scale = 0.12
+shader_parameter/caustic_speed = 0.4
+shader_parameter/roughness_calm = 0.02
+shader_parameter/roughness_turbulent = 0.25
+shader_parameter/specular_intensity = 0.9
+shader_parameter/metallic = 0.0
+
+[sub_resource type="PlaneMesh" id="PlaneMesh_25yvq"]
+material = SubResource("ShaderMaterial_30boe")
+size = Vector2(4192, 4192)
+subdivide_width = 128
+subdivide_depth = 128
 
 [node name="JinnoVillage" type="Node3D"]
 
-[node name="TerrainLoader" type="Node3D" parent="."]
-script = ExtResource("1_terrain")
-terrain_data_path = "res://assets/terrain/jinno"
-terrain_assets_path = "res://assets/terrain/jinno_assets.tres"
+[node name="Terrain3D" type="Terrain3D" parent="."]
+data_directory = "res://assets/terrain/jinno"
+material = SubResource("Terrain3DMaterial_fswue")
+assets = SubResource("Terrain3DAssets_0qkg8")
+label_distance = 1500.0
+top_level = true
+metadata/_edit_lock_ = true
+
+[node name="Water" type="MeshInstance3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -717.316, -11.105652, 808.276)
+mesh = SubResource("PlaneMesh_25yvq")
 
 [node name="SpawnPoint" type="Marker3D" parent="."]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 12, 0)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 2, 0)
 
 [node name="House1" parent="." instance=ExtResource("4_bq3iw")]
-transform = Transform3D(1.2, 0, 0, 0, 1.2, 0, 0, 0, 1.2, 24, 8.148838, 0)
+transform = Transform3D(1.2, 0, 0, 0, 1.2, 0, 0, 0, 1.2, 24, 0, 0)
 
 [node name="Prop_Wagon" parent="." instance=ExtResource("2_d5joe")]
-transform = Transform3D(1.4324911, 0, -0.44493735, 0, 1.5, 0, 0.44493735, 0, 1.4324911, 36.304394, 7.820427, -1.4043803)
+transform = Transform3D(1.4324911, 0, -0.44493735, 0, 1.5, 0, 0.44493735, 0, 1.4324911, 36.304, 0, -1.404)
 
 [node name="Prop_Crate" parent="." instance=ExtResource("5_jssws")]
-transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 38.78922, 7.820427, -1.7579365)
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 38.789, 0, -1.758)
 
 [node name="Prop_Crate2" parent="." instance=ExtResource("5_jssws")]
-transform = Transform3D(0.37832555, 0, -0.9256726, 0, 1, 0, 0.9256726, 0, 0.37832555, 39.368603, 7.820427, -3.0975924)
+transform = Transform3D(0.37832555, 0, -0.9256726, 0, 1, 0, 0.9256726, 0, 0.37832555, 39.369, 0, -3.098)
 
 [node name="Prop_Crate3" parent="." instance=ExtResource("5_jssws")]
-transform = Transform3D(0.8469271, 0, -0.531709, 0, 1, 0, 0.531709, 0, 0.8469271, 39.439, 8.894622, -2.425)
+transform = Transform3D(0.8469271, 0, -0.531709, 0, 1, 0, 0.531709, 0, 0.8469271, 39.439, 1, -2.425)
 
 [node name="Stall" parent="." instance=ExtResource("4_pioek")]
-transform = Transform3D(1.5, 0, 0, 0, 1.5, 0, 0, 0, 1.5, 41.331814, 7.5253315, 0)
+transform = Transform3D(1.5, 0, 0, 0, 1.5, 0, 0, 0, 1.5, 41.332, 0, 0)
+
+[node name="TwistedTree_1" parent="." instance=ExtResource("10_0qkg8")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 20, 0, 15)
+
+[node name="TwistedTree_2" parent="." instance=ExtResource("11_30boe")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 35, 0, 15)
+
+[node name="Rock_Medium_3" parent="." instance=ExtResource("12_30boe")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 41.24575, 0, 11.894745)
+
+[node name="Rock_Medium_1" parent="." instance=ExtResource("13_7avjf")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 39, 0, 18)
+
+[node name="Rock_Medium_2" parent="." instance=ExtResource("14_y5stq")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 47, 0, 8)

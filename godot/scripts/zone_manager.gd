@@ -109,6 +109,8 @@ func _load_zone(zone_id: int, zone_name: String, scene_path: String, spawn_posit
 			current_zone_instance = zone_scene.instantiate()
 			zone_container.add_child(current_zone_instance)
 			print("ZoneManager: Loaded zone scene ", scene_path)
+			# Fix terrain material to disable checkered pattern
+			_fix_terrain_material(current_zone_instance)
 		else:
 			push_error("ZoneManager: Failed to instantiate zone scene: ", scene_path)
 	else:
@@ -232,3 +234,55 @@ func _on_player_disconnected() -> void:
 	if loading_screen and loading_screen.visible:
 		loading_screen.visible = false
 		loading_screen.modulate.a = 0.0
+
+
+## Fix Terrain3D material to ensure custom shader is applied and checkered pattern is disabled
+func _fix_terrain_material(zone_root: Node) -> void:
+	var terrain = _find_terrain3d(zone_root)
+	if terrain == null:
+		print("ZoneManager: No Terrain3D found in zone")
+		return
+	
+	print("ZoneManager: Found Terrain3D node: ", terrain.name)
+	
+	# Get the material from the terrain
+	var mat = terrain.get("material")
+	if mat == null:
+		push_warning("ZoneManager: Terrain3D has no material")
+		return
+	
+	print("ZoneManager: Material type: ", mat.get_class())
+	
+	# Disable checkered pattern - try multiple approaches
+	mat.set("show_checkered", false)
+	print("ZoneManager: Set show_checkered = false")
+	
+	# Ensure shader override is enabled
+	mat.set("shader_override_enabled", true)
+	print("ZoneManager: Set shader_override_enabled = true")
+	
+	# Debug: print current values
+	print("ZoneManager: show_checkered is now: ", mat.get("show_checkered"))
+	print("ZoneManager: shader_override_enabled is now: ", mat.get("shader_override_enabled"))
+	print("ZoneManager: shader_override is: ", mat.get("shader_override"))
+
+
+## Find Terrain3D node in a scene tree
+func _find_terrain3d(node: Node) -> Node:
+	# Check if this node is a Terrain3D (use class name check)
+	var class_name_str = node.get_class()
+	if class_name_str == "Terrain3D":
+		return node
+	
+	# Also check by node name as backup
+	if "Terrain3D" in node.name:
+		print("ZoneManager: Found potential Terrain3D by name: ", node.name, " class: ", class_name_str)
+		return node
+	
+	# Search children
+	for child in node.get_children():
+		var result = _find_terrain3d(child)
+		if result:
+			return result
+	
+	return null

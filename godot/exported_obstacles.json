@@ -1,126 +1,6 @@
 {
-  "1": [
-    {
-      "center_x": -15.0,
-      "center_z": -15.0,
-      "radius": 1.5,
-      "type": "circle"
-    },
-    {
-      "center_x": 15.0,
-      "center_z": -15.0,
-      "radius": 1.5,
-      "type": "circle"
-    },
-    {
-      "center_x": -15.0,
-      "center_z": 15.0,
-      "radius": 1.5,
-      "type": "circle"
-    },
-    {
-      "center_x": 15.0,
-      "center_z": 15.0,
-      "radius": 1.5,
-      "type": "circle"
-    },
-    {
-      "center_x": 10.0,
-      "center_z": -8.0,
-      "half_depth": 5.0,
-      "half_width": 4.0,
-      "type": "box"
-    },
-    {
-      "center_x": -12.0,
-      "center_z": 8.0,
-      "half_depth": 4.0,
-      "half_width": 3.0,
-      "type": "box"
-    },
-    {
-      "center_x": -8.0,
-      "center_z": -5.0,
-      "half_depth": 3.0,
-      "half_width": 2.0,
-      "type": "box"
-    }
-  ],
-  "100": [
-    {
-      "center_x": -20.0,
-      "center_z": -20.0,
-      "half_depth": 2.0,
-      "half_width": 2.0,
-      "type": "box"
-    },
-    {
-      "center_x": 20.0,
-      "center_z": -20.0,
-      "half_depth": 2.0,
-      "half_width": 2.0,
-      "type": "box"
-    },
-    {
-      "center_x": -20.0,
-      "center_z": 20.0,
-      "half_depth": 2.0,
-      "half_width": 2.0,
-      "type": "box"
-    },
-    {
-      "center_x": 20.0,
-      "center_z": 20.0,
-      "half_depth": 2.0,
-      "half_width": 2.0,
-      "type": "box"
-    },
-    {
-      "center_x": -15.0,
-      "center_z": -15.0,
-      "radius": 1.5,
-      "type": "circle"
-    },
-    {
-      "center_x": 15.0,
-      "center_z": -15.0,
-      "radius": 1.5,
-      "type": "circle"
-    },
-    {
-      "center_x": -15.0,
-      "center_z": 15.0,
-      "radius": 1.5,
-      "type": "circle"
-    },
-    {
-      "center_x": 15.0,
-      "center_z": 15.0,
-      "radius": 1.5,
-      "type": "circle"
-    },
-    {
-      "center_x": 10.0,
-      "center_z": -8.0,
-      "half_depth": 5.0,
-      "half_width": 4.0,
-      "type": "box"
-    },
-    {
-      "center_x": -12.0,
-      "center_z": 8.0,
-      "half_depth": 4.0,
-      "half_width": 3.0,
-      "type": "box"
-    },
-    {
-      "center_x": -8.0,
-      "center_z": -5.0,
-      "half_depth": 3.0,
-      "half_width": 2.0,
-      "type": "box"
-    }
-  ],
+  "1": [],
+  "100": [],
   "200": [
     {
       "center_x": 32.3727722167969,
@@ -186,22 +66,22 @@
       "type": "box"
     },
     {
-      "center_x": 36.2989113330841,
-      "center_z": -0.252787915291265,
+      "center_x": 36.2985184192657,
+      "center_z": -0.252407637657598,
       "half_depth": 1.14689764124341,
       "half_width": 1.46355628967285,
       "type": "box"
     },
     {
-      "center_x": 38.7892188727856,
-      "center_z": -1.22478458308615,
+      "center_x": 38.7890014350414,
+      "center_z": -1.22484812163748,
       "half_depth": 0.529790371889248,
       "half_width": 0.54179123044014,
       "type": "box"
     },
     {
-      "center_x": 39.3686027228832,
-      "center_z": -2.56444045924582,
+      "center_x": 39.3689994513988,
+      "center_z": -2.56484815501608,
       "half_depth": 0.529790371889248,
       "half_width": 0.54179123044014,
       "type": "box"
@@ -214,115 +94,150 @@
       "type": "box"
     },
     {
-      "center_x": 42.8470034003258,
+      "center_x": 42.8471903204918,
       "center_z": 0.586202923208475,
       "half_depth": 0.628581698983908,
       "half_width": 1.53378373384476,
       "type": "box"
     },
     {
-      "center_x": 45.8605134487152,
+      "center_x": 45.8607003688812,
       "center_z": 0.586202923208475,
       "half_depth": 0.628581698983908,
       "half_width": 1.52027368545532,
       "type": "box"
     },
     {
-      "center_x": 48.8605134487152,
+      "center_x": 48.8607003688812,
       "center_z": 0.586202923208475,
       "half_depth": 0.628581698983908,
       "half_width": 1.52027368545532,
       "type": "box"
     },
     {
-      "center_x": 41.3605134487152,
+      "center_x": 41.3607003688812,
       "center_z": -0.913797076791525,
       "half_depth": 0.628581698983908,
       "half_width": 1.52027368545532,
       "type": "box"
     },
     {
-      "center_x": 41.3605134487152,
+      "center_x": 41.3607003688812,
       "center_z": -3.91379707679152,
       "half_depth": 0.628581698983908,
       "half_width": 1.52027368545532,
       "type": "box"
     },
     {
-      "center_x": 41.3470034003258,
+      "center_x": 41.3471903204918,
       "center_z": -6.91379707679152,
       "half_depth": 0.628581698983908,
       "half_width": 1.53378373384476,
       "type": "box"
     },
     {
-      "center_x": 41.3605134487152,
+      "center_x": 41.3607003688812,
       "center_z": -9.91379707679152,
       "half_depth": 0.628581698983908,
       "half_width": 1.52027368545532,
       "type": "box"
     },
     {
-      "center_x": 41.3605134487152,
+      "center_x": 41.3607003688812,
       "center_z": -12.9137970767915,
       "half_depth": 0.628581698983908,
       "half_width": 1.52027368545532,
       "type": "box"
     },
     {
-      "center_x": 42.8605134487152,
+      "center_x": 42.8607003688812,
       "center_z": -14.4137970767915,
       "half_depth": 0.628581698983908,
       "half_width": 1.52027368545532,
       "type": "box"
     },
     {
-      "center_x": 45.8605134487152,
+      "center_x": 45.8607003688812,
       "center_z": -14.4137970767915,
       "half_depth": 0.628581698983908,
       "half_width": 1.52027368545532,
       "type": "box"
     },
     {
-      "center_x": 48.8605134487152,
+      "center_x": 48.8607003688812,
       "center_z": -14.4137970767915,
       "half_depth": 0.628581698983908,
       "half_width": 1.52027368545532,
       "type": "box"
     },
     {
-      "center_x": 50.3605134487152,
+      "center_x": 50.3607003688812,
       "center_z": -12.9137970767915,
       "half_depth": 0.628581698983908,
       "half_width": 1.52027368545532,
       "type": "box"
     },
     {
-      "center_x": 50.3605134487152,
+      "center_x": 50.3607003688812,
       "center_z": -9.91379707679152,
       "half_depth": 0.628581698983908,
       "half_width": 1.52027368545532,
       "type": "box"
     },
     {
-      "center_x": 50.3605134487152,
+      "center_x": 50.3607003688812,
       "center_z": -6.91379707679152,
       "half_depth": 0.628581698983908,
       "half_width": 1.52027368545532,
       "type": "box"
     },
     {
-      "center_x": 50.3605134487152,
+      "center_x": 50.3607003688812,
       "center_z": -3.91379707679152,
       "half_depth": 0.628581698983908,
       "half_width": 1.52027368545532,
       "type": "box"
     },
     {
-      "center_x": 50.3605134487152,
+      "center_x": 50.3607003688812,
       "center_z": -0.913797076791525,
       "half_depth": 0.628581698983908,
       "half_width": 1.52027368545532,
+      "type": "box"
+    },
+    {
+      "center_x": 24.5836362838745,
+      "center_z": 23.1612722873688,
+      "half_depth": 8.36274695396423,
+      "half_width": 6.75787734985352,
+      "type": "box"
+    },
+    {
+      "center_x": 33.661465883255,
+      "center_z": 24.2731268405914,
+      "half_depth": 9.47460150718689,
+      "half_width": 5.28143620491028,
+      "type": "box"
+    },
+    {
+      "center_x": 41.1315134763718,
+      "center_z": 12.7372418045998,
+      "half_depth": 1.15814131498337,
+      "half_width": 1.71004235744476,
+      "type": "box"
+    },
+    {
+      "center_x": 38.8852869272232,
+      "center_z": 18.8587668985128,
+      "half_depth": 1.12989820539951,
+      "half_width": 1.61257421970367,
+      "type": "box"
+    },
+    {
+      "center_x": 46.810738325119,
+      "center_z": 8.89864575304091,
+      "half_depth": 0.949487334117293,
+      "half_width": 1.52438020706177,
       "type": "box"
     }
   ]
