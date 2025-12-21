@@ -1,7 +1,7 @@
 extends Control
 class_name SettingsDialog
-## Settings dialog with tabs for Graphics, Audio, Controls, and Gameplay.
-## Changes are staged until Apply is clicked.
+## Fullscreen settings screen with sidebar navigation.
+## Hides other game UI when open for an immersive AAA-style experience.
 
 signal dialog_closed
 
@@ -11,39 +11,60 @@ var _staged_settings: Dictionary = {}
 ## Track if settings have been modified
 var _settings_modified: bool = false
 
-## UI References - Main
-@onready var panel: PanelContainer = $CenterContainer/Panel
-@onready var close_button: Button = $CenterContainer/Panel/VBox/Header/CloseButton
-@onready var tab_container: TabContainer = $CenterContainer/Panel/VBox/TabContainer
+## Currently selected tab index
+var _current_tab: int = 0
+
+## Store visibility state of siblings to restore later
+var _sibling_visibility: Dictionary = {}
+
+## UI References - Main structure
+@onready var close_button: Button = $MainHBox/Sidebar/SidebarVBox/CloseButton
+@onready var page_container: Control = $MainHBox/ContentArea/ContentVBox/PageContainer
+
+## UI References - Sidebar tab buttons
+@onready var graphics_tab: Button = $MainHBox/Sidebar/SidebarVBox/TabButtons/GraphicsTab
+@onready var audio_tab: Button = $MainHBox/Sidebar/SidebarVBox/TabButtons/AudioTab
+@onready var controls_tab: Button = $MainHBox/Sidebar/SidebarVBox/TabButtons/ControlsTab
+@onready var gameplay_tab: Button = $MainHBox/Sidebar/SidebarVBox/TabButtons/GameplayTab
+
+## UI References - Content pages
+@onready var graphics_page: Control = $MainHBox/ContentArea/ContentVBox/PageContainer/Graphics
+@onready var audio_page: Control = $MainHBox/ContentArea/ContentVBox/PageContainer/Audio
+@onready var controls_page: Control = $MainHBox/ContentArea/ContentVBox/PageContainer/Controls
+@onready var gameplay_page: Control = $MainHBox/ContentArea/ContentVBox/PageContainer/Gameplay
 
 ## UI References - Bottom buttons
-@onready var reset_button: Button = $CenterContainer/Panel/VBox/BottomButtons/ResetButton
-@onready var cancel_button: Button = $CenterContainer/Panel/VBox/BottomButtons/CancelButton
-@onready var apply_button: Button = $CenterContainer/Panel/VBox/BottomButtons/ApplyButton
+@onready var reset_button: Button = $MainHBox/ContentArea/ContentVBox/BottomButtons/ResetButton
+@onready var cancel_button: Button = $MainHBox/ContentArea/ContentVBox/BottomButtons/CancelButton
+@onready var apply_button: Button = $MainHBox/ContentArea/ContentVBox/BottomButtons/ApplyButton
 
 ## UI References - Graphics Tab
-@onready var preset_low_btn: Button = $CenterContainer/Panel/VBox/TabContainer/Graphics/ScrollContainer/VBox/PresetContainer/LowButton
-@onready var preset_medium_btn: Button = $CenterContainer/Panel/VBox/TabContainer/Graphics/ScrollContainer/VBox/PresetContainer/MediumButton
-@onready var preset_high_btn: Button = $CenterContainer/Panel/VBox/TabContainer/Graphics/ScrollContainer/VBox/PresetContainer/HighButton
-@onready var preset_ultra_btn: Button = $CenterContainer/Panel/VBox/TabContainer/Graphics/ScrollContainer/VBox/PresetContainer/UltraButton
+@onready var preset_low_btn: Button = $MainHBox/ContentArea/ContentVBox/PageContainer/Graphics/ScrollContainer/VBox/PresetSection/PresetContainer/LowButton
+@onready var preset_medium_btn: Button = $MainHBox/ContentArea/ContentVBox/PageContainer/Graphics/ScrollContainer/VBox/PresetSection/PresetContainer/MediumButton
+@onready var preset_high_btn: Button = $MainHBox/ContentArea/ContentVBox/PageContainer/Graphics/ScrollContainer/VBox/PresetSection/PresetContainer/HighButton
+@onready var preset_ultra_btn: Button = $MainHBox/ContentArea/ContentVBox/PageContainer/Graphics/ScrollContainer/VBox/PresetSection/PresetContainer/UltraButton
 
-@onready var window_mode_option: OptionButton = $CenterContainer/Panel/VBox/TabContainer/Graphics/ScrollContainer/VBox/DisplaySection/WindowModeRow/WindowModeOption
-@onready var resolution_option: OptionButton = $CenterContainer/Panel/VBox/TabContainer/Graphics/ScrollContainer/VBox/DisplaySection/ResolutionRow/ResolutionOption
-@onready var vsync_option: OptionButton = $CenterContainer/Panel/VBox/TabContainer/Graphics/ScrollContainer/VBox/DisplaySection/VSyncRow/VSyncOption
-@onready var fps_limit_option: OptionButton = $CenterContainer/Panel/VBox/TabContainer/Graphics/ScrollContainer/VBox/DisplaySection/FPSLimitRow/FPSLimitOption
+@onready var window_mode_option: OptionButton = $MainHBox/ContentArea/ContentVBox/PageContainer/Graphics/ScrollContainer/VBox/DisplaySection/WindowModeRow/WindowModeOption
+@onready var resolution_option: OptionButton = $MainHBox/ContentArea/ContentVBox/PageContainer/Graphics/ScrollContainer/VBox/DisplaySection/ResolutionRow/ResolutionOption
+@onready var vsync_option: OptionButton = $MainHBox/ContentArea/ContentVBox/PageContainer/Graphics/ScrollContainer/VBox/DisplaySection/VSyncRow/VSyncOption
+@onready var fps_limit_option: OptionButton = $MainHBox/ContentArea/ContentVBox/PageContainer/Graphics/ScrollContainer/VBox/DisplaySection/FPSLimitRow/FPSLimitOption
 
-@onready var render_scale_slider: HSlider = $CenterContainer/Panel/VBox/TabContainer/Graphics/ScrollContainer/VBox/QualitySection/RenderScaleRow/RenderScaleSlider
-@onready var render_scale_label: Label = $CenterContainer/Panel/VBox/TabContainer/Graphics/ScrollContainer/VBox/QualitySection/RenderScaleRow/RenderScaleValue
-@onready var aa_option: OptionButton = $CenterContainer/Panel/VBox/TabContainer/Graphics/ScrollContainer/VBox/QualitySection/AARow/AAOption
-@onready var shadow_option: OptionButton = $CenterContainer/Panel/VBox/TabContainer/Graphics/ScrollContainer/VBox/QualitySection/ShadowRow/ShadowOption
+@onready var render_scale_slider: HSlider = $MainHBox/ContentArea/ContentVBox/PageContainer/Graphics/ScrollContainer/VBox/QualitySection/RenderScaleRow/RenderScaleSlider
+@onready var render_scale_label: Label = $MainHBox/ContentArea/ContentVBox/PageContainer/Graphics/ScrollContainer/VBox/QualitySection/RenderScaleRow/RenderScaleValue
+@onready var aa_option: OptionButton = $MainHBox/ContentArea/ContentVBox/PageContainer/Graphics/ScrollContainer/VBox/QualitySection/AARow/AAOption
+@onready var shadow_option: OptionButton = $MainHBox/ContentArea/ContentVBox/PageContainer/Graphics/ScrollContainer/VBox/QualitySection/ShadowRow/ShadowOption
 
-@onready var ssao_check: CheckBox = $CenterContainer/Panel/VBox/TabContainer/Graphics/ScrollContainer/VBox/EffectsSection/SSAORow/SSAOCheck
-@onready var bloom_check: CheckBox = $CenterContainer/Panel/VBox/TabContainer/Graphics/ScrollContainer/VBox/EffectsSection/BloomRow/BloomCheck
-@onready var tone_mapping_check: CheckBox = $CenterContainer/Panel/VBox/TabContainer/Graphics/ScrollContainer/VBox/EffectsSection/ToneMappingRow/ToneMappingCheck
+@onready var ssao_check: CheckBox = $MainHBox/ContentArea/ContentVBox/PageContainer/Graphics/ScrollContainer/VBox/EffectsSection/SSAORow/SSAOCheck
+@onready var bloom_check: CheckBox = $MainHBox/ContentArea/ContentVBox/PageContainer/Graphics/ScrollContainer/VBox/EffectsSection/BloomRow/BloomCheck
+@onready var tone_mapping_check: CheckBox = $MainHBox/ContentArea/ContentVBox/PageContainer/Graphics/ScrollContainer/VBox/EffectsSection/ToneMappingRow/ToneMappingCheck
 
 ## UI References - Atmosphere Section
-@onready var fog_distance_option: OptionButton = $CenterContainer/Panel/VBox/TabContainer/Graphics/ScrollContainer/VBox/AtmosphereSection/FogDistanceRow/FogDistanceOption
-@onready var volumetric_fog_check: CheckBox = $CenterContainer/Panel/VBox/TabContainer/Graphics/ScrollContainer/VBox/AtmosphereSection/VolumetricFogRow/VolumetricFogCheck
+@onready var fog_distance_option: OptionButton = $MainHBox/ContentArea/ContentVBox/PageContainer/Graphics/ScrollContainer/VBox/AtmosphereSection/FogDistanceRow/FogDistanceOption
+@onready var volumetric_fog_check: CheckBox = $MainHBox/ContentArea/ContentVBox/PageContainer/Graphics/ScrollContainer/VBox/AtmosphereSection/VolumetricFogRow/VolumetricFogCheck
+
+## Style resources for tab buttons
+var _tab_normal_style: StyleBoxFlat
+var _tab_selected_style: StyleBoxFlat
 
 
 func _ready() -> void:
@@ -63,10 +84,71 @@ func _ready() -> void:
 	if apply_button:
 		apply_button.pressed.connect(_on_apply_pressed)
 	
+	# Connect sidebar tab buttons
+	if graphics_tab:
+		graphics_tab.pressed.connect(_on_tab_pressed.bind(0))
+	if audio_tab:
+		audio_tab.pressed.connect(_on_tab_pressed.bind(1))
+	if controls_tab:
+		controls_tab.pressed.connect(_on_tab_pressed.bind(2))
+	if gameplay_tab:
+		gameplay_tab.pressed.connect(_on_tab_pressed.bind(3))
+	
+	# Create style resources
+	_create_tab_styles()
+	
 	# Setup controls after a frame
 	await get_tree().process_frame
 	_setup_graphics_controls()
 	_load_current_settings()
+
+
+func _create_tab_styles() -> void:
+	"""Create stylebox resources for tab button states."""
+	_tab_normal_style = StyleBoxFlat.new()
+	_tab_normal_style.bg_color = Color(0, 0, 0, 0)
+	_tab_normal_style.content_margin_left = 20
+	_tab_normal_style.content_margin_right = 20
+	_tab_normal_style.content_margin_top = 14
+	_tab_normal_style.content_margin_bottom = 14
+	
+	_tab_selected_style = StyleBoxFlat.new()
+	_tab_selected_style.bg_color = Color(0.83, 0.66, 0.29, 0.15)
+	_tab_selected_style.set_border_width_all(0)
+	_tab_selected_style.border_width_left = 3
+	_tab_selected_style.border_color = Color(0.83, 0.66, 0.29, 1)
+	_tab_selected_style.set_corner_radius_all(4)
+	_tab_selected_style.content_margin_left = 20
+	_tab_selected_style.content_margin_right = 20
+	_tab_selected_style.content_margin_top = 14
+	_tab_selected_style.content_margin_bottom = 14
+
+
+func _on_tab_pressed(tab_index: int) -> void:
+	"""Handle sidebar tab button press."""
+	_switch_tab(tab_index)
+
+
+func _switch_tab(index: int) -> void:
+	"""Switch to a different settings tab/page."""
+	_current_tab = index
+	
+	# Update tab button styles
+	var tabs = [graphics_tab, audio_tab, controls_tab, gameplay_tab]
+	for i in range(tabs.size()):
+		if tabs[i]:
+			if i == index:
+				tabs[i].add_theme_stylebox_override("normal", _tab_selected_style)
+				tabs[i].add_theme_color_override("font_color", Color(0.83, 0.66, 0.29, 1))
+			else:
+				tabs[i].add_theme_stylebox_override("normal", _tab_normal_style)
+				tabs[i].add_theme_color_override("font_color", Color(0.6, 0.53, 0.4, 1))
+	
+	# Show/hide pages
+	var pages = [graphics_page, audio_page, controls_page, gameplay_page]
+	for i in range(pages.size()):
+		if pages[i]:
+			pages[i].visible = (i == index)
 
 
 func _setup_graphics_controls() -> void:
@@ -300,12 +382,46 @@ func _mark_modified() -> void:
 
 
 # =============================================================================
+# Game UI Visibility Management
+# =============================================================================
+
+func _hide_game_ui() -> void:
+	"""Hide sibling UI elements when settings opens."""
+	var parent = get_parent()
+	if not parent:
+		return
+	
+	_sibling_visibility.clear()
+	
+	for child in parent.get_children():
+		if child != self and child is Control:
+			_sibling_visibility[child.name] = child.visible
+			child.visible = false
+
+
+func _show_game_ui() -> void:
+	"""Restore sibling UI elements when settings closes."""
+	var parent = get_parent()
+	if not parent:
+		return
+	
+	for child in parent.get_children():
+		if child != self and child is Control:
+			if _sibling_visibility.has(child.name):
+				child.visible = _sibling_visibility[child.name]
+	
+	_sibling_visibility.clear()
+
+
+# =============================================================================
 # Dialog Visibility
 # =============================================================================
 
 func show_dialog() -> void:
 	"""Show the settings dialog."""
+	_hide_game_ui()
 	_load_current_settings()
+	_switch_tab(0)  # Always start on Graphics tab
 	visible = true
 	Input.set_mouse_mode(Input.MOUSE_MODE_VISIBLE)
 
@@ -313,6 +429,7 @@ func show_dialog() -> void:
 func close_dialog() -> void:
 	"""Close the settings dialog."""
 	visible = false
+	_show_game_ui()
 	dialog_closed.emit()
 
 

@@ -121,7 +121,18 @@ func _setup_minimap_viewport() -> void:
 	minimap_viewport.transparent_bg = false
 	minimap_viewport.msaa_3d = Viewport.MSAA_2X
 	minimap_viewport.scaling_3d_mode = Viewport.SCALING_3D_MODE_BILINEAR
-	minimap_viewport.positional_shadow_atlas_size = 0  # Disable shadows for performance
+	minimap_viewport.positional_shadow_atlas_size = 0  # Disable point/spot light shadows
+	# Disable all shadow atlas quadrants to fully disable positional shadows
+	minimap_viewport.positional_shadow_atlas_16_bits = false
+	minimap_viewport.set_positional_shadow_atlas_quadrant_subdiv(0, Viewport.SHADOW_ATLAS_QUADRANT_SUBDIV_DISABLED)
+	minimap_viewport.set_positional_shadow_atlas_quadrant_subdiv(1, Viewport.SHADOW_ATLAS_QUADRANT_SUBDIV_DISABLED)
+	minimap_viewport.set_positional_shadow_atlas_quadrant_subdiv(2, Viewport.SHADOW_ATLAS_QUADRANT_SUBDIV_DISABLED)
+	minimap_viewport.set_positional_shadow_atlas_quadrant_subdiv(3, Viewport.SHADOW_ATLAS_QUADRANT_SUBDIV_DISABLED)
+	
+	# Use unshaded debug draw to completely remove lighting/shadows from minimap
+	# This gives a clean, flat look appropriate for a top-down map view
+	minimap_viewport.debug_draw = Viewport.DEBUG_DRAW_UNSHADED
+	
 	add_child(minimap_viewport)
 	
 	# Create orthographic camera
@@ -134,6 +145,10 @@ func _setup_minimap_viewport() -> void:
 	minimap_camera.current = true  # Make it the active camera in this viewport
 	# Start looking straight down
 	minimap_camera.rotation_degrees = Vector3(-90, 0, 0)
+	# Exclude layer 2 (enemies) from minimap rendering - we draw dots instead
+	# Layer 1 = terrain/buildings (bit 0), Layer 2 = enemies (bit 1)
+	# Cull mask: all layers except layer 2 = 0xFFFFFFFF & ~(1 << 1) = 0xFFFFFFFD
+	minimap_camera.cull_mask = 0xFFFFFFFD
 	minimap_viewport.add_child(minimap_camera)
 
 
@@ -157,6 +172,9 @@ func _connect_viewport_to_world() -> void:
 			_connect_viewport_to_world()
 		else:
 			push_error("[Minimap] Failed to connect to world_3d after %d attempts" % MAX_CONNECTION_RETRIES)
+
+
+
 
 
 func _calculate_camera_size() -> float:
@@ -267,7 +285,14 @@ func _draw_map_content(center: Vector2) -> void:
 	if not local_player or not is_instance_valid(local_player):
 		return
 	
-	var map_scale = DEFAULT_SCALE * zoom_level
+	# Calculate the correct scale to match the viewport camera
+	# The camera's orthographic size is half the visible world height
+	# The viewport texture is scaled to fit MINIMAP_SIZE diameter
+	var camera_size = _calculate_camera_size()  # Half the visible world diameter
+	var visible_world_diameter = camera_size * 2.0
+	# Scale: how many minimap pixels per world unit
+	var map_scale = MINIMAP_SIZE / visible_world_diameter
+	
 	var player_pos: Vector3 = Vector3.ZERO
 	if local_player is Node3D:
 		player_pos = (local_player as Node3D).global_position

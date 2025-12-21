@@ -1,42 +1,102 @@
-[gd_scene load_steps=5 format=3 uid="uid://csettingsdialog"]
+[gd_scene load_steps=10 format=3 uid="uid://csettingsdialog"]
 
 [ext_resource type="Script" path="res://scripts/ui/settings_dialog.gd" id="1_script"]
 
-[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_panel"]
-bg_color = Color(0.1, 0.1, 0.12, 0.98)
-border_width_left = 2
-border_width_top = 2
-border_width_right = 2
-border_width_bottom = 2
-border_color = Color(0.4, 0.4, 0.5, 1)
-corner_radius_top_left = 10
-corner_radius_top_right = 10
-corner_radius_bottom_right = 10
-corner_radius_bottom_left = 10
-content_margin_left = 20
-content_margin_top = 15
-content_margin_right = 20
-content_margin_bottom = 15
-
-[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_button"]
-bg_color = Color(0.2, 0.2, 0.25, 1)
-border_width_left = 1
-border_width_top = 1
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_sidebar"]
+bg_color = Color(0.04, 0.05, 0.07, 0.95)
 border_width_right = 1
-border_width_bottom = 1
-border_color = Color(0.4, 0.4, 0.5, 1)
+border_color = Color(0.55, 0.45, 0.33, 0.5)
+content_margin_left = 20
+content_margin_top = 30
+content_margin_right = 20
+content_margin_bottom = 30
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_tab_normal"]
+bg_color = Color(0, 0, 0, 0)
+content_margin_left = 20
+content_margin_top = 14
+content_margin_right = 20
+content_margin_bottom = 14
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_tab_hover"]
+bg_color = Color(0.83, 0.66, 0.29, 0.1)
 corner_radius_top_left = 4
 corner_radius_top_right = 4
 corner_radius_bottom_right = 4
 corner_radius_bottom_left = 4
+content_margin_left = 20
+content_margin_top = 14
+content_margin_right = 20
+content_margin_bottom = 14
 
-[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_preset"]
-bg_color = Color(0.25, 0.25, 0.3, 1)
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_tab_selected"]
+bg_color = Color(0.83, 0.66, 0.29, 0.15)
+border_width_left = 3
+border_color = Color(0.83, 0.66, 0.29, 1)
+corner_radius_top_left = 4
+corner_radius_top_right = 4
+corner_radius_bottom_right = 4
+corner_radius_bottom_left = 4
+content_margin_left = 20
+content_margin_top = 14
+content_margin_right = 20
+content_margin_bottom = 14
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_button_normal"]
+bg_color = Color(0.35, 0.29, 0.2, 1)
+border_width_left = 2
+border_width_top = 2
+border_width_right = 2
+border_width_bottom = 2
+border_color = Color(0.55, 0.45, 0.33, 1)
+corner_radius_top_left = 4
+corner_radius_top_right = 4
+corner_radius_bottom_right = 4
+corner_radius_bottom_left = 4
+content_margin_left = 20
+content_margin_top = 12
+content_margin_right = 20
+content_margin_bottom = 12
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_button_hover"]
+bg_color = Color(0.48, 0.39, 0.26, 1)
+border_width_left = 2
+border_width_top = 2
+border_width_right = 2
+border_width_bottom = 2
+border_color = Color(0.83, 0.66, 0.29, 1)
+corner_radius_top_left = 4
+corner_radius_top_right = 4
+corner_radius_bottom_right = 4
+corner_radius_bottom_left = 4
+content_margin_left = 20
+content_margin_top = 12
+content_margin_right = 20
+content_margin_bottom = 12
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_button_pressed"]
+bg_color = Color(0.25, 0.2, 0.14, 1)
+border_width_left = 2
+border_width_top = 2
+border_width_right = 2
+border_width_bottom = 2
+border_color = Color(0.55, 0.45, 0.33, 1)
+corner_radius_top_left = 4
+corner_radius_top_right = 4
+corner_radius_bottom_right = 4
+corner_radius_bottom_left = 4
+content_margin_left = 20
+content_margin_top = 12
+content_margin_right = 20
+content_margin_bottom = 12
+
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_preset_normal"]
+bg_color = Color(0.25, 0.22, 0.18, 1)
 border_width_left = 1
 border_width_top = 1
 border_width_right = 1
 border_width_bottom = 1
-border_color = Color(0.5, 0.5, 0.6, 1)
+border_color = Color(0.45, 0.38, 0.28, 1)
 corner_radius_top_left = 4
 corner_radius_top_right = 4
 corner_radius_bottom_right = 4
@@ -49,375 +109,519 @@ anchor_right = 1.0
 anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
-mouse_filter = 2
 script = ExtResource("1_script")
 
-[node name="CenterContainer" type="CenterContainer" parent="."]
+[node name="Background" type="ColorRect" parent="."]
 layout_mode = 1
 anchors_preset = 15
 anchor_right = 1.0
 anchor_bottom = 1.0
 grow_horizontal = 2
 grow_vertical = 2
-mouse_filter = 2
-
-[node name="Panel" type="PanelContainer" parent="CenterContainer"]
-custom_minimum_size = Vector2(520, 0)
-layout_mode = 2
 mouse_filter = 0
-theme_override_styles/panel = SubResource("StyleBoxFlat_panel")
+color = Color(0.02, 0.03, 0.05, 0.92)
 
-[node name="VBox" type="VBoxContainer" parent="CenterContainer/Panel"]
-layout_mode = 2
-theme_override_constants/separation = 10
+[node name="MainHBox" type="HBoxContainer" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_constants/separation = 0
 
-[node name="Header" type="HBoxContainer" parent="CenterContainer/Panel/VBox"]
+[node name="Sidebar" type="PanelContainer" parent="MainHBox"]
+custom_minimum_size = Vector2(280, 0)
 layout_mode = 2
+theme_override_styles/panel = SubResource("StyleBoxFlat_sidebar")
 
-[node name="Title" type="Label" parent="CenterContainer/Panel/VBox/Header"]
+[node name="SidebarVBox" type="VBoxContainer" parent="MainHBox/Sidebar"]
 layout_mode = 2
-size_flags_horizontal = 3
-theme_override_colors/font_color = Color(0.9, 0.85, 0.7, 1)
-theme_override_font_sizes/font_size = 22
+theme_override_constants/separation = 8
+
+[node name="TitleSection" type="VBoxContainer" parent="MainHBox/Sidebar/SidebarVBox"]
+layout_mode = 2
+theme_override_constants/separation = 5
+
+[node name="OrnamentTop" type="Label" parent="MainHBox/Sidebar/SidebarVBox/TitleSection"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.6, 0.53, 0.4, 1)
+theme_override_font_sizes/font_size = 12
+text = "══════════"
+
+[node name="Title" type="Label" parent="MainHBox/Sidebar/SidebarVBox/TitleSection"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.83, 0.66, 0.29, 1)
+theme_override_font_sizes/font_size = 28
 text = "SETTINGS"
 
-[node name="CloseButton" type="Button" parent="CenterContainer/Panel/VBox/Header"]
-custom_minimum_size = Vector2(30, 30)
+[node name="OrnamentBottom" type="Label" parent="MainHBox/Sidebar/SidebarVBox/TitleSection"]
 layout_mode = 2
-theme_override_styles/normal = SubResource("StyleBoxFlat_button")
-text = "X"
+theme_override_colors/font_color = Color(0.6, 0.53, 0.4, 1)
+theme_override_font_sizes/font_size = 12
+text = "══════════"
 
-[node name="TabContainer" type="TabContainer" parent="CenterContainer/Panel/VBox"]
-custom_minimum_size = Vector2(0, 460)
+[node name="Spacer1" type="Control" parent="MainHBox/Sidebar/SidebarVBox"]
+custom_minimum_size = Vector2(0, 20)
+layout_mode = 2
+
+[node name="TabButtons" type="VBoxContainer" parent="MainHBox/Sidebar/SidebarVBox"]
+layout_mode = 2
+size_flags_vertical = 3
+theme_override_constants/separation = 4
+
+[node name="GraphicsTab" type="Button" parent="MainHBox/Sidebar/SidebarVBox/TabButtons"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.83, 0.66, 0.29, 1)
+theme_override_colors/font_hover_color = Color(1, 0.95, 0.8, 1)
+theme_override_font_sizes/font_size = 16
+theme_override_styles/normal = SubResource("StyleBoxFlat_tab_selected")
+theme_override_styles/hover = SubResource("StyleBoxFlat_tab_hover")
+theme_override_styles/pressed = SubResource("StyleBoxFlat_tab_selected")
+text = "Graphics"
+alignment = 0
+
+[node name="AudioTab" type="Button" parent="MainHBox/Sidebar/SidebarVBox/TabButtons"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.6, 0.53, 0.4, 1)
+theme_override_colors/font_hover_color = Color(1, 0.95, 0.8, 1)
+theme_override_font_sizes/font_size = 16
+theme_override_styles/normal = SubResource("StyleBoxFlat_tab_normal")
+theme_override_styles/hover = SubResource("StyleBoxFlat_tab_hover")
+theme_override_styles/pressed = SubResource("StyleBoxFlat_tab_selected")
+text = "Audio"
+alignment = 0
+
+[node name="ControlsTab" type="Button" parent="MainHBox/Sidebar/SidebarVBox/TabButtons"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.6, 0.53, 0.4, 1)
+theme_override_colors/font_hover_color = Color(1, 0.95, 0.8, 1)
+theme_override_font_sizes/font_size = 16
+theme_override_styles/normal = SubResource("StyleBoxFlat_tab_normal")
+theme_override_styles/hover = SubResource("StyleBoxFlat_tab_hover")
+theme_override_styles/pressed = SubResource("StyleBoxFlat_tab_selected")
+text = "Controls"
+alignment = 0
+
+[node name="GameplayTab" type="Button" parent="MainHBox/Sidebar/SidebarVBox/TabButtons"]
+layout_mode = 2
+theme_override_colors/font_color = Color(0.6, 0.53, 0.4, 1)
+theme_override_colors/font_hover_color = Color(1, 0.95, 0.8, 1)
+theme_override_font_sizes/font_size = 16
+theme_override_styles/normal = SubResource("StyleBoxFlat_tab_normal")
+theme_override_styles/hover = SubResource("StyleBoxFlat_tab_hover")
+theme_override_styles/pressed = SubResource("StyleBoxFlat_tab_selected")
+text = "Gameplay"
+alignment = 0
+
+[node name="Spacer2" type="Control" parent="MainHBox/Sidebar/SidebarVBox"]
 layout_mode = 2
 size_flags_vertical = 3
 
-[node name="Graphics" type="MarginContainer" parent="CenterContainer/Panel/VBox/TabContainer"]
+[node name="CloseButton" type="Button" parent="MainHBox/Sidebar/SidebarVBox"]
 layout_mode = 2
-theme_override_constants/margin_left = 10
-theme_override_constants/margin_top = 10
-theme_override_constants/margin_right = 10
-theme_override_constants/margin_bottom = 10
+theme_override_colors/font_color = Color(0.91, 0.89, 0.86, 1)
+theme_override_colors/font_hover_color = Color(1, 1, 1, 1)
+theme_override_colors/font_pressed_color = Color(0.8, 0.8, 0.8, 1)
+theme_override_font_sizes/font_size = 15
+theme_override_styles/normal = SubResource("StyleBoxFlat_button_normal")
+theme_override_styles/hover = SubResource("StyleBoxFlat_button_hover")
+theme_override_styles/pressed = SubResource("StyleBoxFlat_button_pressed")
+text = "Close"
 
-[node name="ScrollContainer" type="ScrollContainer" parent="CenterContainer/Panel/VBox/TabContainer/Graphics"]
+[node name="ContentArea" type="MarginContainer" parent="MainHBox"]
+layout_mode = 2
+size_flags_horizontal = 3
+theme_override_constants/margin_left = 60
+theme_override_constants/margin_top = 40
+theme_override_constants/margin_right = 60
+theme_override_constants/margin_bottom = 40
+
+[node name="ContentVBox" type="VBoxContainer" parent="MainHBox/ContentArea"]
+layout_mode = 2
+theme_override_constants/separation = 30
+
+[node name="PageContainer" type="Control" parent="MainHBox/ContentArea/ContentVBox"]
+layout_mode = 2
+size_flags_vertical = 3
+
+[node name="Graphics" type="VBoxContainer" parent="MainHBox/ContentArea/ContentVBox/PageContainer"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_constants/separation = 0
+
+[node name="ScrollContainer" type="ScrollContainer" parent="MainHBox/ContentArea/ContentVBox/PageContainer/Graphics"]
 layout_mode = 2
 size_flags_horizontal = 3
 size_flags_vertical = 3
 horizontal_scroll_mode = 0
 
-[node name="VBox" type="VBoxContainer" parent="CenterContainer/Panel/VBox/TabContainer/Graphics/ScrollContainer"]
+[node name="VBox" type="VBoxContainer" parent="MainHBox/ContentArea/ContentVBox/PageContainer/Graphics/ScrollContainer"]
 layout_mode = 2
 size_flags_horizontal = 3
+theme_override_constants/separation = 28
+
+[node name="PresetSection" type="VBoxContainer" parent="MainHBox/ContentArea/ContentVBox/PageContainer/Graphics/ScrollContainer/VBox"]
+layout_mode = 2
 theme_override_constants/separation = 12
 
-[node name="PresetLabel" type="Label" parent="CenterContainer/Panel/VBox/TabContainer/Graphics/ScrollContainer/VBox"]
+[node name="PresetLabel" type="Label" parent="MainHBox/ContentArea/ContentVBox/PageContainer/Graphics/ScrollContainer/VBox/PresetSection"]
 layout_mode = 2
-theme_override_colors/font_color = Color(0.8, 0.8, 0.8, 1)
-theme_override_font_sizes/font_size = 12
+theme_override_colors/font_color = Color(0.83, 0.66, 0.29, 1)
+theme_override_font_sizes/font_size = 16
 text = "QUALITY PRESETS"
 
-[node name="PresetContainer" type="HBoxContainer" parent="CenterContainer/Panel/VBox/TabContainer/Graphics/ScrollContainer/VBox"]
+[node name="PresetContainer" type="HBoxContainer" parent="MainHBox/ContentArea/ContentVBox/PageContainer/Graphics/ScrollContainer/VBox/PresetSection"]
 layout_mode = 2
-theme_override_constants/separation = 8
+theme_override_constants/separation = 15
 
-[node name="LowButton" type="Button" parent="CenterContainer/Panel/VBox/TabContainer/Graphics/ScrollContainer/VBox/PresetContainer"]
-custom_minimum_size = Vector2(80, 32)
+[node name="LowButton" type="Button" parent="MainHBox/ContentArea/ContentVBox/PageContainer/Graphics/ScrollContainer/VBox/PresetSection/PresetContainer"]
+custom_minimum_size = Vector2(120, 44)
 layout_mode = 2
-size_flags_horizontal = 3
-theme_override_styles/normal = SubResource("StyleBoxFlat_preset")
+theme_override_colors/font_color = Color(0.91, 0.89, 0.86, 1)
+theme_override_colors/font_hover_color = Color(1, 1, 1, 1)
+theme_override_styles/normal = SubResource("StyleBoxFlat_preset_normal")
+theme_override_styles/hover = SubResource("StyleBoxFlat_button_hover")
 text = "Low"
 
-[node name="MediumButton" type="Button" parent="CenterContainer/Panel/VBox/TabContainer/Graphics/ScrollContainer/VBox/PresetContainer"]
-custom_minimum_size = Vector2(80, 32)
+[node name="MediumButton" type="Button" parent="MainHBox/ContentArea/ContentVBox/PageContainer/Graphics/ScrollContainer/VBox/PresetSection/PresetContainer"]
+custom_minimum_size = Vector2(120, 44)
 layout_mode = 2
-size_flags_horizontal = 3
-theme_override_styles/normal = SubResource("StyleBoxFlat_preset")
+theme_override_colors/font_color = Color(0.91, 0.89, 0.86, 1)
+theme_override_colors/font_hover_color = Color(1, 1, 1, 1)
+theme_override_styles/normal = SubResource("StyleBoxFlat_preset_normal")
+theme_override_styles/hover = SubResource("StyleBoxFlat_button_hover")
 text = "Medium"
 
-[node name="HighButton" type="Button" parent="CenterContainer/Panel/VBox/TabContainer/Graphics/ScrollContainer/VBox/PresetContainer"]
-custom_minimum_size = Vector2(80, 32)
+[node name="HighButton" type="Button" parent="MainHBox/ContentArea/ContentVBox/PageContainer/Graphics/ScrollContainer/VBox/PresetSection/PresetContainer"]
+custom_minimum_size = Vector2(120, 44)
 layout_mode = 2
-size_flags_horizontal = 3
-theme_override_styles/normal = SubResource("StyleBoxFlat_preset")
+theme_override_colors/font_color = Color(0.91, 0.89, 0.86, 1)
+theme_override_colors/font_hover_color = Color(1, 1, 1, 1)
+theme_override_styles/normal = SubResource("StyleBoxFlat_preset_normal")
+theme_override_styles/hover = SubResource("StyleBoxFlat_button_hover")
 text = "High"
 
-[node name="UltraButton" type="Button" parent="CenterContainer/Panel/VBox/TabContainer/Graphics/ScrollContainer/VBox/PresetContainer"]
-custom_minimum_size = Vector2(80, 32)
+[node name="UltraButton" type="Button" parent="MainHBox/ContentArea/ContentVBox/PageContainer/Graphics/ScrollContainer/VBox/PresetSection/PresetContainer"]
+custom_minimum_size = Vector2(120, 44)
 layout_mode = 2
-size_flags_horizontal = 3
-theme_override_styles/normal = SubResource("StyleBoxFlat_preset")
+theme_override_colors/font_color = Color(0.91, 0.89, 0.86, 1)
+theme_override_colors/font_hover_color = Color(1, 1, 1, 1)
+theme_override_styles/normal = SubResource("StyleBoxFlat_preset_normal")
+theme_override_styles/hover = SubResource("StyleBoxFlat_button_hover")
 text = "Ultra"
 
-[node name="Sep1" type="HSeparator" parent="CenterContainer/Panel/VBox/TabContainer/Graphics/ScrollContainer/VBox"]
+[node name="DisplaySection" type="VBoxContainer" parent="MainHBox/ContentArea/ContentVBox/PageContainer/Graphics/ScrollContainer/VBox"]
 layout_mode = 2
+theme_override_constants/separation = 14
 
-[node name="DisplaySection" type="VBoxContainer" parent="CenterContainer/Panel/VBox/TabContainer/Graphics/ScrollContainer/VBox"]
+[node name="DisplayLabel" type="Label" parent="MainHBox/ContentArea/ContentVBox/PageContainer/Graphics/ScrollContainer/VBox/DisplaySection"]
 layout_mode = 2
-theme_override_constants/separation = 8
-
-[node name="DisplayLabel" type="Label" parent="CenterContainer/Panel/VBox/TabContainer/Graphics/ScrollContainer/VBox/DisplaySection"]
-layout_mode = 2
-theme_override_colors/font_color = Color(0.7, 0.7, 0.5, 1)
-theme_override_font_sizes/font_size = 13
+theme_override_colors/font_color = Color(0.83, 0.66, 0.29, 1)
+theme_override_font_sizes/font_size = 16
 text = "DISPLAY"
 
-[node name="WindowModeRow" type="HBoxContainer" parent="CenterContainer/Panel/VBox/TabContainer/Graphics/ScrollContainer/VBox/DisplaySection"]
+[node name="WindowModeRow" type="HBoxContainer" parent="MainHBox/ContentArea/ContentVBox/PageContainer/Graphics/ScrollContainer/VBox/DisplaySection"]
 layout_mode = 2
 
-[node name="WindowModeLabel" type="Label" parent="CenterContainer/Panel/VBox/TabContainer/Graphics/ScrollContainer/VBox/DisplaySection/WindowModeRow"]
-custom_minimum_size = Vector2(140, 0)
+[node name="WindowModeLabel" type="Label" parent="MainHBox/ContentArea/ContentVBox/PageContainer/Graphics/ScrollContainer/VBox/DisplaySection/WindowModeRow"]
+custom_minimum_size = Vector2(220, 0)
 layout_mode = 2
+theme_override_colors/font_color = Color(0.91, 0.89, 0.86, 1)
+theme_override_font_sizes/font_size = 15
 text = "Window Mode"
 
-[node name="WindowModeOption" type="OptionButton" parent="CenterContainer/Panel/VBox/TabContainer/Graphics/ScrollContainer/VBox/DisplaySection/WindowModeRow"]
-layout_mode = 2
-size_flags_horizontal = 3
-
-[node name="ResolutionRow" type="HBoxContainer" parent="CenterContainer/Panel/VBox/TabContainer/Graphics/ScrollContainer/VBox/DisplaySection"]
+[node name="WindowModeOption" type="OptionButton" parent="MainHBox/ContentArea/ContentVBox/PageContainer/Graphics/ScrollContainer/VBox/DisplaySection/WindowModeRow"]
+custom_minimum_size = Vector2(250, 0)
 layout_mode = 2
 
-[node name="ResolutionLabel" type="Label" parent="CenterContainer/Panel/VBox/TabContainer/Graphics/ScrollContainer/VBox/DisplaySection/ResolutionRow"]
-custom_minimum_size = Vector2(140, 0)
+[node name="ResolutionRow" type="HBoxContainer" parent="MainHBox/ContentArea/ContentVBox/PageContainer/Graphics/ScrollContainer/VBox/DisplaySection"]
 layout_mode = 2
+
+[node name="ResolutionLabel" type="Label" parent="MainHBox/ContentArea/ContentVBox/PageContainer/Graphics/ScrollContainer/VBox/DisplaySection/ResolutionRow"]
+custom_minimum_size = Vector2(220, 0)
+layout_mode = 2
+theme_override_colors/font_color = Color(0.91, 0.89, 0.86, 1)
+theme_override_font_sizes/font_size = 15
 text = "Resolution"
 
-[node name="ResolutionOption" type="OptionButton" parent="CenterContainer/Panel/VBox/TabContainer/Graphics/ScrollContainer/VBox/DisplaySection/ResolutionRow"]
-layout_mode = 2
-size_flags_horizontal = 3
-
-[node name="VSyncRow" type="HBoxContainer" parent="CenterContainer/Panel/VBox/TabContainer/Graphics/ScrollContainer/VBox/DisplaySection"]
+[node name="ResolutionOption" type="OptionButton" parent="MainHBox/ContentArea/ContentVBox/PageContainer/Graphics/ScrollContainer/VBox/DisplaySection/ResolutionRow"]
+custom_minimum_size = Vector2(250, 0)
 layout_mode = 2
 
-[node name="VSyncLabel" type="Label" parent="CenterContainer/Panel/VBox/TabContainer/Graphics/ScrollContainer/VBox/DisplaySection/VSyncRow"]
-custom_minimum_size = Vector2(140, 0)
+[node name="VSyncRow" type="HBoxContainer" parent="MainHBox/ContentArea/ContentVBox/PageContainer/Graphics/ScrollContainer/VBox/DisplaySection"]
 layout_mode = 2
+
+[node name="VSyncLabel" type="Label" parent="MainHBox/ContentArea/ContentVBox/PageContainer/Graphics/ScrollContainer/VBox/DisplaySection/VSyncRow"]
+custom_minimum_size = Vector2(220, 0)
+layout_mode = 2
+theme_override_colors/font_color = Color(0.91, 0.89, 0.86, 1)
+theme_override_font_sizes/font_size = 15
 text = "VSync"
 
-[node name="VSyncOption" type="OptionButton" parent="CenterContainer/Panel/VBox/TabContainer/Graphics/ScrollContainer/VBox/DisplaySection/VSyncRow"]
-layout_mode = 2
-size_flags_horizontal = 3
-
-[node name="FPSLimitRow" type="HBoxContainer" parent="CenterContainer/Panel/VBox/TabContainer/Graphics/ScrollContainer/VBox/DisplaySection"]
+[node name="VSyncOption" type="OptionButton" parent="MainHBox/ContentArea/ContentVBox/PageContainer/Graphics/ScrollContainer/VBox/DisplaySection/VSyncRow"]
+custom_minimum_size = Vector2(250, 0)
 layout_mode = 2
 
-[node name="FPSLimitLabel" type="Label" parent="CenterContainer/Panel/VBox/TabContainer/Graphics/ScrollContainer/VBox/DisplaySection/FPSLimitRow"]
-custom_minimum_size = Vector2(140, 0)
+[node name="FPSLimitRow" type="HBoxContainer" parent="MainHBox/ContentArea/ContentVBox/PageContainer/Graphics/ScrollContainer/VBox/DisplaySection"]
 layout_mode = 2
+
+[node name="FPSLimitLabel" type="Label" parent="MainHBox/ContentArea/ContentVBox/PageContainer/Graphics/ScrollContainer/VBox/DisplaySection/FPSLimitRow"]
+custom_minimum_size = Vector2(220, 0)
+layout_mode = 2
+theme_override_colors/font_color = Color(0.91, 0.89, 0.86, 1)
+theme_override_font_sizes/font_size = 15
 text = "FPS Limit"
 
-[node name="FPSLimitOption" type="OptionButton" parent="CenterContainer/Panel/VBox/TabContainer/Graphics/ScrollContainer/VBox/DisplaySection/FPSLimitRow"]
-layout_mode = 2
-size_flags_horizontal = 3
-
-[node name="Sep2" type="HSeparator" parent="CenterContainer/Panel/VBox/TabContainer/Graphics/ScrollContainer/VBox"]
+[node name="FPSLimitOption" type="OptionButton" parent="MainHBox/ContentArea/ContentVBox/PageContainer/Graphics/ScrollContainer/VBox/DisplaySection/FPSLimitRow"]
+custom_minimum_size = Vector2(250, 0)
 layout_mode = 2
 
-[node name="QualitySection" type="VBoxContainer" parent="CenterContainer/Panel/VBox/TabContainer/Graphics/ScrollContainer/VBox"]
+[node name="QualitySection" type="VBoxContainer" parent="MainHBox/ContentArea/ContentVBox/PageContainer/Graphics/ScrollContainer/VBox"]
 layout_mode = 2
-theme_override_constants/separation = 8
+theme_override_constants/separation = 14
 
-[node name="QualityLabel" type="Label" parent="CenterContainer/Panel/VBox/TabContainer/Graphics/ScrollContainer/VBox/QualitySection"]
+[node name="QualityLabel" type="Label" parent="MainHBox/ContentArea/ContentVBox/PageContainer/Graphics/ScrollContainer/VBox/QualitySection"]
 layout_mode = 2
-theme_override_colors/font_color = Color(0.7, 0.7, 0.5, 1)
-theme_override_font_sizes/font_size = 13
+theme_override_colors/font_color = Color(0.83, 0.66, 0.29, 1)
+theme_override_font_sizes/font_size = 16
 text = "QUALITY"
 
-[node name="RenderScaleRow" type="HBoxContainer" parent="CenterContainer/Panel/VBox/TabContainer/Graphics/ScrollContainer/VBox/QualitySection"]
+[node name="RenderScaleRow" type="HBoxContainer" parent="MainHBox/ContentArea/ContentVBox/PageContainer/Graphics/ScrollContainer/VBox/QualitySection"]
 layout_mode = 2
 
-[node name="RenderScaleLabel" type="Label" parent="CenterContainer/Panel/VBox/TabContainer/Graphics/ScrollContainer/VBox/QualitySection/RenderScaleRow"]
-custom_minimum_size = Vector2(140, 0)
+[node name="RenderScaleLabel" type="Label" parent="MainHBox/ContentArea/ContentVBox/PageContainer/Graphics/ScrollContainer/VBox/QualitySection/RenderScaleRow"]
+custom_minimum_size = Vector2(220, 0)
 layout_mode = 2
+theme_override_colors/font_color = Color(0.91, 0.89, 0.86, 1)
+theme_override_font_sizes/font_size = 15
 text = "Render Scale"
 
-[node name="RenderScaleSlider" type="HSlider" parent="CenterContainer/Panel/VBox/TabContainer/Graphics/ScrollContainer/VBox/QualitySection/RenderScaleRow"]
-custom_minimum_size = Vector2(150, 0)
+[node name="RenderScaleSlider" type="HSlider" parent="MainHBox/ContentArea/ContentVBox/PageContainer/Graphics/ScrollContainer/VBox/QualitySection/RenderScaleRow"]
+custom_minimum_size = Vector2(250, 0)
 layout_mode = 2
-size_flags_horizontal = 3
 min_value = 0.5
 max_value = 1.0
 step = 0.05
 value = 1.0
 
-[node name="RenderScaleValue" type="Label" parent="CenterContainer/Panel/VBox/TabContainer/Graphics/ScrollContainer/VBox/QualitySection/RenderScaleRow"]
-custom_minimum_size = Vector2(50, 0)
+[node name="RenderScaleValue" type="Label" parent="MainHBox/ContentArea/ContentVBox/PageContainer/Graphics/ScrollContainer/VBox/QualitySection/RenderScaleRow"]
+custom_minimum_size = Vector2(70, 0)
 layout_mode = 2
+theme_override_colors/font_color = Color(0.83, 0.66, 0.29, 1)
+theme_override_font_sizes/font_size = 15
 text = "100%"
 horizontal_alignment = 2
 
-[node name="AARow" type="HBoxContainer" parent="CenterContainer/Panel/VBox/TabContainer/Graphics/ScrollContainer/VBox/QualitySection"]
+[node name="AARow" type="HBoxContainer" parent="MainHBox/ContentArea/ContentVBox/PageContainer/Graphics/ScrollContainer/VBox/QualitySection"]
 layout_mode = 2
 
-[node name="AALabel" type="Label" parent="CenterContainer/Panel/VBox/TabContainer/Graphics/ScrollContainer/VBox/QualitySection/AARow"]
-custom_minimum_size = Vector2(140, 0)
+[node name="AALabel" type="Label" parent="MainHBox/ContentArea/ContentVBox/PageContainer/Graphics/ScrollContainer/VBox/QualitySection/AARow"]
+custom_minimum_size = Vector2(220, 0)
 layout_mode = 2
+theme_override_colors/font_color = Color(0.91, 0.89, 0.86, 1)
+theme_override_font_sizes/font_size = 15
 text = "Anti-Aliasing"
 
-[node name="AAOption" type="OptionButton" parent="CenterContainer/Panel/VBox/TabContainer/Graphics/ScrollContainer/VBox/QualitySection/AARow"]
-layout_mode = 2
-size_flags_horizontal = 3
-
-[node name="ShadowRow" type="HBoxContainer" parent="CenterContainer/Panel/VBox/TabContainer/Graphics/ScrollContainer/VBox/QualitySection"]
+[node name="AAOption" type="OptionButton" parent="MainHBox/ContentArea/ContentVBox/PageContainer/Graphics/ScrollContainer/VBox/QualitySection/AARow"]
+custom_minimum_size = Vector2(250, 0)
 layout_mode = 2
 
-[node name="ShadowLabel" type="Label" parent="CenterContainer/Panel/VBox/TabContainer/Graphics/ScrollContainer/VBox/QualitySection/ShadowRow"]
-custom_minimum_size = Vector2(140, 0)
+[node name="ShadowRow" type="HBoxContainer" parent="MainHBox/ContentArea/ContentVBox/PageContainer/Graphics/ScrollContainer/VBox/QualitySection"]
 layout_mode = 2
+
+[node name="ShadowLabel" type="Label" parent="MainHBox/ContentArea/ContentVBox/PageContainer/Graphics/ScrollContainer/VBox/QualitySection/ShadowRow"]
+custom_minimum_size = Vector2(220, 0)
+layout_mode = 2
+theme_override_colors/font_color = Color(0.91, 0.89, 0.86, 1)
+theme_override_font_sizes/font_size = 15
 text = "Shadow Quality"
 
-[node name="ShadowOption" type="OptionButton" parent="CenterContainer/Panel/VBox/TabContainer/Graphics/ScrollContainer/VBox/QualitySection/ShadowRow"]
-layout_mode = 2
-size_flags_horizontal = 3
-
-[node name="Sep3" type="HSeparator" parent="CenterContainer/Panel/VBox/TabContainer/Graphics/ScrollContainer/VBox"]
+[node name="ShadowOption" type="OptionButton" parent="MainHBox/ContentArea/ContentVBox/PageContainer/Graphics/ScrollContainer/VBox/QualitySection/ShadowRow"]
+custom_minimum_size = Vector2(250, 0)
 layout_mode = 2
 
-[node name="EffectsSection" type="VBoxContainer" parent="CenterContainer/Panel/VBox/TabContainer/Graphics/ScrollContainer/VBox"]
+[node name="EffectsSection" type="VBoxContainer" parent="MainHBox/ContentArea/ContentVBox/PageContainer/Graphics/ScrollContainer/VBox"]
 layout_mode = 2
-theme_override_constants/separation = 8
+theme_override_constants/separation = 14
 
-[node name="EffectsLabel" type="Label" parent="CenterContainer/Panel/VBox/TabContainer/Graphics/ScrollContainer/VBox/EffectsSection"]
+[node name="EffectsLabel" type="Label" parent="MainHBox/ContentArea/ContentVBox/PageContainer/Graphics/ScrollContainer/VBox/EffectsSection"]
 layout_mode = 2
-theme_override_colors/font_color = Color(0.7, 0.7, 0.5, 1)
-theme_override_font_sizes/font_size = 13
+theme_override_colors/font_color = Color(0.83, 0.66, 0.29, 1)
+theme_override_font_sizes/font_size = 16
 text = "EFFECTS"
 
-[node name="SSAORow" type="HBoxContainer" parent="CenterContainer/Panel/VBox/TabContainer/Graphics/ScrollContainer/VBox/EffectsSection"]
+[node name="SSAORow" type="HBoxContainer" parent="MainHBox/ContentArea/ContentVBox/PageContainer/Graphics/ScrollContainer/VBox/EffectsSection"]
 layout_mode = 2
 
-[node name="SSAOLabel" type="Label" parent="CenterContainer/Panel/VBox/TabContainer/Graphics/ScrollContainer/VBox/EffectsSection/SSAORow"]
-custom_minimum_size = Vector2(140, 0)
+[node name="SSAOLabel" type="Label" parent="MainHBox/ContentArea/ContentVBox/PageContainer/Graphics/ScrollContainer/VBox/EffectsSection/SSAORow"]
+custom_minimum_size = Vector2(220, 0)
 layout_mode = 2
+theme_override_colors/font_color = Color(0.91, 0.89, 0.86, 1)
+theme_override_font_sizes/font_size = 15
 text = "Ambient Occlusion"
 
-[node name="SSAOCheck" type="CheckBox" parent="CenterContainer/Panel/VBox/TabContainer/Graphics/ScrollContainer/VBox/EffectsSection/SSAORow"]
+[node name="SSAOCheck" type="CheckBox" parent="MainHBox/ContentArea/ContentVBox/PageContainer/Graphics/ScrollContainer/VBox/EffectsSection/SSAORow"]
 layout_mode = 2
 
-[node name="BloomRow" type="HBoxContainer" parent="CenterContainer/Panel/VBox/TabContainer/Graphics/ScrollContainer/VBox/EffectsSection"]
+[node name="BloomRow" type="HBoxContainer" parent="MainHBox/ContentArea/ContentVBox/PageContainer/Graphics/ScrollContainer/VBox/EffectsSection"]
 layout_mode = 2
 
-[node name="BloomLabel" type="Label" parent="CenterContainer/Panel/VBox/TabContainer/Graphics/ScrollContainer/VBox/EffectsSection/BloomRow"]
-custom_minimum_size = Vector2(140, 0)
+[node name="BloomLabel" type="Label" parent="MainHBox/ContentArea/ContentVBox/PageContainer/Graphics/ScrollContainer/VBox/EffectsSection/BloomRow"]
+custom_minimum_size = Vector2(220, 0)
 layout_mode = 2
+theme_override_colors/font_color = Color(0.91, 0.89, 0.86, 1)
+theme_override_font_sizes/font_size = 15
 text = "Bloom"
 
-[node name="BloomCheck" type="CheckBox" parent="CenterContainer/Panel/VBox/TabContainer/Graphics/ScrollContainer/VBox/EffectsSection/BloomRow"]
+[node name="BloomCheck" type="CheckBox" parent="MainHBox/ContentArea/ContentVBox/PageContainer/Graphics/ScrollContainer/VBox/EffectsSection/BloomRow"]
 layout_mode = 2
 
-[node name="ToneMappingRow" type="HBoxContainer" parent="CenterContainer/Panel/VBox/TabContainer/Graphics/ScrollContainer/VBox/EffectsSection"]
+[node name="ToneMappingRow" type="HBoxContainer" parent="MainHBox/ContentArea/ContentVBox/PageContainer/Graphics/ScrollContainer/VBox/EffectsSection"]
 layout_mode = 2
 
-[node name="ToneMappingLabel" type="Label" parent="CenterContainer/Panel/VBox/TabContainer/Graphics/ScrollContainer/VBox/EffectsSection/ToneMappingRow"]
-custom_minimum_size = Vector2(140, 0)
+[node name="ToneMappingLabel" type="Label" parent="MainHBox/ContentArea/ContentVBox/PageContainer/Graphics/ScrollContainer/VBox/EffectsSection/ToneMappingRow"]
+custom_minimum_size = Vector2(220, 0)
 layout_mode = 2
+theme_override_colors/font_color = Color(0.91, 0.89, 0.86, 1)
+theme_override_font_sizes/font_size = 15
 text = "Tone Mapping"
 
-[node name="ToneMappingCheck" type="CheckBox" parent="CenterContainer/Panel/VBox/TabContainer/Graphics/ScrollContainer/VBox/EffectsSection/ToneMappingRow"]
+[node name="ToneMappingCheck" type="CheckBox" parent="MainHBox/ContentArea/ContentVBox/PageContainer/Graphics/ScrollContainer/VBox/EffectsSection/ToneMappingRow"]
 layout_mode = 2
 
-[node name="Sep4" type="HSeparator" parent="CenterContainer/Panel/VBox/TabContainer/Graphics/ScrollContainer/VBox"]
+[node name="AtmosphereSection" type="VBoxContainer" parent="MainHBox/ContentArea/ContentVBox/PageContainer/Graphics/ScrollContainer/VBox"]
 layout_mode = 2
+theme_override_constants/separation = 14
 
-[node name="AtmosphereSection" type="VBoxContainer" parent="CenterContainer/Panel/VBox/TabContainer/Graphics/ScrollContainer/VBox"]
+[node name="AtmosphereLabel" type="Label" parent="MainHBox/ContentArea/ContentVBox/PageContainer/Graphics/ScrollContainer/VBox/AtmosphereSection"]
 layout_mode = 2
-theme_override_constants/separation = 8
-
-[node name="AtmosphereLabel" type="Label" parent="CenterContainer/Panel/VBox/TabContainer/Graphics/ScrollContainer/VBox/AtmosphereSection"]
-layout_mode = 2
-theme_override_colors/font_color = Color(0.7, 0.7, 0.5, 1)
-theme_override_font_sizes/font_size = 13
+theme_override_colors/font_color = Color(0.83, 0.66, 0.29, 1)
+theme_override_font_sizes/font_size = 16
 text = "ATMOSPHERE"
 
-[node name="FogDistanceRow" type="HBoxContainer" parent="CenterContainer/Panel/VBox/TabContainer/Graphics/ScrollContainer/VBox/AtmosphereSection"]
+[node name="FogDistanceRow" type="HBoxContainer" parent="MainHBox/ContentArea/ContentVBox/PageContainer/Graphics/ScrollContainer/VBox/AtmosphereSection"]
 layout_mode = 2
 
-[node name="FogDistanceLabel" type="Label" parent="CenterContainer/Panel/VBox/TabContainer/Graphics/ScrollContainer/VBox/AtmosphereSection/FogDistanceRow"]
-custom_minimum_size = Vector2(140, 0)
+[node name="FogDistanceLabel" type="Label" parent="MainHBox/ContentArea/ContentVBox/PageContainer/Graphics/ScrollContainer/VBox/AtmosphereSection/FogDistanceRow"]
+custom_minimum_size = Vector2(220, 0)
 layout_mode = 2
+theme_override_colors/font_color = Color(0.91, 0.89, 0.86, 1)
+theme_override_font_sizes/font_size = 15
 text = "Fog Distance"
 
-[node name="FogDistanceOption" type="OptionButton" parent="CenterContainer/Panel/VBox/TabContainer/Graphics/ScrollContainer/VBox/AtmosphereSection/FogDistanceRow"]
-layout_mode = 2
-size_flags_horizontal = 3
-
-[node name="VolumetricFogRow" type="HBoxContainer" parent="CenterContainer/Panel/VBox/TabContainer/Graphics/ScrollContainer/VBox/AtmosphereSection"]
+[node name="FogDistanceOption" type="OptionButton" parent="MainHBox/ContentArea/ContentVBox/PageContainer/Graphics/ScrollContainer/VBox/AtmosphereSection/FogDistanceRow"]
+custom_minimum_size = Vector2(250, 0)
 layout_mode = 2
 
-[node name="VolumetricFogLabel" type="Label" parent="CenterContainer/Panel/VBox/TabContainer/Graphics/ScrollContainer/VBox/AtmosphereSection/VolumetricFogRow"]
-custom_minimum_size = Vector2(140, 0)
+[node name="VolumetricFogRow" type="HBoxContainer" parent="MainHBox/ContentArea/ContentVBox/PageContainer/Graphics/ScrollContainer/VBox/AtmosphereSection"]
 layout_mode = 2
+
+[node name="VolumetricFogLabel" type="Label" parent="MainHBox/ContentArea/ContentVBox/PageContainer/Graphics/ScrollContainer/VBox/AtmosphereSection/VolumetricFogRow"]
+custom_minimum_size = Vector2(220, 0)
+layout_mode = 2
+theme_override_colors/font_color = Color(0.91, 0.89, 0.86, 1)
+theme_override_font_sizes/font_size = 15
 text = "Volumetric Fog"
 
-[node name="VolumetricFogCheck" type="CheckBox" parent="CenterContainer/Panel/VBox/TabContainer/Graphics/ScrollContainer/VBox/AtmosphereSection/VolumetricFogRow"]
+[node name="VolumetricFogCheck" type="CheckBox" parent="MainHBox/ContentArea/ContentVBox/PageContainer/Graphics/ScrollContainer/VBox/AtmosphereSection/VolumetricFogRow"]
 layout_mode = 2
 
-[node name="Audio" type="MarginContainer" parent="CenterContainer/Panel/VBox/TabContainer"]
+[node name="Audio" type="VBoxContainer" parent="MainHBox/ContentArea/ContentVBox/PageContainer"]
 visible = false
-layout_mode = 2
-theme_override_constants/margin_left = 10
-theme_override_constants/margin_top = 10
-theme_override_constants/margin_right = 10
-theme_override_constants/margin_bottom = 10
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
 
-[node name="PlaceholderLabel" type="Label" parent="CenterContainer/Panel/VBox/TabContainer/Audio"]
+[node name="PlaceholderLabel" type="Label" parent="MainHBox/ContentArea/ContentVBox/PageContainer/Audio"]
 layout_mode = 2
-theme_override_colors/font_color = Color(0.6, 0.6, 0.6, 1)
+size_flags_vertical = 3
+theme_override_colors/font_color = Color(0.6, 0.53, 0.4, 1)
+theme_override_font_sizes/font_size = 18
 text = "Audio settings coming soon..."
-horizontal_alignment = 1
 vertical_alignment = 1
 
-[node name="Controls" type="MarginContainer" parent="CenterContainer/Panel/VBox/TabContainer"]
+[node name="Controls" type="VBoxContainer" parent="MainHBox/ContentArea/ContentVBox/PageContainer"]
 visible = false
-layout_mode = 2
-theme_override_constants/margin_left = 10
-theme_override_constants/margin_top = 10
-theme_override_constants/margin_right = 10
-theme_override_constants/margin_bottom = 10
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
 
-[node name="PlaceholderLabel" type="Label" parent="CenterContainer/Panel/VBox/TabContainer/Controls"]
+[node name="PlaceholderLabel" type="Label" parent="MainHBox/ContentArea/ContentVBox/PageContainer/Controls"]
 layout_mode = 2
-theme_override_colors/font_color = Color(0.6, 0.6, 0.6, 1)
+size_flags_vertical = 3
+theme_override_colors/font_color = Color(0.6, 0.53, 0.4, 1)
+theme_override_font_sizes/font_size = 18
 text = "Control settings coming soon..."
-horizontal_alignment = 1
 vertical_alignment = 1
 
-[node name="Gameplay" type="MarginContainer" parent="CenterContainer/Panel/VBox/TabContainer"]
+[node name="Gameplay" type="VBoxContainer" parent="MainHBox/ContentArea/ContentVBox/PageContainer"]
 visible = false
-layout_mode = 2
-theme_override_constants/margin_left = 10
-theme_override_constants/margin_top = 10
-theme_override_constants/margin_right = 10
-theme_override_constants/margin_bottom = 10
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
 
-[node name="PlaceholderLabel" type="Label" parent="CenterContainer/Panel/VBox/TabContainer/Gameplay"]
+[node name="PlaceholderLabel" type="Label" parent="MainHBox/ContentArea/ContentVBox/PageContainer/Gameplay"]
 layout_mode = 2
-theme_override_colors/font_color = Color(0.6, 0.6, 0.6, 1)
+size_flags_vertical = 3
+theme_override_colors/font_color = Color(0.6, 0.53, 0.4, 1)
+theme_override_font_sizes/font_size = 18
 text = "Gameplay settings coming soon..."
-horizontal_alignment = 1
 vertical_alignment = 1
 
-[node name="BottomButtons" type="HBoxContainer" parent="CenterContainer/Panel/VBox"]
+[node name="BottomButtons" type="HBoxContainer" parent="MainHBox/ContentArea/ContentVBox"]
 layout_mode = 2
 alignment = 2
 
-[node name="ResetButton" type="Button" parent="CenterContainer/Panel/VBox/BottomButtons"]
-custom_minimum_size = Vector2(120, 35)
+[node name="ResetButton" type="Button" parent="MainHBox/ContentArea/ContentVBox/BottomButtons"]
+custom_minimum_size = Vector2(160, 48)
 layout_mode = 2
-theme_override_styles/normal = SubResource("StyleBoxFlat_button")
+theme_override_colors/font_color = Color(0.91, 0.89, 0.86, 1)
+theme_override_colors/font_hover_color = Color(1, 1, 1, 1)
+theme_override_colors/font_pressed_color = Color(0.8, 0.8, 0.8, 1)
+theme_override_font_sizes/font_size = 15
+theme_override_styles/normal = SubResource("StyleBoxFlat_button_normal")
+theme_override_styles/hover = SubResource("StyleBoxFlat_button_hover")
+theme_override_styles/pressed = SubResource("StyleBoxFlat_button_pressed")
 text = "Reset Defaults"
 
-[node name="Spacer" type="Control" parent="CenterContainer/Panel/VBox/BottomButtons"]
+[node name="Spacer" type="Control" parent="MainHBox/ContentArea/ContentVBox/BottomButtons"]
+custom_minimum_size = Vector2(20, 0)
 layout_mode = 2
-size_flags_horizontal = 3
 
-[node name="CancelButton" type="Button" parent="CenterContainer/Panel/VBox/BottomButtons"]
-custom_minimum_size = Vector2(80, 35)
+[node name="CancelButton" type="Button" parent="MainHBox/ContentArea/ContentVBox/BottomButtons"]
+custom_minimum_size = Vector2(120, 48)
 layout_mode = 2
-theme_override_styles/normal = SubResource("StyleBoxFlat_button")
+theme_override_colors/font_color = Color(0.91, 0.89, 0.86, 1)
+theme_override_colors/font_hover_color = Color(1, 1, 1, 1)
+theme_override_colors/font_pressed_color = Color(0.8, 0.8, 0.8, 1)
+theme_override_font_sizes/font_size = 15
+theme_override_styles/normal = SubResource("StyleBoxFlat_button_normal")
+theme_override_styles/hover = SubResource("StyleBoxFlat_button_hover")
+theme_override_styles/pressed = SubResource("StyleBoxFlat_button_pressed")
 text = "Cancel"
 
-[node name="ApplyButton" type="Button" parent="CenterContainer/Panel/VBox/BottomButtons"]
-custom_minimum_size = Vector2(80, 35)
+[node name="ApplyButton" type="Button" parent="MainHBox/ContentArea/ContentVBox/BottomButtons"]
+custom_minimum_size = Vector2(120, 48)
 layout_mode = 2
-theme_override_styles/normal = SubResource("StyleBoxFlat_button")
+theme_override_colors/font_color = Color(0.91, 0.89, 0.86, 1)
+theme_override_colors/font_hover_color = Color(1, 1, 1, 1)
+theme_override_colors/font_pressed_color = Color(0.8, 0.8, 0.8, 1)
+theme_override_font_sizes/font_size = 15
+theme_override_styles/normal = SubResource("StyleBoxFlat_button_normal")
+theme_override_styles/hover = SubResource("StyleBoxFlat_button_hover")
+theme_override_styles/pressed = SubResource("StyleBoxFlat_button_pressed")
 text = "Apply"

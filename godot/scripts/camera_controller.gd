@@ -247,11 +247,12 @@ func _handle_mouse_button(event: InputEventMouseButton) -> void:
 				if click_duration < click_threshold_time:
 					_handle_right_click(event.position)
 	
-	# Mouse wheel - zoom
-	if event.button_index == MOUSE_BUTTON_WHEEL_UP:
-		target_distance = max(min_distance, target_distance - zoom_speed)
-	elif event.button_index == MOUSE_BUTTON_WHEEL_DOWN:
-		target_distance = min(max_distance, target_distance + zoom_speed)
+	# Mouse wheel - zoom (disabled when any dialog is open)
+	if not UIManager.is_any_dialog_open():
+		if event.button_index == MOUSE_BUTTON_WHEEL_UP:
+			target_distance = max(min_distance, target_distance - zoom_speed)
+		elif event.button_index == MOUSE_BUTTON_WHEEL_DOWN:
+			target_distance = min(max_distance, target_distance + zoom_speed)
 
 
 func _handle_mouse_motion(motion: InputEventMouseMotion) -> void:

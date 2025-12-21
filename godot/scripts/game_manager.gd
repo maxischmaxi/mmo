@@ -641,6 +641,9 @@ func _create_enemy(enemy_type: int) -> Node3D:
 				# Store reference to model for animation updates
 				enemy.set_meta("enemy_model", enemy_model)
 				
+				# Set enemy to layer 2 (bit 1) so minimap can exclude it
+				_set_visual_layer_recursive(enemy, 2)
+				
 				return enemy
 	
 	# Fallback to placeholder
@@ -684,6 +687,9 @@ func _create_enemy_placeholder(enemy_type: int) -> Node3D:
 	collision.position.y = 0.6
 	enemy.add_child(collision)
 	
+	# Set enemy to layer 2 (bit 1) so minimap can exclude it
+	_set_visual_layer_recursive(enemy, 2)
+	
 	return enemy
 
 
@@ -692,6 +698,16 @@ func _remove_enemy(id: int) -> void:
 		var enemy_data = enemies[id]
 		enemy_data["node"].queue_free()
 		enemies.erase(id)
+
+
+## Set visual layer for a node and all its children recursively.
+## Used to put enemies on layer 2 so minimap can exclude them.
+func _set_visual_layer_recursive(node: Node, layer: int) -> void:
+	if node is VisualInstance3D:
+		# Set only this layer (clear layer 1, set layer 2)
+		node.layers = 1 << (layer - 1)
+	for child in node.get_children():
+		_set_visual_layer_recursive(child, layer)
 
 
 # =============================================================================
@@ -764,6 +780,9 @@ func _create_npc(npc_type: int) -> Node3D:
 				# Store reference to model for animation updates
 				npc.set_meta("npc_model", npc_model)
 				
+				# Set NPC to layer 2 (bit 1) so minimap can exclude it
+				_set_visual_layer_recursive(npc, 2)
+				
 				return npc
 	
 	# Fallback to placeholder
@@ -788,6 +807,9 @@ func _create_npc_placeholder(npc_type: int) -> Node3D:
 	mesh_instance.material_override = material
 	
 	npc.add_child(mesh_instance)
+	
+	# Set NPC to layer 2 (bit 1) so minimap can exclude it
+	_set_visual_layer_recursive(npc, 2)
 	
 	return npc
 
