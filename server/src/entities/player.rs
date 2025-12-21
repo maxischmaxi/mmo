@@ -1,10 +1,13 @@
 //! Server-side player entity.
 
-use mmo_shared::{AnimationState, InventorySlot, ItemEffect, ItemDef, ItemType, CharacterClass, Gender, Empire, get_item_definitions, AbilityEffect, ArmorStats};
+use mmo_shared::{AnimationState, InventorySlot, ItemEffect, ItemDef, ItemType, CharacterClass, Gender, Empire, get_item_definitions, get_item_slot_size, AbilityEffect, ArmorStats};
 use std::collections::HashMap;
 
 /// Maximum inventory slots
 const INVENTORY_SIZE: usize = 20;
+
+/// Number of columns in inventory grid (for multi-slot item row boundary checks)
+const INVENTORY_COLUMNS: usize = 5;
 
 /// Active buff on a player
 #[derive(Debug, Clone)]
@@ -392,55 +395,281 @@ impl ServerPlayer {
         )
     }
     
+    /// Check if a multi-slot item can be placed at the given slot index
+    /// Multi-slot items expand VERTICALLY (down columns, like Metin2)
+    /// Validates: slot is empty, all continuation slots below are empty, doesn't exceed grid
+    fn can_place_item_at(&self, start_slot: usize, slot_size: u8) -> bool {
+        let size = slot_size as usize;
+        let num_rows = INVENTORY_SIZE / INVENTORY_COLUMNS;
+        
+        // Check which row/column we're in
+        let start_row = start_slot / INVENTORY_COLUMNS;
+        let start_col = start_slot % INVENTORY_COLUMNS;
+        
+        // Check if item fits vertically (doesn't go past last row)
+        if start_row + size > num_rows {
+            return false;
+        }
+        
+        // Check all required slots are empty (going down vertically)
+        for i in 0..size {
+            let slot_idx = start_slot + (i * INVENTORY_COLUMNS);
+            if slot_idx >= INVENTORY_SIZE {
+                return false;
+            }
+            if self.inventory[slot_idx].is_some() {
+                return false;
+            }
+        }
+        
+        true
+    }
+    
+    /// Find contiguous empty slots for a multi-slot item (vertical placement)
+    fn find_contiguous_slots(&self, slot_size: u8) -> Option<usize> {
+        for start_slot in 0..INVENTORY_SIZE {
+            if self.can_place_item_at(start_slot, slot_size) {
+                return Some(start_slot);
+            }
+        }
+        None
+    }
+    
+    /// Place a multi-slot item starting at the given slot (vertical expansion)
+    fn place_item_at(&mut self, start_slot: usize, item_id: u32, quantity: u32, slot_size: u8) {
+        // Primary slot
+        self.inventory[start_slot] = Some(InventorySlot {
+            item_id,
+            quantity,
+            continuation_of: None,
+        });
+        
+        // Continuation slots (going down vertically)
+        for i in 1..slot_size as usize {
+            let slot_idx = start_slot + (i * INVENTORY_COLUMNS);
+            if slot_idx < INVENTORY_SIZE {
+                self.inventory[slot_idx] = Some(InventorySlot {
+                    item_id: 0,  // No item in continuation slots
+                    quantity: 0,
+                    continuation_of: Some(start_slot as u8),
+                });
+            }
+        }
+    }
+    
+    /// Clear a multi-slot item and all its continuation slots (vertical)
+    fn clear_item_slots(&mut self, primary_slot: usize, slot_size: u8) {
+        for i in 0..slot_size as usize {
+            let slot_idx = primary_slot + (i * INVENTORY_COLUMNS);
+            if slot_idx < INVENTORY_SIZE {
+                self.inventory[slot_idx] = None;
+            }
+        }
+    }
+    
+    /// Swap two inventory slots (handles multi-slot items)
+    /// If either slot is a continuation, operates on the primary item instead.
+    /// Returns true if swap was successful.
+    pub fn swap_inventory_slots(&mut self, from_slot: u8, to_slot: u8) -> bool {
+        let from_idx = from_slot as usize;
+        let to_idx = to_slot as usize;
+        
+        if from_idx >= INVENTORY_SIZE || to_idx >= INVENTORY_SIZE {
+            return false;
+        }
+        
+        // Handle empty slot cases
+        let from_empty = self.inventory[from_idx].is_none();
+        let to_empty = self.inventory[to_idx].is_none();
+        
+        if from_empty && to_empty {
+            return true; // Nothing to swap
+        }
+        
+        // Find primary slots (in case we clicked on a continuation slot)
+        let from_primary = if let Some(slot) = &self.inventory[from_idx] {
+            slot.continuation_of.map(|p| p as usize).unwrap_or(from_idx)
+        } else {
+            from_idx
+        };
+        
+        let to_primary = if let Some(slot) = &self.inventory[to_idx] {
+            slot.continuation_of.map(|p| p as usize).unwrap_or(to_idx)
+        } else {
+            to_idx
+        };
+        
+        // If both slots belong to the same item, nothing to do
+        if from_primary == to_primary {
+            return true;
+        }
+        
+        // Get item info from primary slots
+        let from_item = if from_empty {
+            None
+        } else {
+            self.inventory[from_primary].as_ref().map(|s| (s.item_id, s.quantity))
+        };
+        
+        let to_item = if to_empty {
+            None
+        } else {
+            self.inventory[to_primary].as_ref().map(|s| (s.item_id, s.quantity))
+        };
+        
+        // Get slot sizes
+        let from_size = from_item.map(|(id, _)| get_item_slot_size(id)).unwrap_or(0);
+        let to_size = to_item.map(|(id, _)| get_item_slot_size(id)).unwrap_or(0);
+        
+        // Case 1: Moving item to empty slot
+        if to_item.is_none() {
+            let (item_id, quantity) = from_item.unwrap();
+            
+            // Check if the destination can fit the item
+            // First clear the source so dest check sees it as empty
+            self.clear_item_slots(from_primary, from_size);
+            
+            if self.can_place_item_at(to_idx, from_size) {
+                self.place_item_at(to_idx, item_id, quantity, from_size);
+                return true;
+            } else {
+                // Can't place at destination, restore original
+                self.place_item_at(from_primary, item_id, quantity, from_size);
+                return false;
+            }
+        }
+        
+        // Case 2: Moving to a slot that has an item (swap)
+        if from_item.is_none() {
+            // Moving empty to item - just move the item to empty
+            let (item_id, quantity) = to_item.unwrap();
+            self.clear_item_slots(to_primary, to_size);
+            
+            if self.can_place_item_at(from_idx, to_size) {
+                self.place_item_at(from_idx, item_id, quantity, to_size);
+                return true;
+            } else {
+                // Can't place at destination, restore original
+                self.place_item_at(to_primary, item_id, quantity, to_size);
+                return false;
+            }
+        }
+        
+        // Case 3: Both slots have items - real swap
+        let (from_id, from_qty) = from_item.unwrap();
+        let (to_id, to_qty) = to_item.unwrap();
+        
+        // Clear both items first
+        self.clear_item_slots(from_primary, from_size);
+        self.clear_item_slots(to_primary, to_size);
+        
+        // Try to place from_item at to's location
+        let from_dest = if self.can_place_item_at(to_primary, from_size) {
+            to_primary
+        } else if self.can_place_item_at(to_idx, from_size) {
+            to_idx
+        } else {
+            // Can't place - restore both items
+            self.place_item_at(from_primary, from_id, from_qty, from_size);
+            self.place_item_at(to_primary, to_id, to_qty, to_size);
+            return false;
+        };
+        
+        // Try to place to_item at from's location
+        let to_dest = if self.can_place_item_at(from_primary, to_size) {
+            from_primary
+        } else if self.can_place_item_at(from_idx, to_size) {
+            from_idx
+        } else {
+            // Can't place to_item - restore both at original positions
+            self.place_item_at(from_primary, from_id, from_qty, from_size);
+            self.place_item_at(to_primary, to_id, to_qty, to_size);
+            return false;
+        };
+        
+        // Place both items at their new locations
+        self.place_item_at(from_dest, from_id, from_qty, from_size);
+        self.place_item_at(to_dest, to_id, to_qty, to_size);
+        
+        true
+    }
+    
     /// Add item to inventory, stacking if possible
+    /// Handles multi-slot items (weapons may take 2-3 slots)
     pub fn add_to_inventory(&mut self, item_id: u32, quantity: u32) -> bool {
         let item_defs = get_item_definitions();
         let item_def = item_defs.iter().find(|i| i.id == item_id);
         let max_stack = item_def.map(|i| i.max_stack).unwrap_or(1);
+        let slot_size = get_item_slot_size(item_id);
         
         let mut remaining = quantity;
         
-        // Try to stack with existing items
-        for slot in &mut self.inventory {
-            if remaining == 0 {
-                break;
-            }
-            if let Some(inv_slot) = slot {
-                if inv_slot.item_id == item_id && inv_slot.quantity < max_stack {
-                    let can_add = (max_stack - inv_slot.quantity).min(remaining);
-                    inv_slot.quantity += can_add;
-                    remaining -= can_add;
+        // For single-slot stackable items, try to stack with existing
+        if slot_size == 1 && max_stack > 1 {
+            for slot in &mut self.inventory {
+                if remaining == 0 {
+                    break;
+                }
+                if let Some(inv_slot) = slot {
+                    // Skip continuation slots
+                    if inv_slot.continuation_of.is_some() {
+                        continue;
+                    }
+                    if inv_slot.item_id == item_id && inv_slot.quantity < max_stack {
+                        let can_add = (max_stack - inv_slot.quantity).min(remaining);
+                        inv_slot.quantity += can_add;
+                        remaining -= can_add;
+                    }
                 }
             }
         }
         
-        // Add to empty slots
-        for slot in &mut self.inventory {
-            if remaining == 0 {
-                break;
-            }
-            if slot.is_none() {
+        // Add to empty slots (respecting slot_size)
+        while remaining > 0 {
+            if let Some(start_slot) = self.find_contiguous_slots(slot_size) {
                 let add_amount = remaining.min(max_stack);
-                *slot = Some(InventorySlot {
-                    item_id,
-                    quantity: add_amount,
-                });
+                self.place_item_at(start_slot, item_id, add_amount, slot_size);
                 remaining -= add_amount;
+            } else {
+                // No space found
+                break;
             }
         }
         
         remaining == 0
     }
     
-    /// Remove item from inventory slot
+    /// Remove item from inventory slot (handles multi-slot items)
     pub fn remove_from_inventory(&mut self, slot: u8) -> Option<(u32, u32)> {
         let slot_idx = slot as usize;
         if slot_idx >= self.inventory.len() {
             return None;
         }
         
-        let inv_slot = self.inventory[slot_idx].take()?;
-        Some((inv_slot.item_id, inv_slot.quantity))
+        let inv_slot = self.inventory[slot_idx].as_ref()?;
+        
+        // If this is a continuation slot, find the primary slot
+        let primary_slot = if let Some(primary) = inv_slot.continuation_of {
+            primary as usize
+        } else {
+            slot_idx
+        };
+        
+        // Get the item info from the primary slot
+        let primary_inv_slot = self.inventory[primary_slot].as_ref()?;
+        if primary_inv_slot.continuation_of.is_some() {
+            // This shouldn't happen - primary slot shouldn't be a continuation
+            return None;
+        }
+        
+        let item_id = primary_inv_slot.item_id;
+        let quantity = primary_inv_slot.quantity;
+        let slot_size = get_item_slot_size(item_id);
+        
+        // Clear all slots
+        self.clear_item_slots(primary_slot, slot_size);
+        
+        Some((item_id, quantity))
     }
     
     /// Use item from inventory
@@ -552,15 +781,26 @@ impl ServerPlayer {
     
     /// Try to equip a weapon from inventory
     /// Returns Ok(old_weapon_id) if successful, Err with reason if failed
-    /// The item is removed from inventory; if there was an old weapon, it goes into the vacated slot
+    /// The item is removed from inventory; if there was an old weapon, it goes into available slots
     pub fn try_equip_weapon(&mut self, inventory_slot: u8, items: &HashMap<u32, ItemDef>) -> Result<Option<u32>, &'static str> {
         let slot_idx = inventory_slot as usize;
         if slot_idx >= self.inventory.len() {
             return Err("Invalid inventory slot");
         }
         
-        let inv_slot = self.inventory[slot_idx].as_ref().ok_or("No item in slot")?;
+        // Find the primary slot if this is a continuation
+        let primary_slot = {
+            let inv_slot = self.inventory[slot_idx].as_ref().ok_or("No item in slot")?;
+            if let Some(primary) = inv_slot.continuation_of {
+                primary as usize
+            } else {
+                slot_idx
+            }
+        };
+        
+        let inv_slot = self.inventory[primary_slot].as_ref().ok_or("No item in primary slot")?;
         let item_id = inv_slot.item_id;
+        let new_weapon_slot_size = get_item_slot_size(item_id);
         
         let item = items.get(&item_id).ok_or("Item not found")?;
         
@@ -580,16 +820,26 @@ impl ServerPlayer {
         
         // Store the old weapon before we modify anything
         let old_weapon = self.equipped_weapon_id;
+        let old_weapon_slot_size = old_weapon.map(|id| get_item_slot_size(id)).unwrap_or(0);
         
-        // Remove item from inventory slot
-        self.inventory[slot_idx] = None;
+        // Clear the new weapon from inventory (all its slots)
+        self.clear_item_slots(primary_slot, new_weapon_slot_size);
         
-        // If we had a weapon equipped, put it in the now-empty inventory slot
+        // If we had a weapon equipped, try to put it back in the freed slots
         if let Some(old_weapon_id) = old_weapon {
-            self.inventory[slot_idx] = Some(InventorySlot {
-                item_id: old_weapon_id,
-                quantity: 1,
-            });
+            // Check if the freed slots can hold the old weapon
+            if self.can_place_item_at(primary_slot, old_weapon_slot_size) {
+                self.place_item_at(primary_slot, old_weapon_id, 1, old_weapon_slot_size);
+            } else {
+                // Try to find any available slots for the old weapon
+                if let Some(free_slot) = self.find_contiguous_slots(old_weapon_slot_size) {
+                    self.place_item_at(free_slot, old_weapon_id, 1, old_weapon_slot_size);
+                } else {
+                    // Can't fit old weapon, restore new weapon and fail
+                    self.place_item_at(primary_slot, item_id, 1, new_weapon_slot_size);
+                    return Err("No space for currently equipped weapon");
+                }
+            }
         }
         
         // Equip the new weapon
@@ -602,15 +852,11 @@ impl ServerPlayer {
     /// Returns the previously equipped weapon ID, or None if no weapon was equipped or no space
     pub fn unequip_weapon(&mut self) -> Option<u32> {
         let weapon_id = self.equipped_weapon_id.take()?;
+        let slot_size = get_item_slot_size(weapon_id);
         
-        // Find an empty inventory slot
-        let empty_slot = self.inventory.iter().position(|s| s.is_none());
-        
-        if let Some(slot_idx) = empty_slot {
-            self.inventory[slot_idx] = Some(InventorySlot {
-                item_id: weapon_id,
-                quantity: 1,
-            });
+        // Find contiguous empty slots for the weapon
+        if let Some(start_slot) = self.find_contiguous_slots(slot_size) {
+            self.place_item_at(start_slot, weapon_id, 1, slot_size);
             Some(weapon_id)
         } else {
             // No space in inventory, re-equip the weapon
@@ -670,6 +916,7 @@ impl ServerPlayer {
             self.inventory[slot_idx] = Some(InventorySlot {
                 item_id: old_armor_id,
                 quantity: 1,
+                continuation_of: None,
             });
         }
         
@@ -691,6 +938,7 @@ impl ServerPlayer {
             self.inventory[slot_idx] = Some(InventorySlot {
                 item_id: armor_id,
                 quantity: 1,
+                continuation_of: None,
             });
             Some(armor_id)
         } else {

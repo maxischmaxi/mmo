@@ -1,6 +1,7 @@
-[gd_scene load_steps=4 format=3 uid="uid://r8ceat3mcjhy"]
+[gd_scene load_steps=5 format=3 uid="uid://r8ceat3mcjhy"]
 
 [ext_resource type="Script" path="res://scripts/ui/inventory_ui.gd" id="1_script"]
+[ext_resource type="PackedScene" uid="uid://c6qy8x2vwkm3h" path="res://scenes/ui/weapon_preview.tscn" id="2_weapon_preview"]
 
 [sub_resource type="StyleBoxFlat" id="StyleBoxFlat_panel"]
 bg_color = Color(0.06, 0.07, 0.1, 0.92)
@@ -103,6 +104,13 @@ theme_override_constants/margin_bottom = 8
 [node name="VBox" type="VBoxContainer" parent="Tooltip/MarginContainer"]
 layout_mode = 2
 theme_override_constants/separation = 4
+
+[node name="PreviewContainer" type="CenterContainer" parent="Tooltip/MarginContainer/VBox"]
+visible = false
+layout_mode = 2
+
+[node name="WeaponPreview" parent="Tooltip/MarginContainer/VBox/PreviewContainer" instance=ExtResource("2_weapon_preview")]
+layout_mode = 2
 
 [node name="ItemName" type="Label" parent="Tooltip/MarginContainer/VBox"]
 layout_mode = 2

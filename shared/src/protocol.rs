@@ -3,7 +3,7 @@
 use serde::{Deserialize, Serialize};
 
 /// Protocol version for compatibility checking
-pub const PROTOCOL_VERSION: u32 = 10;
+pub const PROTOCOL_VERSION: u32 = 11;
 
 /// Server tick rate in Hz
 pub const SERVER_TICK_RATE: u32 = 20;
@@ -685,6 +685,10 @@ impl NpcType {
 pub struct InventorySlot {
     pub item_id: u32,
     pub quantity: u32,
+    /// If Some(n), this slot is a continuation of the item in slot n
+    /// Multi-slot items occupy consecutive horizontal slots
+    #[serde(default)]
+    pub continuation_of: Option<u8>,
 }
 
 // =============================================================================

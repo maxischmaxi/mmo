@@ -600,6 +600,7 @@ impl Database {
     }
     
     /// Save character inventory to database (replaces all slots)
+    /// Only saves primary slots - continuation slots are reconstructed on load based on item slot sizes
     pub async fn save_character_inventory(&self, character_id: i64, inventory: &[InventorySlotData]) -> Result<(), sqlx::Error> {
         let mut tx = self.pool.begin().await?;
         
@@ -609,6 +610,12 @@ impl Database {
             .await?;
         
         for slot in inventory {
+            // Skip continuation slots (quantity = 0 means it's part of a multi-slot item)
+            // These will be reconstructed on load based on the item's slot_size
+            if slot.quantity == 0 {
+                continue;
+            }
+            
             sqlx::query(
                 "INSERT INTO player_inventory (character_id, slot, item_id, quantity) VALUES ($1, $2, $3, $4)"
             )
@@ -682,14 +689,22 @@ impl Database {
             
             // Parse weapon stats if present
             let weapon_stats = if let (Some(dmg), Some(spd)) = (damage, attack_speed) {
+                let vt = visual_type
+                    .and_then(|v| WeaponVisualType::from_u8(v as u8))
+                    .unwrap_or(WeaponVisualType::OneHandedSword);
+                // Calculate slot size based on visual type
+                let slot_size = match vt {
+                    WeaponVisualType::Dagger => 1,
+                    WeaponVisualType::TwoHandedSword | WeaponVisualType::TwoHandedAxe | WeaponVisualType::Staff | WeaponVisualType::Spear => 3,
+                    _ => 2,  // One-handed weapons default to 2 slots
+                };
                 Some(WeaponStats {
                     damage: dmg as u32,
                     attack_speed: spd,
                     class_restriction: class_restriction.and_then(|c| CharacterClass::from_u8(c as u8)),
-                    visual_type: visual_type
-                        .and_then(|v| WeaponVisualType::from_u8(v as u8))
-                        .unwrap_or(WeaponVisualType::OneHandedSword),
+                    visual_type: vt,
                     mesh_name: mesh_name.unwrap_or_else(|| "Arming_Sword".to_string()),
+                    slot_size,
                 })
             } else {
                 None

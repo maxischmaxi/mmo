@@ -1,0 +1,10 @@
+[gd_scene load_steps=2 format=3 uid="uid://c6qy8x2vwkm3h"]
+
+[ext_resource type="Script" path="res://scripts/ui/weapon_preview.gd" id="1_script"]
+
+[node name="WeaponPreview" type="SubViewportContainer"]
+custom_minimum_size = Vector2(120, 120)
+offset_right = 120.0
+offset_bottom = 120.0
+stretch = true
+script = ExtResource("1_script")

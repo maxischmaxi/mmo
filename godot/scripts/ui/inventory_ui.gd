@@ -18,6 +18,26 @@ const RARITY_COLORS: Dictionary = {
 ## Teleport Ring item ID
 const TELEPORT_RING_ID: int = 100
 
+## Item slot sizes (how many horizontal inventory slots the item occupies)
+## Daggers = 1, One-handed = 2, Two-handed/Staffs = 3, Others = 1
+const ITEM_SLOT_SIZES: Dictionary = {
+	# Universal weapons
+	4: 2,   # Rusty Sword (one-handed)
+	5: 2,   # Iron Sword (one-handed)
+	# Ninja weapons
+	10: 1,  # Shadow Dagger
+	11: 1,  # Viper's Fang
+	# Warrior weapons
+	12: 3,  # Steel Claymore (two-handed)
+	13: 3,  # Berserker's Axe (two-handed)
+	# Sura weapons
+	14: 2,  # Cursed Scimitar (one-handed)
+	15: 2,  # Soulreaver Blade (one-handed)
+	# Shaman weapons
+	16: 3,  # Oak Staff
+	17: 3,  # Spirit Totem
+}
+
 ## Item definitions (mirrored from server database)
 const ITEM_DEFS: Dictionary = {
 	# Consumables and Materials (IDs 1-3)
@@ -125,6 +145,8 @@ var drag_preview: Control = null
 @onready var tooltip_desc: Label = $Tooltip/MarginContainer/VBox/Description
 @onready var tooltip_hint: Label = $Tooltip/MarginContainer/VBox/UseHint
 @onready var tooltip_stats: Label = $Tooltip/MarginContainer/VBox/Stats
+@onready var tooltip_preview_container: Control = $Tooltip/MarginContainer/VBox/PreviewContainer
+@onready var tooltip_weapon_preview: Node = $Tooltip/MarginContainer/VBox/PreviewContainer/WeaponPreview
 
 ## Equipment panel references (created dynamically)
 var equipment_panel: Control = null
@@ -332,8 +354,7 @@ func _resize_to_fit_content() -> void:
 
 func close_inventory() -> void:
 	visible = false
-	if tooltip:
-		tooltip.visible = false
+	_hide_tooltip()
 
 
 func _create_equipment_panel() -> void:
@@ -611,19 +632,33 @@ func refresh_display() -> void:
 		if slot_data != null and slot_data.has("item_id"):
 			var item_id = slot_data["item_id"]
 			var quantity = slot_data.get("quantity", 1)
-			var item_def = ITEM_DEFS.get(item_id, null)
+			var continuation_of = slot_data.get("continuation_of", -1)
 			
-			if item_def:
-				var rarity = item_def.get("rarity", "common")
-				var color = RARITY_COLORS.get(rarity, RARITY_COLORS["common"])
-				slot_node.set_item(item_id, quantity, color, item_def["name"])
+			# Check if this is a continuation slot
+			if continuation_of >= 0:
+				# This is a continuation slot - hidden, primary slot expands over it
+				slot_node.set_continuation_slot(continuation_of)
 			else:
-				slot_node.set_item(item_id, quantity, Color(0.5, 0.5, 0.5), "Unknown")
+				# This is a primary slot - render with vertical expansion
+				var item_def = ITEM_DEFS.get(item_id, null)
+				var slot_size = _get_item_slot_size(item_id)
+				
+				if item_def:
+					var rarity = item_def.get("rarity", "common")
+					var color = RARITY_COLORS.get(rarity, RARITY_COLORS["common"])
+					slot_node.set_item(item_id, quantity, color, item_def["name"], slot_size)
+				else:
+					slot_node.set_item(item_id, quantity, Color(0.5, 0.5, 0.5), "Unknown", slot_size)
 		else:
 			slot_node.clear_item()
 	
 	# Update equipment display
 	_refresh_equipment_display()
+
+
+## Get the number of inventory slots an item occupies (vertically)
+func _get_item_slot_size(item_id: int) -> int:
+	return ITEM_SLOT_SIZES.get(item_id, 1)
 
 
 func _refresh_equipment_display() -> void:
@@ -664,7 +699,12 @@ func _on_inventory_updated() -> void:
 		for i in range(SLOT_COUNT):
 			var slot_data = local_player.get_inventory_slot(i)
 			if slot_data.has("item_id"):
-				inventory_slots[i] = {"item_id": slot_data["item_id"], "quantity": slot_data.get("quantity", 1)}
+				var continuation_of = slot_data.get("continuation_of", -1)
+				inventory_slots[i] = {
+					"item_id": slot_data["item_id"],
+					"quantity": slot_data.get("quantity", 1),
+					"continuation_of": continuation_of  # -1 = primary slot, >= 0 = continuation
+				}
 			else:
 				inventory_slots[i] = null
 	refresh_display()
@@ -692,14 +732,23 @@ func _on_item_drag_started(slot_index: int) -> void:
 	if slot_data == null or not slot_data.has("item_id"):
 		return
 	
+	# If this is a continuation slot, get data from primary slot instead
+	var primary_slot = slot_index
+	var continuation_of = slot_data.get("continuation_of", -1)
+	if continuation_of >= 0:
+		primary_slot = continuation_of
+		slot_data = inventory_slots[primary_slot]
+		if slot_data == null or not slot_data.has("item_id"):
+			return
+	
 	is_dragging_item = true
-	drag_from_slot = slot_index
+	drag_from_slot = primary_slot  # Always drag from the primary slot
 	drag_item_id = slot_data["item_id"]
 	drag_item_quantity = slot_data.get("quantity", 1)
 	
-	# Get the item color from the slot
-	if slot_index < slot_nodes.size():
-		drag_item_color = slot_nodes[slot_index].get_item_color()
+	# Get the item color from the primary slot
+	if primary_slot < slot_nodes.size():
+		drag_item_color = slot_nodes[primary_slot].get_item_color()
 	else:
 		drag_item_color = Color(0.5, 0.5, 0.5)
 	
@@ -707,10 +756,9 @@ func _on_item_drag_started(slot_index: int) -> void:
 	_create_drag_preview()
 	
 	# Hide tooltip during drag
-	if tooltip:
-		tooltip.visible = false
+	_hide_tooltip()
 	
-	print("Started dragging item from slot ", slot_index)
+	print("Started dragging item from slot ", primary_slot)
 
 
 func _on_item_drag_ended(slot_index: int) -> void:
@@ -774,14 +822,32 @@ func _create_drag_preview() -> void:
 	style.corner_radius_bottom_right = 4
 	preview_panel.add_theme_stylebox_override("panel", style)
 	
-	# Add the item icon inside
-	var icon_rect = ColorRect.new()
-	icon_rect.set_anchors_preset(Control.PRESET_CENTER)
-	icon_rect.size = Vector2(36, 36)
-	icon_rect.position = Vector2(4, 4)
-	icon_rect.color = drag_item_color
-	icon_rect.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	preview_panel.add_child(icon_rect)
+	# Check if item has a 3D icon texture
+	var icon_texture: Texture2D = null
+	if drag_from_slot >= 0 and drag_from_slot < slot_nodes.size():
+		var slot = slot_nodes[drag_from_slot]
+		if slot.has_texture_icon():
+			icon_texture = slot.get_item_texture()
+	
+	if icon_texture:
+		# Use the 3D weapon icon
+		var icon_rect = TextureRect.new()
+		icon_rect.texture = icon_texture
+		icon_rect.size = Vector2(36, 36)
+		icon_rect.position = Vector2(4, 4)
+		icon_rect.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
+		icon_rect.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+		icon_rect.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		preview_panel.add_child(icon_rect)
+	else:
+		# Fallback to colored rectangle
+		var icon_rect = ColorRect.new()
+		icon_rect.set_anchors_preset(Control.PRESET_CENTER)
+		icon_rect.size = Vector2(36, 36)
+		icon_rect.position = Vector2(4, 4)
+		icon_rect.color = drag_item_color
+		icon_rect.mouse_filter = Control.MOUSE_FILTER_IGNORE
+		preview_panel.add_child(icon_rect)
 	
 	# Add quantity label if more than 1
 	if drag_item_quantity > 1:
@@ -883,12 +949,11 @@ func _on_slot_hovered(slot_index: int) -> void:
 		var item_def = ITEM_DEFS.get(item_id, null)
 		
 		if item_def and tooltip:
-			_show_tooltip_for_item(item_def, false)
+			_show_tooltip_for_item(item_id, item_def, false)
 
 
 func _on_slot_unhovered(slot_index: int) -> void:
-	if tooltip:
-		tooltip.visible = false
+	_hide_tooltip()
 
 
 ## Set inventory data (called from network/server updates)
@@ -937,12 +1002,11 @@ func _on_equipment_slot_hovered(_slot_index: int, slot_type: String) -> void:
 	if item_id > 0:
 		var item_def = ITEM_DEFS.get(item_id, null)
 		if item_def and tooltip:
-			_show_tooltip_for_item(item_def, true)
+			_show_tooltip_for_item(item_id, item_def, true)
 
 
 func _on_equipment_slot_unhovered(_slot_index: int, slot_type: String) -> void:
-	if tooltip:
-		tooltip.visible = false
+	_hide_tooltip()
 
 
 func _get_equipped_item_id(slot_type: String) -> int:
@@ -958,7 +1022,7 @@ func _get_equipped_item_id(slot_type: String) -> int:
 		_: return -1
 
 
-func _show_tooltip_for_item(item_def: Dictionary, is_equipped: bool = false) -> void:
+func _show_tooltip_for_item(item_id: int, item_def: Dictionary, is_equipped: bool = false) -> void:
 	tooltip_name.text = item_def["name"]
 	
 	var type_text = item_def["type"].capitalize()
@@ -974,6 +1038,15 @@ func _show_tooltip_for_item(item_def: Dictionary, is_equipped: bool = false) -> 
 	var rarity = item_def.get("rarity", "common")
 	var color = RARITY_COLORS.get(rarity, RARITY_COLORS["common"])
 	tooltip_name.add_theme_color_override("font_color", color)
+	
+	# Show 3D weapon preview if item has a model
+	if tooltip_preview_container and tooltip_weapon_preview:
+		if ItemIconManager.has_model(item_id):
+			tooltip_weapon_preview.set_weapon(item_id)
+			tooltip_preview_container.visible = true
+		else:
+			tooltip_weapon_preview.clear()
+			tooltip_preview_container.visible = false
 	
 	# Show weapon stats if applicable
 	if tooltip_stats and item_def["type"] == "weapon":
@@ -1009,6 +1082,16 @@ func _show_tooltip_for_item(item_def: Dictionary, is_equipped: bool = false) -> 
 	# Show tooltip and position it smartly
 	tooltip.visible = true
 	_position_tooltip_smart()
+
+
+## Hide tooltip and clear weapon preview
+func _hide_tooltip() -> void:
+	if tooltip:
+		tooltip.visible = false
+	if tooltip_weapon_preview:
+		tooltip_weapon_preview.clear()
+	if tooltip_preview_container:
+		tooltip_preview_container.visible = false
 
 
 ## Position tooltip smartly within viewport bounds

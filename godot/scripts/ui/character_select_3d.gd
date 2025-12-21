@@ -97,8 +97,14 @@ var _is_entering_game: bool = false
 @onready var delete_dialog: ConfirmationDialog = $DeleteDialog
 @onready var delete_name_input: LineEdit = $DeleteDialog/VBox/NameInput
 
+# Fade overlay for smooth transitions
+@onready var fade_overlay: ColorRect = $FadeOverlay
+
 # Particles
 @onready var particle_effect: GPUParticles2D = $ParticleEffect
+
+## Fade duration for enter game transition
+const FADE_DURATION: float = 0.6
 
 
 func _ready() -> void:
@@ -176,6 +182,18 @@ func _on_visibility_changed() -> void:
 			viewport.render_target_update_mode = SubViewport.UPDATE_ALWAYS
 		if floor_mesh:
 			floor_mesh.visible = true
+		
+		# Reset fade overlay and entering game state when becoming visible
+		_is_entering_game = false
+		_pending_character_id = -1
+		if fade_overlay:
+			fade_overlay.modulate.a = 0.0
+		
+		# Reset button states
+		enter_button.text = "ENTER WORLD" if current_index < characters.size() else "CREATE"
+		enter_button.disabled = false
+		back_button.disabled = false
+		delete_button.disabled = current_index >= characters.size()
 	else:
 		# Hide and disable rendering when hidden
 		if container:
@@ -534,9 +552,26 @@ func _start_rallying_animation() -> bool:
 	# Play the rallying animation
 	if anim_ctrl.has_method("play_rallying_animation"):
 		anim_ctrl.play_rallying_animation()
+		
+		# Start fade to black after a short delay (let the animation play a bit first)
+		# The rallying animation is ~2.5 seconds, we want to be fully black before it ends
+		# Start fading at 0.8s, fade takes 0.8s, so we're black at 1.6s (before animation ends)
+		_start_fade_to_black(0.8)
+		
 		return true
 	
 	return false
+
+
+func _start_fade_to_black(delay: float) -> void:
+	"""Start fading to black after a delay."""
+	if fade_overlay == null:
+		return
+	
+	# Create a tween to delay then fade
+	var tween = create_tween()
+	tween.tween_interval(delay)
+	tween.tween_property(fade_overlay, "modulate:a", 1.0, 0.8)  # Slightly longer fade for smoothness
 
 
 func _on_rallying_animation_finished() -> void:
@@ -684,6 +719,15 @@ func reset_form() -> void:
 	current_index = 0
 	enter_button.text = "ENTER WORLD"
 	enter_button.disabled = false
+	
+	# Reset entering game state
+	_is_entering_game = false
+	_pending_character_id = -1
+	
+	# Reset fade overlay to transparent
+	if fade_overlay:
+		fade_overlay.modulate.a = 0.0
+	
 	_update_ui()
 
 

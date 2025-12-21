@@ -56,6 +56,14 @@ pub struct WeaponStats {
     pub visual_type: WeaponVisualType,
     /// Mesh name from the weapon pack (e.g., "Arming_Sword" loads "...fbx_Arming_Sword.fbx")
     pub mesh_name: String,
+    /// Number of inventory slots this weapon occupies (1-3)
+    /// Daggers = 1, One-handed = 2, Two-handed = 3
+    #[serde(default = "default_slot_size")]
+    pub slot_size: u8,
+}
+
+fn default_slot_size() -> u8 {
+    1
 }
 
 /// Armor-specific stats
@@ -173,6 +181,7 @@ pub fn get_item_definitions() -> Vec<ItemDef> {
                 class_restriction: None,
                 visual_type: WeaponVisualType::OneHandedSword,
                 mesh_name: "Arming_Sword".into(),
+                slot_size: 2,  // One-handed sword = 2 slots
             }),
             armor_stats: None,
         },
@@ -190,6 +199,7 @@ pub fn get_item_definitions() -> Vec<ItemDef> {
                 class_restriction: None,
                 visual_type: WeaponVisualType::OneHandedSword,
                 mesh_name: "Cutlass".into(),
+                slot_size: 2,  // One-handed sword = 2 slots
             }),
             armor_stats: None,
         },
@@ -208,6 +218,7 @@ pub fn get_item_definitions() -> Vec<ItemDef> {
                 class_restriction: Some(CharacterClass::Ninja),
                 visual_type: WeaponVisualType::Dagger,
                 mesh_name: "Dagger".into(),
+                slot_size: 1,  // Dagger = 1 slot
             }),
             armor_stats: None,
         },
@@ -225,6 +236,7 @@ pub fn get_item_definitions() -> Vec<ItemDef> {
                 class_restriction: Some(CharacterClass::Ninja),
                 visual_type: WeaponVisualType::Dagger,
                 mesh_name: "Bone_Shiv".into(),
+                slot_size: 1,  // Dagger = 1 slot
             }),
             armor_stats: None,
         },
@@ -243,6 +255,7 @@ pub fn get_item_definitions() -> Vec<ItemDef> {
                 class_restriction: Some(CharacterClass::Warrior),
                 visual_type: WeaponVisualType::TwoHandedSword,
                 mesh_name: "Great_Sword".into(),
+                slot_size: 3,  // Two-handed sword = 3 slots
             }),
             armor_stats: None,
         },
@@ -260,6 +273,7 @@ pub fn get_item_definitions() -> Vec<ItemDef> {
                 class_restriction: Some(CharacterClass::Warrior),
                 visual_type: WeaponVisualType::TwoHandedAxe,
                 mesh_name: "Double_Axe".into(),
+                slot_size: 3,  // Two-handed axe = 3 slots
             }),
             armor_stats: None,
         },
@@ -278,6 +292,7 @@ pub fn get_item_definitions() -> Vec<ItemDef> {
                 class_restriction: Some(CharacterClass::Sura),
                 visual_type: WeaponVisualType::OneHandedSword,
                 mesh_name: "Scimitar".into(),
+                slot_size: 2,  // One-handed sword = 2 slots
             }),
             armor_stats: None,
         },
@@ -295,6 +310,7 @@ pub fn get_item_definitions() -> Vec<ItemDef> {
                 class_restriction: Some(CharacterClass::Sura),
                 visual_type: WeaponVisualType::OneHandedSword,
                 mesh_name: "Kopesh".into(),
+                slot_size: 2,  // One-handed sword = 2 slots
             }),
             armor_stats: None,
         },
@@ -313,6 +329,7 @@ pub fn get_item_definitions() -> Vec<ItemDef> {
                 class_restriction: Some(CharacterClass::Shaman),
                 visual_type: WeaponVisualType::Staff,
                 mesh_name: "Wizard_Staff".into(),
+                slot_size: 3,  // Staff = 3 slots
             }),
             armor_stats: None,
         },
@@ -330,6 +347,7 @@ pub fn get_item_definitions() -> Vec<ItemDef> {
                 class_restriction: Some(CharacterClass::Shaman),
                 visual_type: WeaponVisualType::Staff,
                 mesh_name: "Wizard_Staff".into(),
+                slot_size: 3,  // Staff = 3 slots
             }),
             armor_stats: None,
         },
@@ -760,4 +778,16 @@ pub fn get_starter_armor_id(class: CharacterClass) -> u32 {
         CharacterClass::Sura => 220,     // Sura Initiate Robes
         CharacterClass::Shaman => 230,   // Shaman Apprentice Robes
     }
+}
+
+/// Get the slot size for an item (how many inventory slots it occupies)
+/// Returns 1 for most items, but weapons may take 2-3 slots based on size
+pub fn get_item_slot_size(item_id: u32) -> u8 {
+    let items = get_item_definitions();
+    if let Some(item) = items.iter().find(|i| i.id == item_id) {
+        if let Some(weapon_stats) = &item.weapon_stats {
+            return weapon_stats.slot_size;
+        }
+    }
+    1  // Default: 1 slot for non-weapons and unknown items
 }

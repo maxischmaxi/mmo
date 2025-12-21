@@ -18,6 +18,7 @@ config/features=PackedStringArray("4.5", "Forward Plus")
 
 SettingsManager="*res://scripts/autoload/settings_manager.gd"
 UIManager="*res://scripts/autoload/ui_manager.gd"
+ItemIconManager="*res://scripts/autoload/item_icon_manager.gd"
 
 [input]
 

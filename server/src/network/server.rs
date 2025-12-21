@@ -1713,13 +1713,37 @@ fn player_inventory_to_data(player: &ServerPlayer) -> Vec<InventorySlotData> {
 }
 
 fn inventory_data_to_slots(data: &[InventorySlotData]) -> Vec<Option<InventorySlot>> {
+    use mmo_shared::get_item_slot_size;
+    const INVENTORY_COLUMNS: usize = 5;
+    
     let mut slots: Vec<Option<InventorySlot>> = vec![None; 20];
+    
     for item in data {
-        if (item.slot as usize) < slots.len() {
-            slots[item.slot as usize] = Some(InventorySlot {
-                item_id: item.item_id as u32,
-                quantity: item.quantity as u32,
-            });
+        let primary_slot = item.slot as usize;
+        if primary_slot >= slots.len() {
+            continue;
+        }
+        
+        let item_id = item.item_id as u32;
+        let slot_size = get_item_slot_size(item_id) as usize;
+        
+        // Place primary slot
+        slots[primary_slot] = Some(InventorySlot {
+            item_id,
+            quantity: item.quantity as u32,
+            continuation_of: None,
+        });
+        
+        // Place continuation slots vertically below the primary slot
+        for i in 1..slot_size {
+            let cont_slot = primary_slot + (i * INVENTORY_COLUMNS);
+            if cont_slot < slots.len() {
+                slots[cont_slot] = Some(InventorySlot {
+                    item_id: 0,
+                    quantity: 0,
+                    continuation_of: Some(primary_slot as u8),
+                });
+            }
         }
     }
     slots

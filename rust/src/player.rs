@@ -753,13 +753,19 @@ impl Player {
         };
     }
     
-    /// Get inventory slot data (item_id, quantity) - returns Dictionary
+    /// Get inventory slot data (item_id, quantity, continuation_of) - returns Dictionary
     #[func]
     fn get_inventory_slot(&self, slot: i64) -> Dictionary {
         let mut dict = Dictionary::new();
         if let Some(Some(inv_slot)) = self.inventory.get(slot as usize) {
             dict.set("item_id", inv_slot.item_id as i64);
             dict.set("quantity", inv_slot.quantity as i64);
+            // continuation_of: -1 = primary slot, >= 0 = continuation of that slot
+            if let Some(primary) = inv_slot.continuation_of {
+                dict.set("continuation_of", primary as i64);
+            } else {
+                dict.set("continuation_of", -1_i64);
+            }
         }
         dict
     }

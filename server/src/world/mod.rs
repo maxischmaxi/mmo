@@ -13,7 +13,7 @@ use rand::Rng;
 use mmo_shared::{
     ServerMessage, AnimationState, EnemyType, NpcType, NpcState, InventorySlot, ItemDef, ItemType,
     CharacterClass, Gender, Empire, AbilityEffect, TargetType,
-    get_ability_by_id,
+    get_ability_by_id, get_item_slot_size,
 };
 
 /// Result of equipping an item
@@ -222,14 +222,36 @@ impl GameWorld {
         experience: u32,
         gold: u64,
     ) {
-        // Convert inventory data to slots
+        // Convert inventory data to slots, reconstructing continuation slots for multi-slot items
         let mut inventory: Vec<Option<InventorySlot>> = vec![None; 20];
+        const INVENTORY_COLUMNS: usize = 5;
+        
         for slot_data in inventory_data {
-            if (slot_data.slot as usize) < inventory.len() {
-                inventory[slot_data.slot as usize] = Some(InventorySlot {
-                    item_id: slot_data.item_id as u32,
-                    quantity: slot_data.quantity as u32,
-                });
+            let primary_slot = slot_data.slot as usize;
+            if primary_slot >= inventory.len() {
+                continue;
+            }
+            
+            let item_id = slot_data.item_id as u32;
+            let slot_size = get_item_slot_size(item_id) as usize;
+            
+            // Place primary slot
+            inventory[primary_slot] = Some(InventorySlot {
+                item_id,
+                quantity: slot_data.quantity as u32,
+                continuation_of: None,
+            });
+            
+            // Place continuation slots vertically below the primary slot
+            for i in 1..slot_size {
+                let cont_slot = primary_slot + (i * INVENTORY_COLUMNS);
+                if cont_slot < inventory.len() {
+                    inventory[cont_slot] = Some(InventorySlot {
+                        item_id: 0,
+                        quantity: 0,
+                        continuation_of: Some(primary_slot as u8),
+                    });
+                }
             }
         }
         
@@ -494,6 +516,7 @@ impl GameWorld {
     }
     
     /// Swap two inventory slots (for drag & drop)
+    /// Handles multi-slot items properly.
     pub fn swap_inventory_slots(&mut self, player_id: u64, from_slot: u8, to_slot: u8) -> Option<ServerMessage> {
         let player = self.players.get_mut(&player_id)?;
         
@@ -502,12 +525,17 @@ impl GameWorld {
             return None;
         }
         
-        // Swap the slots in player's inventory
-        player.inventory.swap(from_slot as usize, to_slot as usize);
-        
-        Some(ServerMessage::InventoryUpdate {
-            slots: player.get_inventory_slots(),
-        })
+        // Use the player's swap method which handles multi-slot items
+        if player.swap_inventory_slots(from_slot, to_slot) {
+            Some(ServerMessage::InventoryUpdate {
+                slots: player.get_inventory_slots(),
+            })
+        } else {
+            // Swap failed (e.g., items don't fit) - still send current state
+            Some(ServerMessage::InventoryUpdate {
+                slots: player.get_inventory_slots(),
+            })
+        }
     }
     
     /// Update the world (called every tick)
