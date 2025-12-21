@@ -22,7 +22,7 @@ ItemIconManager="*res://scripts/autoload/item_icon_manager.gd"
 
 [editor_plugins]
 
-enabled=PackedStringArray("res://addons/pbr_texture_packer/plugin.cfg", "res://addons/server_data_exporter/plugin.cfg", "res://addons/terrain_3d/plugin.cfg")
+enabled=PackedStringArray("res://addons/pbr_texture_packer/plugin.cfg", "res://addons/server_data_exporter/plugin.cfg", "res://addons/spawn_area_editor/plugin.cfg", "res://addons/terrain_3d/plugin.cfg")
 
 [input]
 

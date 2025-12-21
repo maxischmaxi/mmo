@@ -9,7 +9,7 @@
 use std::collections::HashMap;
 use std::path::Path;
 use log::{info, warn, error, debug};
-use mmo_shared::{Empire, EnemyType, NpcType};
+use mmo_shared::{Empire, NpcType};
 
 use crate::navigation::{Obstacle, CircleObstacle, BoxObstacle};
 use super::heightmap::Heightmap;
@@ -34,16 +34,6 @@ pub struct ZoneSpawnPoint {
     pub is_default: bool,
 }
 
-/// Enemy spawn definition within a zone
-#[derive(Debug, Clone)]
-pub struct ZoneEnemySpawn {
-    pub id: i32,
-    pub zone_id: u32,
-    pub enemy_type: EnemyType,
-    pub position: [f32; 3],
-    pub respawn_time_secs: u32,
-}
-
 /// NPC spawn definition within a zone
 #[derive(Debug, Clone)]
 pub struct ZoneNpcSpawn {
@@ -60,8 +50,6 @@ pub struct ZoneManager {
     zones: HashMap<u32, ZoneDefinition>,
     /// Spawn points per zone
     spawn_points: HashMap<u32, Vec<ZoneSpawnPoint>>,
-    /// Enemy spawns per zone
-    enemy_spawns: HashMap<u32, Vec<ZoneEnemySpawn>>,
     /// NPC spawns per zone
     npc_spawns: HashMap<u32, Vec<ZoneNpcSpawn>>,
     /// Default zone for each empire
@@ -77,7 +65,6 @@ impl std::fmt::Debug for ZoneManager {
         f.debug_struct("ZoneManager")
             .field("zones", &self.zones)
             .field("spawn_points", &self.spawn_points)
-            .field("enemy_spawns", &self.enemy_spawns)
             .field("npc_spawns", &self.npc_spawns)
             .field("default_zones", &self.default_zones)
             .field("obstacles", &self.obstacles.keys().collect::<Vec<_>>())
@@ -92,7 +79,6 @@ impl ZoneManager {
         let mut manager = Self {
             zones: HashMap::new(),
             spawn_points: HashMap::new(),
-            enemy_spawns: HashMap::new(),
             npc_spawns: HashMap::new(),
             default_zones: HashMap::new(),
             obstacles: HashMap::new(),
@@ -280,40 +266,8 @@ impl ZoneManager {
         
         // Spawn points are already initialized in new() via init_spawn_points()
         
-        // Add default enemy spawns (positioned away from spawn point and NPC at 5,0,5)
-        manager.enemy_spawns.insert(1, vec![
-            ZoneEnemySpawn { id: 1, zone_id: 1, enemy_type: EnemyType::Goblin, position: [25.0, 0.0, 25.0], respawn_time_secs: 60 },
-            ZoneEnemySpawn { id: 2, zone_id: 1, enemy_type: EnemyType::Goblin, position: [-25.0, 0.0, 15.0], respawn_time_secs: 60 },
-            ZoneEnemySpawn { id: 3, zone_id: 1, enemy_type: EnemyType::Goblin, position: [30.0, 0.0, -20.0], respawn_time_secs: 60 },
-            ZoneEnemySpawn { id: 4, zone_id: 1, enemy_type: EnemyType::Mutant, position: [0.0, 0.0, 35.0], respawn_time_secs: 90 },
-            ZoneEnemySpawn { id: 5, zone_id: 1, enemy_type: EnemyType::Skeleton, position: [-30.0, 0.0, -30.0], respawn_time_secs: 120 },
-            ZoneEnemySpawn { id: 14, zone_id: 1, enemy_type: EnemyType::Wolf, position: [20.0, 0.0, -15.0], respawn_time_secs: 60 },
-            ZoneEnemySpawn { id: 15, zone_id: 1, enemy_type: EnemyType::Wolf, position: [25.0, 0.0, -20.0], respawn_time_secs: 60 },
-            // TEST: Wolf behind main building - must go around to reach spawn at (0,0)
-            ZoneEnemySpawn { id: 20, zone_id: 1, enemy_type: EnemyType::Wolf, position: [18.0, 0.0, -8.0], respawn_time_secs: 30 },
-            // TEST: Goblin behind market stall
-            ZoneEnemySpawn { id: 21, zone_id: 1, enemy_type: EnemyType::Goblin, position: [-8.0, 0.0, -12.0], respawn_time_secs: 30 },
-        ]);
-        manager.enemy_spawns.insert(100, vec![
-            ZoneEnemySpawn { id: 6, zone_id: 100, enemy_type: EnemyType::Goblin, position: [25.0, 0.0, 25.0], respawn_time_secs: 60 },
-            ZoneEnemySpawn { id: 7, zone_id: 100, enemy_type: EnemyType::Goblin, position: [-25.0, 0.0, 20.0], respawn_time_secs: 60 },
-            ZoneEnemySpawn { id: 8, zone_id: 100, enemy_type: EnemyType::Skeleton, position: [35.0, 0.0, 15.0], respawn_time_secs: 120 },
-            ZoneEnemySpawn { id: 9, zone_id: 100, enemy_type: EnemyType::Mutant, position: [-20.0, 0.0, 30.0], respawn_time_secs: 90 },
-            ZoneEnemySpawn { id: 16, zone_id: 100, enemy_type: EnemyType::Wolf, position: [30.0, 0.0, -20.0], respawn_time_secs: 60 },
-        ]);
-        manager.enemy_spawns.insert(200, vec![
-            ZoneEnemySpawn { id: 10, zone_id: 200, enemy_type: EnemyType::Mutant, position: [20.0, 0.0, 30.0], respawn_time_secs: 90 },
-            ZoneEnemySpawn { id: 11, zone_id: 200, enemy_type: EnemyType::Mutant, position: [-25.0, 0.0, 25.0], respawn_time_secs: 90 },
-            ZoneEnemySpawn { id: 12, zone_id: 200, enemy_type: EnemyType::Goblin, position: [35.0, 0.0, -15.0], respawn_time_secs: 60 },
-            ZoneEnemySpawn { id: 13, zone_id: 200, enemy_type: EnemyType::Skeleton, position: [-35.0, 0.0, 10.0], respawn_time_secs: 120 },
-            ZoneEnemySpawn { id: 17, zone_id: 200, enemy_type: EnemyType::Wolf, position: [-25.0, 0.0, -20.0], respawn_time_secs: 60 },
-            // TEST: Wolf behind main building (10, -8) - must go around to reach spawn at (0,0)
-            // Building is Box (6,-13) to (14,-3), so spawn at (18, -8) to force pathing
-            ZoneEnemySpawn { id: 18, zone_id: 200, enemy_type: EnemyType::Wolf, position: [18.0, 0.0, -8.0], respawn_time_secs: 30 },
-            // TEST: Goblin behind market stall (-8, -5) - must go around
-            // Stall is Box (-10,-8) to (-6,-2), so spawn at (-8, -12)
-            ZoneEnemySpawn { id: 19, zone_id: 200, enemy_type: EnemyType::Goblin, position: [-8.0, 0.0, -12.0], respawn_time_secs: 30 },
-        ]);
+        // Enemy spawns are now handled by SpawnAreaManager (spawn_areas.json)
+        // Use SpawnArea3D nodes in Godot to define spawn areas and export them
         
         // Add default NPC spawns - one Old Man per empire zone
         // Positioned near the spawn point but offset so they're visible
@@ -386,40 +340,8 @@ impl ZoneManager {
     // Spawn points are hardcoded in with_defaults() to match terrain heights
     // from godot/scripts/tools/terrain_generator.gd
     
-    /// Load enemy spawns from database rows
-    pub fn load_enemy_spawns(&mut self, enemy_spawns: Vec<(i32, i32, i16, f32, f32, f32, i32)>) {
-        self.enemy_spawns.clear();
-        
-        for (id, zone_id, enemy_type, x, y, z, respawn_time) in enemy_spawns {
-            let zone_id = zone_id as u32;
-            let enemy_type = match enemy_type {
-                0 => EnemyType::Goblin,
-                1 => EnemyType::Skeleton,
-                2 => EnemyType::Mutant,
-                3 => EnemyType::Wolf,
-                _ => {
-                    warn!("Unknown enemy type {} in spawn {}, defaulting to Goblin", enemy_type, id);
-                    EnemyType::Goblin
-                }
-            };
-            
-            let spawn = ZoneEnemySpawn {
-                id,
-                zone_id,
-                enemy_type,
-                position: [x, y, z],
-                respawn_time_secs: respawn_time as u32,
-            };
-            
-            self.enemy_spawns
-                .entry(zone_id)
-                .or_insert_with(Vec::new)
-                .push(spawn);
-        }
-        
-        let total_spawns: usize = self.enemy_spawns.values().map(|v| v.len()).sum();
-        info!("Loaded {} enemy spawns across {} zones", total_spawns, self.enemy_spawns.len());
-    }
+    // Enemy spawns are now handled by SpawnAreaManager
+    // See spawn_area.rs and spawn_areas.json
     
     /// Load NPC spawns from database rows
     pub fn load_npc_spawns(&mut self, npc_spawns: Vec<(i32, i32, i16, f32, f32, f32, f32)>) {
@@ -496,9 +418,7 @@ impl ZoneManager {
     }
     
     /// Get enemy spawns for a zone
-    pub fn get_enemy_spawns(&self, zone_id: u32) -> &[ZoneEnemySpawn] {
-        self.enemy_spawns.get(&zone_id).map(|v| v.as_slice()).unwrap_or(&[])
-    }
+    // Enemy spawns are now handled by SpawnAreaManager
     
     /// Get NPC spawns for a zone
     pub fn get_npc_spawns(&self, zone_id: u32) -> &[ZoneNpcSpawn] {

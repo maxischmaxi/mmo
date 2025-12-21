@@ -1,7 +1,9 @@
-[gd_scene load_steps=18 format=3 uid="uid://cjinnovillage"]
+[gd_scene load_steps=22 format=3 uid="uid://cjinnovillage"]
 
 [ext_resource type="Shader" uid="uid://3qibbbogmem2" path="res://shaders/fortnite_terrain.gdshader" id="1_25yvq"]
 [ext_resource type="PackedScene" uid="uid://byd7w2p1kqrc3" path="res://assets/map/medieval_village/FBX/Prop_Wagon.fbx" id="2_d5joe"]
+[ext_resource type="Script" uid="uid://ektgb4ow5exk" path="res://addons/spawn_area_editor/spawn_area_3d.gd" id="3_30boe"]
+[ext_resource type="Script" uid="uid://dh30b7wts83c4" path="res://addons/spawn_area_editor/spawn_area_enemy_config.gd" id="4_8upyr"]
 [ext_resource type="PackedScene" uid="uid://be26f08fsukai" path="res://scenes/buildings/house_1.tscn" id="4_bq3iw"]
 [ext_resource type="PackedScene" uid="uid://c2l2qo47cwylw" path="res://scenes/buildings/stall.tscn" id="4_pioek"]
 [ext_resource type="PackedScene" uid="uid://d4nctjfkbmt0f" path="res://assets/map/medieval_village/FBX/Prop_Crate.fbx" id="5_jssws"]
@@ -104,6 +106,18 @@ size = Vector2(4192, 4192)
 subdivide_width = 128
 subdivide_depth = 128
 
+[sub_resource type="Resource" id="Resource_8upyr"]
+resource_name = "EnemyConfig"
+script = ExtResource("4_8upyr")
+metadata/_custom_type_script = "uid://dh30b7wts83c4"
+
+[sub_resource type="Resource" id="Resource_7avjf"]
+resource_name = "EnemyConfig"
+script = ExtResource("4_8upyr")
+enemy_type = 1
+spawn_weight = 3.0
+metadata/_custom_type_script = "uid://dh30b7wts83c4"
+
 [node name="JinnoVillage" type="Node3D"]
 
 [node name="Terrain3D" type="Terrain3D" parent="."]
@@ -117,6 +131,16 @@ metadata/_edit_lock_ = true
 [node name="Water" type="MeshInstance3D" parent="."]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -717.316, -11.105652, 808.276)
 mesh = SubResource("PlaneMesh_25yvq")
+
+[node name="SpawnArea3D" type="Node3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -72.16729, 0, 0)
+script = ExtResource("3_30boe")
+area_id = "spawn_area_72030896616557"
+polygon = PackedVector2Array(0, 0, 18.150005, 2.9773493, 34.57614, 13.993701, 41.618546, 35.99423, 30, 50, 15.585239, 47.25217, 3.8265953, 43.02117, -2.748499, 31.083668, -8.400303, 16.821148)
+enemy_configs = Array[ExtResource("4_8upyr")]([SubResource("Resource_8upyr"), SubResource("Resource_7avjf")])
+max_population = 10
+respawn_time = 30.0
+metadata/_custom_type_script = "uid://ektgb4ow5exk"
 
 [node name="SpawnPoint" type="Marker3D" parent="."]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 2, 0)

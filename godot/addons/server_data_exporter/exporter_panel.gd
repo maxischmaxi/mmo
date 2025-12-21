@@ -6,6 +6,7 @@ extends Control
 ##   1. Heightmaps from Terrain3D objects in village scenes
 ##   2. Spawn points to server/spawn_points.json
 ##   3. Obstacles to server/obstacles.json
+##   4. Spawn areas to server/spawn_areas.json
 
 # Zone configuration - maps zone_id to scene path and empire name
 const ZONE_CONFIG = {
@@ -28,6 +29,7 @@ var _export_all_btn: Button
 var _export_heightmaps_btn: Button
 var _export_spawns_btn: Button
 var _export_obstacles_btn: Button
+var _export_spawn_areas_btn: Button
 var _zone_checkboxes: Dictionary = {}
 
 # Export state
@@ -136,6 +138,17 @@ func _build_ui() -> void:
 	_export_obstacles_btn.pressed.connect(_on_export_obstacles_pressed)
 	btn_container.add_child(_export_obstacles_btn)
 	
+	# Second row of buttons
+	var btn_container2 := HBoxContainer.new()
+	btn_container2.add_theme_constant_override("separation", 4)
+	vbox.add_child(btn_container2)
+	
+	_export_spawn_areas_btn = Button.new()
+	_export_spawn_areas_btn.text = "Spawn Areas"
+	_export_spawn_areas_btn.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	_export_spawn_areas_btn.pressed.connect(_on_export_spawn_areas_pressed)
+	btn_container2.add_child(_export_spawn_areas_btn)
+	
 	vbox.add_child(_create_separator())
 	
 	# Progress bar
@@ -174,10 +187,16 @@ func _get_selected_zones() -> Array:
 
 
 func _set_buttons_enabled(enabled: bool) -> void:
-	_export_all_btn.disabled = not enabled
-	_export_heightmaps_btn.disabled = not enabled
-	_export_spawns_btn.disabled = not enabled
-	_export_obstacles_btn.disabled = not enabled
+	if _export_all_btn:
+		_export_all_btn.disabled = not enabled
+	if _export_heightmaps_btn:
+		_export_heightmaps_btn.disabled = not enabled
+	if _export_spawns_btn:
+		_export_spawns_btn.disabled = not enabled
+	if _export_obstacles_btn:
+		_export_obstacles_btn.disabled = not enabled
+	if _export_spawn_areas_btn:
+		_export_spawn_areas_btn.disabled = not enabled
 
 
 func _set_status(text: String) -> void:
@@ -215,21 +234,27 @@ func _on_export_all_pressed() -> void:
 	
 	await get_tree().process_frame
 	
-	# Step 1: Heightmaps (0-50%)
-	_append_status("[color=yellow]Step 1/3: Heightmaps[/color]\n")
+	# Step 1: Heightmaps (0-40%)
+	_append_status("[color=yellow]Step 1/4: Heightmaps[/color]\n")
 	await _export_heightmaps(server_path, selected_zones)
 	
-	# Step 2: Spawn Points (50-75%)
-	_progress_bar.value = 50
-	_append_status("\n[color=yellow]Step 2/3: Spawn Points[/color]\n")
+	# Step 2: Spawn Points (40-55%)
+	_progress_bar.value = 40
+	_append_status("\n[color=yellow]Step 2/4: Spawn Points[/color]\n")
 	await get_tree().process_frame
 	await _export_spawn_points(server_path, selected_zones)
 	
-	# Step 3: Obstacles (75-100%)
-	_progress_bar.value = 75
-	_append_status("\n[color=yellow]Step 3/3: Obstacles[/color]\n")
+	# Step 3: Obstacles (55-70%)
+	_progress_bar.value = 55
+	_append_status("\n[color=yellow]Step 3/4: Obstacles[/color]\n")
 	await get_tree().process_frame
 	await _export_obstacles(server_path, selected_zones)
+	
+	# Step 4: Spawn Areas (70-100%)
+	_progress_bar.value = 70
+	_append_status("\n[color=yellow]Step 4/4: Spawn Areas[/color]\n")
+	await get_tree().process_frame
+	await _export_spawn_areas(server_path, selected_zones)
 	
 	_progress_bar.value = 100
 	_append_status("\n[color=lime]=============================")
@@ -311,6 +336,29 @@ func _on_export_obstacles_pressed() -> void:
 	await _export_obstacles(_get_server_path(), selected_zones)
 	
 	_append_status("\n[color=lime]Obstacles export complete![/color]")
+	
+	_is_exporting = false
+	_set_buttons_enabled(true)
+
+
+func _on_export_spawn_areas_pressed() -> void:
+	if _is_exporting:
+		return
+	
+	var selected_zones := _get_selected_zones()
+	if selected_zones.is_empty():
+		_set_status("[color=red]No zones selected![/color]")
+		return
+	
+	_is_exporting = true
+	_set_buttons_enabled(false)
+	
+	_set_status("[color=cyan]Exporting spawn areas...[/color]\n\n")
+	await get_tree().process_frame
+	
+	await _export_spawn_areas(_get_server_path(), selected_zones)
+	
+	_append_status("\n[color=lime]Spawn areas export complete![/color]")
 	
 	_is_exporting = false
 	_set_buttons_enabled(true)
@@ -817,4 +865,81 @@ func _extract_csg_shape(csg: CSGShape3D, transform: Transform3D) -> Variant:
 		}
 	
 	return null
+#endregion
+
+
+#region Spawn Areas Export
+func _export_spawn_areas(server_path: String, zones: Array) -> void:
+	var all_zones = {}
+	
+	for zone_id in zones:
+		var config = ZONE_CONFIG[zone_id]
+		var scene_path: String = config.scene
+		
+		_append_status("  Zone %d... " % zone_id)
+		
+		var scene = load(scene_path)
+		if scene == null:
+			_append_status("[color=red]not found[/color]\n")
+			continue
+		
+		var root = scene.instantiate()
+		var spawn_areas = _extract_spawn_areas(root)
+		root.queue_free()
+		
+		all_zones[str(zone_id)] = spawn_areas
+		_append_status("[color=lime]%d area(s)[/color]\n" % spawn_areas.size())
+	
+	# Save to JSON
+	var json_string = JSON.stringify(all_zones, "  ")
+	
+	# Save to godot project
+	var godot_path = "res://exported_spawn_areas.json"
+	var file = FileAccess.open(godot_path, FileAccess.WRITE)
+	if file:
+		file.store_string(json_string)
+		file.close()
+	
+	# Save to server
+	var server_file_path = server_path.path_join("spawn_areas.json")
+	var server_file = FileAccess.open(server_file_path, FileAccess.WRITE)
+	if server_file:
+		server_file.store_string(json_string)
+		server_file.close()
+		_append_status("  Saved to server/spawn_areas.json\n")
+
+
+func _extract_spawn_areas(node: Node) -> Array:
+	var spawn_areas = []
+	
+	# Check if this node is a SpawnArea3D
+	if node.get_script() != null:
+		var script_path = node.get_script().resource_path if node.get_script() else ""
+		if "spawn_area_3d" in script_path.to_lower() or node.get_class() == "SpawnArea3D":
+			# This is a SpawnArea3D node
+			if node.has_method("to_dict"):
+				var area_data = node.to_dict()
+				if not area_data.polygon.is_empty():
+					spawn_areas.append(area_data)
+	
+	# Also check by class name for custom types
+	if node is Node3D and node.has_method("to_dict"):
+		# Check if it has SpawnArea3D properties
+		if "polygon" in node and "enemy_configs" in node:
+			var area_data = node.to_dict()
+			if not area_data.polygon.is_empty():
+				# Avoid duplicates
+				var dominated = false
+				for existing in spawn_areas:
+					if existing.id == area_data.id:
+						dominated = true
+						break
+				if not dominated:
+					spawn_areas.append(area_data)
+	
+	# Recursively search children
+	for child in node.get_children():
+		spawn_areas.append_array(_extract_spawn_areas(child))
+	
+	return spawn_areas
 #endregion

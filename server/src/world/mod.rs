@@ -2,8 +2,10 @@
 
 mod zone_manager;
 pub mod heightmap;
+pub mod spawn_area;
 
-pub use zone_manager::{ZoneManager, ZoneDefinition, ZoneSpawnPoint, ZoneEnemySpawn, ZoneNpcSpawn};
+pub use zone_manager::{ZoneManager, ZoneDefinition, ZoneSpawnPoint, ZoneNpcSpawn};
+pub use spawn_area::{SpawnArea, SpawnAreaManager, EnemySpawnConfig};
 pub use heightmap::Heightmap;
 
 use std::collections::HashMap;
@@ -41,10 +43,21 @@ pub struct GameWorld {
     pub items: HashMap<u32, ItemDef>,
     /// Zone manager
     pub zone_manager: ZoneManager,
+    /// Spawn area manager for enemy spawning
+    spawn_area_manager: SpawnAreaManager,
 }
 
 impl GameWorld {
     pub fn new(items: HashMap<u32, ItemDef>, zone_manager: ZoneManager) -> Self {
+        Self::with_spawn_areas(items, zone_manager, SpawnAreaManager::new())
+    }
+    
+    /// Create a new game world with spawn areas
+    pub fn with_spawn_areas(
+        items: HashMap<u32, ItemDef>,
+        zone_manager: ZoneManager,
+        spawn_area_manager: SpawnAreaManager,
+    ) -> Self {
         let mut world = Self {
             players: HashMap::new(),
             enemies: HashMap::new(),
@@ -55,9 +68,10 @@ impl GameWorld {
             next_item_id: 20000,
             items,
             zone_manager,
+            spawn_area_manager,
         };
         
-        // Spawn enemies for all zones
+        // Spawn enemies for all zones using spawn areas
         world.spawn_all_zone_enemies();
         
         // Spawn NPCs for all zones
@@ -66,27 +80,69 @@ impl GameWorld {
         world
     }
     
-    /// Spawn enemies for all zones using zone_manager data
+    /// Spawn enemies for all zones using spawn area system
     fn spawn_all_zone_enemies(&mut self) {
-        let zone_ids = self.zone_manager.get_zone_ids();
-        let mut total_spawned = 0;
-        
-        // Collect spawn data first to avoid borrow issues
-        let mut spawn_data: Vec<(u32, [f32; 3], EnemyType)> = Vec::new();
-        for zone_id in zone_ids {
-            let spawns = self.zone_manager.get_enemy_spawns(zone_id);
-            for spawn in spawns {
-                spawn_data.push((zone_id, spawn.position, spawn.enemy_type));
+        // Try spawn areas first
+        if self.spawn_area_manager.has_spawn_areas() {
+            let spawns = self.spawn_area_manager.get_initial_spawns();
+            let total_spawned = spawns.len();
+            
+            // We need to collect area_ids before modifying spawn_area_manager
+            // The spawns are generated in order by area, so we can track which area each belongs to
+            let mut enemy_area_assignments: Vec<(u64, String)> = Vec::new();
+            
+            for (zone_id, pos_xz, enemy_type, level) in &spawns {
+                let position = [pos_xz[0], 0.0, pos_xz[1]];
+                let enemy_id = self.spawn_enemy_with_level(*zone_id, position, *enemy_type, *level);
+                
+                // Find which area this enemy belongs to
+                if let Some(area_id) = self.spawn_area_manager.find_area_at(*zone_id, pos_xz[0], pos_xz[1]) {
+                    enemy_area_assignments.push((enemy_id, area_id.to_string()));
+                }
             }
+            
+            // Now register all enemies with their areas
+            for (enemy_id, area_id) in enemy_area_assignments {
+                self.spawn_area_manager.register_enemy(enemy_id, &area_id);
+            }
+            
+            info!("Spawned {} enemies using spawn areas", total_spawned);
+        } else {
+            info!("No spawn areas defined, enemies will not spawn automatically");
         }
+    }
+    
+    /// Spawn an enemy with a specific level
+    pub fn spawn_enemy_with_level(&mut self, zone_id: u32, position: [f32; 3], enemy_type: EnemyType, level: u8) -> u64 {
+        let id = self.next_enemy_id;
+        self.next_enemy_id += 1;
         
-        // Now spawn enemies
-        for (zone_id, position, enemy_type) in spawn_data {
-            self.spawn_enemy(zone_id, position, enemy_type);
-            total_spawned += 1;
-        }
+        // Adjust Y position based on terrain height plus ground offset
+        let terrain_height = self.zone_manager.get_terrain_height(zone_id, position[0], position[2]);
+        let adjusted_position = [position[0], terrain_height + Self::ENTITY_GROUND_OFFSET, position[2]];
         
-        info!("Spawned {} enemies across all zones", total_spawned);
+        debug!("Spawning enemy {} (level {}) at ({:.1}, {:.1}, {:.1}) -> adjusted Y to {:.1}",
+            id, level, position[0], position[1], position[2], adjusted_position[1]);
+        
+        let mut enemy = crate::entities::ServerEnemy::new(id, zone_id, enemy_type, adjusted_position);
+        enemy.level = level;
+        
+        // Recalculate stats based on level
+        let (base_health, base_attack) = match enemy_type {
+            EnemyType::Goblin => (50, 8),
+            EnemyType::Wolf => (65, 10),
+            EnemyType::Skeleton => (80, 14),
+            EnemyType::Mutant => (150, 25),
+        };
+        
+        let level_multiplier = 1.0 + (level as f32 - 1.0) * 0.15;
+        enemy.max_health = (base_health as f32 * level_multiplier) as u32;
+        enemy.health = enemy.max_health;
+        enemy.attack_power = (base_attack as f32 * level_multiplier) as u32;
+        
+        self.enemies.insert(id, enemy);
+        
+        id
     }
     
     /// Spawn NPCs for all zones using zone_manager data
@@ -143,29 +199,43 @@ impl GameWorld {
             .collect()
     }
     
-    /// Spawn enemies for a specific zone
+    /// Spawn enemies for a specific zone using spawn areas
+    /// This is typically called when a zone needs to be respawned
     pub fn spawn_enemies_for_zone(&mut self, zone_id: u32) -> Vec<ServerMessage> {
         let mut messages = Vec::new();
         
-        // Collect spawn data first to avoid borrow issues
-        let spawn_data: Vec<([f32; 3], EnemyType)> = self.zone_manager
-            .get_enemy_spawns(zone_id)
-            .iter()
-            .map(|spawn| (spawn.position, spawn.enemy_type))
-            .collect();
+        // Get spawn areas for this zone
+        let areas = self.spawn_area_manager.get_areas(zone_id).to_vec();
+        let mut rng = rand::thread_rng();
         
-        for (position, enemy_type) in spawn_data {
-            let enemy_id = self.spawn_enemy(zone_id, position, enemy_type);
-            if let Some(enemy) = self.enemies.get(&enemy_id) {
-                messages.push(ServerMessage::EnemySpawn {
-                    id: enemy_id,
-                    zone_id,
-                    enemy_type: enemy.enemy_type,
-                    position: enemy.position,
-                    health: enemy.health,
-                    max_health: enemy.max_health,
-                    level: enemy.level,
-                });
+        for area in areas {
+            let current_pop = self.spawn_area_manager.get_area_population(&area.id);
+            let spawns_needed = area.max_population.saturating_sub(current_pop);
+            
+            for _ in 0..spawns_needed {
+                if let Some(pos_xz) = area.get_random_point() {
+                    if let Some(config) = area.select_enemy_type() {
+                        let level = rng.gen_range(config.min_level..=config.max_level);
+                        let position = [pos_xz[0], 0.0, pos_xz[1]];
+                        let enemy_id = self.spawn_enemy_with_level(zone_id, position, config.enemy_type, level);
+                        
+                        // Register the enemy with its area
+                        let area_id = area.id.clone();
+                        self.spawn_area_manager.register_enemy(enemy_id, &area_id);
+                        
+                        if let Some(enemy) = self.enemies.get(&enemy_id) {
+                            messages.push(ServerMessage::EnemySpawn {
+                                id: enemy_id,
+                                zone_id,
+                                enemy_type: enemy.enemy_type,
+                                position: enemy.position,
+                                health: enemy.health,
+                                max_health: enemy.max_health,
+                                level: enemy.level,
+                            });
+                        }
+                    }
+                }
             }
         }
         
@@ -551,6 +621,10 @@ impl GameWorld {
         let death_messages = self.process_enemy_deaths();
         messages.extend(death_messages);
         
+        // Process spawn area respawns
+        let respawn_messages = self.process_spawn_area_respawns(delta);
+        messages.extend(respawn_messages);
+        
         messages
     }
     
@@ -758,29 +832,51 @@ impl GameWorld {
                     });
                 }
                 
-                // Respawn enemy after delay (simplified: immediate respawn at random location)
-                let new_pos = [
-                    enemy.spawn_position[0] + rng.gen_range(-5.0..5.0),
-                    enemy.spawn_position[1],
-                    enemy.spawn_position[2] + rng.gen_range(-5.0..5.0),
-                ];
-                // Preserve zone_id when respawning
-                let zone_id = enemy.zone_id;
-                let new_enemy_id = self.spawn_enemy(zone_id, new_pos, enemy.enemy_type);
-                
-                // Broadcast new enemy spawn
-                if let Some(new_enemy) = self.enemies.get(&new_enemy_id) {
-                    messages.push(ServerMessage::EnemySpawn {
-                        id: new_enemy_id,
-                        zone_id,
-                        enemy_type: new_enemy.enemy_type,
-                        position: new_enemy.position,
-                        health: new_enemy.health,
-                        max_health: new_enemy.max_health,
-                        level: new_enemy.level,
-                    });
-                }
+                // Notify spawn area manager of enemy death (queues respawn timer)
+                self.spawn_area_manager.on_enemy_death(enemy_id);
             }
+        }
+        
+        messages
+    }
+    
+    /// Process spawn area respawns
+    /// Returns messages for newly spawned enemies
+    fn process_spawn_area_respawns(&mut self, delta: f32) -> Vec<ServerMessage> {
+        let mut messages = Vec::new();
+        
+        // Update spawn area manager and get any pending spawns
+        let spawns = self.spawn_area_manager.update(delta);
+        
+        // Collect area assignments
+        let mut enemy_area_assignments: Vec<(u64, String)> = Vec::new();
+        
+        for (zone_id, pos_xz, enemy_type, level) in &spawns {
+            let position = [pos_xz[0], 0.0, pos_xz[1]];
+            let enemy_id = self.spawn_enemy_with_level(*zone_id, position, *enemy_type, *level);
+            
+            // Find which area this enemy belongs to
+            if let Some(area_id) = self.spawn_area_manager.find_area_at(*zone_id, pos_xz[0], pos_xz[1]) {
+                enemy_area_assignments.push((enemy_id, area_id.to_string()));
+            }
+            
+            // Broadcast new enemy spawn
+            if let Some(enemy) = self.enemies.get(&enemy_id) {
+                messages.push(ServerMessage::EnemySpawn {
+                    id: enemy_id,
+                    zone_id: *zone_id,
+                    enemy_type: enemy.enemy_type,
+                    position: enemy.position,
+                    health: enemy.health,
+                    max_health: enemy.max_health,
+                    level: enemy.level,
+                });
+            }
+        }
+        
+        // Register all enemies with their areas
+        for (enemy_id, area_id) in enemy_area_assignments {
+            self.spawn_area_manager.register_enemy(enemy_id, &area_id);
         }
         
         messages

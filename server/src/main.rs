@@ -14,7 +14,7 @@ use log::{info, error};
 use mmo_shared::{DEFAULT_PORT, SERVER_TICK_RATE};
 
 use crate::network::Server;
-use crate::world::{GameWorld, ZoneManager};
+use crate::world::{GameWorld, ZoneManager, SpawnAreaManager};
 use crate::persistence::{PersistenceHandle, Database};
 
 /// Database URL (matches docker-compose.yml)
@@ -35,19 +35,6 @@ async fn load_zones_from_db(db: &Database) -> ZoneManager {
         }
     }
     
-    // Spawn points are hardcoded in ZoneManager::with_defaults()
-    // to match terrain heights from terrain_generator.gd
-    
-    // Load enemy spawns
-    match db.load_zone_enemy_spawns().await {
-        Ok(enemy_spawns) => {
-            zone_manager.load_enemy_spawns(enemy_spawns);
-        }
-        Err(e) => {
-            error!("Failed to load zone enemy spawns: {}", e);
-        }
-    }
-    
     // Load NPC spawns
     match db.load_zone_npc_spawns().await {
         Ok(npc_spawns) => {
@@ -59,15 +46,30 @@ async fn load_zones_from_db(db: &Database) -> ZoneManager {
     }
     
     // Initialize obstacles for enemy pathfinding
-    // This is done in code rather than database because obstacles
-    // must match the Godot scene layouts
     zone_manager.init_obstacles();
     
     // Initialize heightmaps for terrain height queries
-    // Required for spawning enemies/NPCs at correct Y positions
     zone_manager.init_heightmaps();
     
     zone_manager
+}
+
+/// Load spawn areas from JSON file
+fn load_spawn_areas() -> SpawnAreaManager {
+    let mut spawn_area_manager = SpawnAreaManager::new();
+    
+    match spawn_area_manager.load_from_json("spawn_areas.json") {
+        Ok(()) => {
+            info!("Spawn areas loaded successfully");
+        }
+        Err(e) => {
+            // This is expected if no spawn_areas.json exists yet
+            info!("No spawn areas loaded: {}", e);
+            info!("Create SpawnArea3D nodes in Godot and export to spawn_areas.json");
+        }
+    }
+    
+    spawn_area_manager
 }
 
 /// Redis URL (matches docker-compose.yml)
@@ -134,8 +136,11 @@ async fn main() {
         }
     };
     
-    // Create the game world with loaded items and zones
-    let mut world = GameWorld::new(items, zone_manager);
+    // Load spawn areas from exported JSON
+    let spawn_area_manager = load_spawn_areas();
+    
+    // Create the game world with loaded items, zones, and spawn areas
+    let mut world = GameWorld::with_spawn_areas(items, zone_manager, spawn_area_manager);
     
     // Create the network server
     let mut server = match Server::new(DEFAULT_PORT, persistence.clone()).await {
