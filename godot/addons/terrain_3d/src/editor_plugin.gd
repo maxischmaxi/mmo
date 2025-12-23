@@ -390,6 +390,11 @@ func _on_scene_changed(scene_root: Node) -> void:
 		
 	for node in scene_root.find_children("", "Terrain3DObjects"):
 		node.editor_setup(self)
+	
+	# Disable checkered pattern on all Terrain3D nodes when scene loads
+	for terrain_node in scene_root.find_children("", "Terrain3D"):
+		if terrain_node and terrain_node.material:
+			terrain_node.material.show_checkered = false
 
 	asset_dock.update_assets()
 	await get_tree().create_timer(2).timeout

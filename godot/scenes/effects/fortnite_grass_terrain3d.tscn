@@ -1,0 +1,75 @@
+[gd_scene load_steps=7 format=3 uid="uid://bvnm2xf8qpw4k"]
+
+[ext_resource type="Script" path="res://addons/terrain_3d/extras/particle_example/terrain_3D_particles.gd" id="1_particles"]
+[ext_resource type="Shader" uid="uid://dq3lfyp3u5oxt" path="res://addons/terrain_3d/extras/particle_example/particles.gdshader" id="2_process_shader"]
+[ext_resource type="Shader" uid="uid://c8fnm3xq2w5py" path="res://shaders/fortnite_grass_mesh.gdshader" id="3_mesh_shader"]
+
+[sub_resource type="FastNoiseLite" id="FastNoiseLite_main"]
+noise_type = 2
+seed = 42
+frequency = 0.01
+fractal_type = 2
+fractal_octaves = 3
+
+[sub_resource type="NoiseTexture2D" id="NoiseTexture2D_main"]
+seamless = true
+noise = SubResource("FastNoiseLite_main")
+
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_process"]
+render_priority = 0
+shader = ExtResource("2_process_shader")
+shader_parameter/main_noise_scale = 0.01
+shader_parameter/position_offset = Vector3(0, 0, 0)
+shader_parameter/align_to_normal = true
+shader_parameter/normal_strength = 0.3
+shader_parameter/random_rotation = true
+shader_parameter/random_spacing = 0.5
+shader_parameter/min_scale = Vector3(0.8, 0.6, 0.8)
+shader_parameter/max_scale = Vector3(1.2, 1.0, 1.2)
+shader_parameter/noise_scale = 0.0041
+shader_parameter/wind_speed = 0.02
+shader_parameter/wind_strength = 0.6
+shader_parameter/wind_dithering = 4.0
+shader_parameter/wind_direction = Vector2(1, 0.3)
+shader_parameter/clod_scale_boost = 2.5
+shader_parameter/clod_min_threshold = 0.2
+shader_parameter/clod_max_threshold = 0.5
+shader_parameter/patch_min_threshold = 0.025
+shader_parameter/patch_max_threshold = 0.2
+shader_parameter/condition_dither_range = 0.15
+shader_parameter/surface_slope_min = 0.85
+shader_parameter/distance_fade_ammount = 0.5
+shader_parameter/main_noise = SubResource("NoiseTexture2D_main")
+
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_mesh"]
+render_priority = 0
+shader = ExtResource("3_mesh_shader")
+shader_parameter/base_color = Vector3(0.18, 0.45, 0.12)
+shader_parameter/tip_color = Vector3(0.45, 0.78, 0.25)
+shader_parameter/highlight_color = Vector3(0.65, 0.92, 0.45)
+shader_parameter/color_variation = 0.12
+shader_parameter/base_color_height = 0.25
+shader_parameter/wind_direction = Vector2(1, 0.3)
+shader_parameter/sway_speed = 1.5
+shader_parameter/sway_amount = 0.05
+shader_parameter/toon_bands = 4.0
+shader_parameter/ambient_light = 0.4
+shader_parameter/rim_strength = 0.25
+shader_parameter/translucency = 0.2
+
+[sub_resource type="PlaneMesh" id="PlaneMesh_grass"]
+resource_local_to_scene = true
+size = Vector2(0.15, 0.4)
+orientation = 2
+subdivide_depth = 2
+
+[node name="FortniteGrassTerrain3D" type="Node3D"]
+script = ExtResource("1_particles")
+instance_spacing = 0.4
+cell_width = 32.0
+grid_width = 9
+process_fixed_fps = 30
+process_material = SubResource("ShaderMaterial_process")
+mesh = SubResource("PlaneMesh_grass")
+shadow_mode = 0
+mesh_material_override = SubResource("ShaderMaterial_mesh")

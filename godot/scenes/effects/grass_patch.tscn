@@ -1,0 +1,46 @@
+[gd_scene load_steps=3 format=3 uid="uid://c4xm2nf8qpw3l"]
+
+[ext_resource type="Script" uid="uid://n2kyjjh4qgs1" path="res://scripts/grass_system.gd" id="1_grass"]
+[ext_resource type="Shader" uid="uid://d0g0m4n201ab2" path="res://shaders/fortnite_grass.gdshader" id="2_shader"]
+
+[sub_resource type="ShaderMaterial" id="ShaderMaterial_grass"]
+render_priority = 0
+shader = ExtResource("2_shader")
+shader_parameter/base_color = Vector3(0.18, 0.45, 0.12)
+shader_parameter/tip_color = Vector3(0.45, 0.78, 0.25)
+shader_parameter/highlight_color = Vector3(0.65, 0.92, 0.45)
+shader_parameter/color_variation = 0.1
+shader_parameter/base_color_height = 0.25
+shader_parameter/wind_strength = 0.08
+shader_parameter/wind_speed = 1.2
+shader_parameter/wind_speed_secondary = 2.5
+shader_parameter/wind_direction = Vector2(1, 0.3)
+shader_parameter/wind_scale = 0.15
+shader_parameter/toon_sharpness = 3.0
+shader_parameter/toon_bands = 4.0
+shader_parameter/ambient_light = 0.35
+shader_parameter/rim_strength = 0.3
+shader_parameter/translucency = 0.25
+shader_parameter/alpha_cutoff = 0.1
+
+[node name="GrassSystem" type="Node3D"]
+script = ExtResource("1_grass")
+blade_width = 0.08
+blade_height = 0.4
+height_variation = 0.25
+blade_segments = 3
+blade_curve = 0.15
+instance_count = 10000
+spawn_radius = 50.0
+min_spacing = 0.1
+use_terrain_height = true
+min_height = -10.0
+max_height = 50.0
+max_slope = 0.6
+grass_material = SubResource("ShaderMaterial_grass")
+base_color = Color(0.18, 0.45, 0.12, 1)
+tip_color = Color(0.45, 0.78, 0.25, 1)
+highlight_color = Color(0.65, 0.92, 0.45, 1)
+wind_strength = 0.08
+wind_speed = 1.2
+wind_direction = Vector2(1, 0.3)

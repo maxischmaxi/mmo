@@ -40,9 +40,8 @@ _shader_parameters = {
 world_background = 0
 shader_override_enabled = true
 shader_override = ExtResource("1_25yvq")
-show_checkered = true
 
-[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_s618i"]
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_8upyr"]
 transparency = 4
 cull_mode = 2
 vertex_color_use_as_albedo = true
@@ -52,16 +51,16 @@ distance_fade_mode = 1
 distance_fade_min_distance = 128.0
 distance_fade_max_distance = 96.0
 
-[sub_resource type="Terrain3DMeshAsset" id="Terrain3DMeshAsset_25yvq"]
+[sub_resource type="Terrain3DMeshAsset" id="Terrain3DMeshAsset_mqhc4"]
 generated_type = 1
 height_offset = 0.5
-material_override = SubResource("StandardMaterial3D_s618i")
+material_override = SubResource("StandardMaterial3D_8upyr")
 last_lod = 0
 last_shadow_lod = 0
 lod0_range = 128.0
 
 [sub_resource type="Terrain3DAssets" id="Terrain3DAssets_0qkg8"]
-mesh_list = Array[Terrain3DMeshAsset]([SubResource("Terrain3DMeshAsset_25yvq")])
+mesh_list = Array[Terrain3DMeshAsset]([SubResource("Terrain3DMeshAsset_mqhc4")])
 
 [sub_resource type="ShaderMaterial" id="ShaderMaterial_30boe"]
 render_priority = 0
@@ -126,7 +125,6 @@ data_directory = "res://assets/terrain/jinno"
 material = SubResource("Terrain3DMaterial_fswue")
 assets = SubResource("Terrain3DAssets_0qkg8")
 label_distance = 1500.0
-show_checkered = true
 top_level = true
 metadata/_edit_lock_ = true
 
